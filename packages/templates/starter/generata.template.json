@@ -1,0 +1,12 @@
+{
+  "name": "@generata/starter",
+  "description": "Bare-minimum starter: one agent, one workflow. Designed to be replaced as you build your own pipeline.",
+  "engineVersion": "^1.0.0",
+  "requiredBins": [
+    {
+      "name": "claude",
+      "hint": "Install: https://docs.anthropic.com/claude-code"
+    }
+  ],
+  "postInstall": "Starter template installed.\n\nNext steps:\n  1. pnpm generata workflow hello --message \"world\"\n  2. Edit agents/echo.ts and agents/workflows/hello.ts\n  3. Add your own agents alongside or replace echo entirely\n\nSee README.md for the smallest possible map of what you got."
+}
