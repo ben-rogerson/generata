@@ -149,9 +149,17 @@ async function scanTemplate(dir: string): Promise<{
     }
   }
 
+  let skipped = 0;
+
   for (const file of tsFilesUnder(agentsRoot)) {
-    const mod = await loadTs<{ default: AgentDef }>(file, import.meta.url);
-    const def = mod.default;
+    let def: AgentDef | undefined;
+    try {
+      const mod = await loadTs<{ default: AgentDef }>(file, import.meta.url);
+      def = mod.default;
+    } catch {
+      skipped++;
+      continue;
+    }
     if (!def?.name) continue;
     for (const key of def.envKeys ?? []) {
       (agentEnvKeys[key] ??= []).push(def.name);
@@ -164,8 +172,14 @@ async function scanTemplate(dir: string): Promise<{
         continue;
       }
       const file = join(workflowsRoot, entry.name);
-      const mod = await loadTs<{ default: WorkflowDef }>(file, import.meta.url);
-      const wf = mod.default;
+      let wf: WorkflowDef | undefined;
+      try {
+        const mod = await loadTs<{ default: WorkflowDef }>(file, import.meta.url);
+        wf = mod.default;
+      } catch {
+        skipped++;
+        continue;
+      }
       if (!wf?.name) continue;
       workflows.push(wf);
       for (const step of wf.steps ?? []) {
@@ -174,6 +188,15 @@ async function scanTemplate(dir: string): Promise<{
         }
       }
     }
+  }
+
+  if (skipped > 0) {
+    console.log(
+      fmt.dim(
+        `      Skipped ${skipped} file(s) that could not be loaded (typically a fresh template clone without dependencies). ` +
+          `Env keys declared in those files won't appear in .env.example; the workflow precheck will catch any missing vars at run time.`,
+      ),
+    );
   }
 
   return { agentEnvKeys, workflowEnvKeys, workflows };
