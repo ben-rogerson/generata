@@ -7,7 +7,7 @@ import { loadManifest, TemplateManifest } from "./manifest.js";
 import { runPreflight, formatPreflight } from "./preflight.js";
 import { generateEnvExample } from "./env-example.js";
 import { promptForEnv, writeDotEnv, PromptItem } from "./env-prompt.js";
-import { copyTree } from "./copy.js";
+import { copyTree, filesEqual } from "./copy.js";
 import { generateSlashCommands } from "./slash-commands.js";
 import { loadTs } from "../ts-loader.js";
 import type { AgentDef, WorkflowDef } from "../define.js";
@@ -116,10 +116,14 @@ export async function runInit(opts: InitOpts): Promise<void> {
       if (stat.isDirectory()) {
         copyTree({ src: srcAbs, dest: destSubAbs, force, dryRun: false });
       } else {
-        if (existsSync(destSubAbs) && !force) {
-          throw new Error(
-            `File conflict at ${destSubAbs}. Re-run with --force to overwrite.`,
-          );
+        if (existsSync(destSubAbs)) {
+          // Identical content is a no-op, not a conflict.
+          if (filesEqual(destSubAbs, srcAbs)) continue;
+          if (!force) {
+            throw new Error(
+              `File conflict at ${destSubAbs}. Re-run with --force to overwrite.`,
+            );
+          }
         }
         mkdirSync(join(destSubAbs, ".."), { recursive: true });
         writeFileSync(destSubAbs, readFileSync(srcAbs));

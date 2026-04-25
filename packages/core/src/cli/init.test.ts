@@ -113,6 +113,30 @@ describe("runInit", () => {
     }
   });
 
+  it("re-running with identical files is idempotent (no conflict, no error)", async () => {
+    const dest = mkdtempSync(join(tmpdir(), "init-idempotent-"));
+    try {
+      await runInit({
+        spec: FIXTURE,
+        dest,
+        skipPreflight: true,
+        skipInstall: true,
+        yes: true,
+      });
+      // Second run, same template, no --force. Should not throw.
+      await runInit({
+        spec: FIXTURE,
+        dest,
+        skipPreflight: true,
+        skipInstall: true,
+        yes: true,
+      });
+      ok(existsSync(join(dest, "agents/echo.ts")));
+    } finally {
+      rmSync(dest, { recursive: true, force: true });
+    }
+  });
+
   it("--force overwrites conflicting files", async () => {
     const dest = mkdtempSync(join(tmpdir(), "init-force-"));
     mkdirSync(join(dest, "agents"), { recursive: true });
