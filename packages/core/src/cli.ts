@@ -97,6 +97,7 @@ async function main() {
       skipPreflight: flags["skip-preflight"] === "true",
       skipInstall: flags["skip-install"] === "true",
       yes: flags.yes === "true",
+      force: flags.force === "true",
     });
     return;
   }
