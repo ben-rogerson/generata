@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadRegistry } from "./registry.js";
+import { loadRegistry, resolveAgentName } from "./registry.js";
 
 const DEFINE_PATH = fileURLToPath(new URL("./define.ts", import.meta.url));
 
@@ -88,8 +88,6 @@ describe("loadRegistry path validation", () => {
     }
   });
 });
-
-import { resolveAgentName } from "./registry.js";
 
 describe("resolveAgentName", () => {
   const candidates = ["echo", "core/plan-dreamer", "utilities/plan-remover"];
