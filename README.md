@@ -58,6 +58,7 @@ That's the whole API surface for most use cases - `defineAgent`, `defineWorkflow
 - **Runs on the Claude Code CLI you already have** - no separate API key, no provider config.
 - **Zod-validated** end to end. Bad configs and bad step args fail loud at the edges.
 - **Metrics included** - cost, tokens, and duration per agent and per workflow, out of the box.
+- **Prompt logs on demand** - flip `logPrompts: true` (or pass `--log-prompts`) and every prompt sent to Claude Code lands in `logs/` so you can replay, diff, or debug what an agent actually saw.
 
 ## Why?
 
