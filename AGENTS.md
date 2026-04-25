@@ -42,6 +42,7 @@ The engine's public API is exactly what `packages/core/src/define.ts` exports. I
 - Merge style is **squash only**. The merge commit message defaults to the PR title — keep PR titles in conventional-commit format (`feat:`, `fix:`, etc.).
 - Use `gh pr create --fill && gh pr merge --squash --auto` to push and queue auto-merge once CI passes.
 - After merge, the source branch is auto-deleted by GitHub. Don't manually clean up.
+- **Claude Code shortcut:** invoke `/ship` to run the full sequence (branch from latest main, commit, push, PR, matching `patch`/`minor` changeset). See `.claude/skills/ship/SKILL.md`.
 
 ---
 
