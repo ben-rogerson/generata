@@ -106,7 +106,7 @@ export async function runInit(opts: InitOpts): Promise<void> {
     }
 
     console.log(fmt.dim(`[6/7] Copying template files...`));
-    const installPaths = withDefaults(manifest.installPaths);
+    const installPaths = withDefaults(manifest.installPaths, manifest.name);
     const force = opts.force ?? false;
     for (const [src, dest] of Object.entries(installPaths)) {
       const srcAbs = resolve(tmpl.dir, src);
@@ -153,14 +153,22 @@ export async function runInit(opts: InitOpts): Promise<void> {
   }
 }
 
-function withDefaults(installPaths: Record<string, string>): Record<string, string> {
+function withDefaults(
+  installPaths: Record<string, string>,
+  manifestName: string,
+): Record<string, string> {
+  const alias = templateAlias(manifestName);
   const defaults: Record<string, string> = {
     "agents/": "agents/",
     "skills/": ".claude/skills/",
     "files/": "./",
-    "README.md": "README.md",
+    "README.md": `README-${alias}.md`,
   };
   return { ...defaults, ...installPaths };
+}
+
+export function templateAlias(manifestName: string): string {
+  return manifestName.replace(/^@[^/]+\//, "");
 }
 
 async function scanTemplate(dir: string): Promise<{

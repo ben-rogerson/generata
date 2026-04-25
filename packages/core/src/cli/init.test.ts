@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runInit, runBareInit } from "./init.js";
+import { runInit, runBareInit, templateAlias } from "./init.js";
 
 const FIXTURE = fileURLToPath(new URL("../../test/fixtures/template-fake", import.meta.url));
 
