@@ -2,7 +2,9 @@
   "name": "generata-monorepo",
   "private": true,
   "version": "0.0.0",
-  "description": "Composable multi-agent pipelines for trusted AI-driven creation.",
+  "description": "Composable multi-agent pipelines on top of the Claude Code CLI.",
+  "author": "Ben Rogerson <info@benrogerson.dev>",
+  "license": "ISC",
   "type": "module",
   "packageManager": "pnpm@9.15.0",
   "scripts": {

@@ -1,7 +1,29 @@
 {
   "name": "@generata/core",
-  "version": "1.0.0",
-  "description": "Composable multi-agent pipelines for trusted AI-driven creation.",
+  "version": "1.0.1",
+  "description": "Composable multi-agent pipelines on top of the Claude Code CLI.",
+  "keywords": [
+    "agents",
+    "ai",
+    "ai-agents",
+    "claude",
+    "claude-code",
+    "cli",
+    "multi-agent",
+    "pipeline",
+    "workflow"
+  ],
+  "homepage": "https://github.com/ben-rogerson/generata#readme",
+  "bugs": {
+    "url": "https://github.com/ben-rogerson/generata/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ben-rogerson/generata.git",
+    "directory": "packages/core"
+  },
+  "license": "ISC",
+  "author": "Ben Rogerson <info@benrogerson.dev>",
   "type": "module",
   "main": "dist/define.js",
   "types": "dist/define.d.ts",
