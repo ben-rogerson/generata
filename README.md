@@ -18,6 +18,37 @@ generata workflow hello --message "world"
 
 That's a one-agent, one-workflow starter. `init` scaffolds the project, asks for any env values, and writes Claude Code slash commands for every workflow it finds. When you want the full plan-driven coding pipeline, swap `@generata/starter` for [`@generata/coding`](./packages/templates/coding).
 
+## What an agent looks like
+
+```ts
+import { defineAgent } from "@generata/core";
+
+export default defineAgent({
+  name: "echo",
+  type: "worker",
+  description: "Repeats whatever message it receives.",
+  modelTier: "light",
+  permissions: "read-only",
+  tools: [],
+  promptTemplate: ({ message }) => `Repeat this back exactly: ${message}`,
+});
+```
+
+And a workflow that uses it:
+
+```ts
+import { defineWorkflow } from "@generata/core";
+import echo from "../echo.js";
+
+export default defineWorkflow({
+  name: "hello",
+  required: ["message"],
+  steps: [{ id: "echo", agent: echo }],
+});
+```
+
+That's the whole API surface for most use cases - `defineAgent`, `defineWorkflow`, `defineConfig`. No decorators, no factories, no plugin system.
+
 ## What you get
 
 - **Composable agents** - planners, workers, critics, supervisors. Mix and match.
@@ -25,6 +56,10 @@ That's a one-agent, one-workflow starter. `init` scaffolds the project, asks for
 - **Runs on the Claude Code CLI you already have** - no separate API key, no provider config.
 - **Zod-validated** end to end. Bad configs and bad step args fail loud at the edges.
 - **Metrics included** - cost, tokens, and duration per agent and per workflow, out of the box.
+
+## Why?
+
+Most agent frameworks expect you to manage Anthropic/OpenAI API keys, juggle Python environments, or wire up a runtime that knows how to spawn subagents. generata shells every step out to the Claude Code CLI you already have signed in - so the only runtime is the one you've been using all along. The engine is small, TypeScript-first, and treats critic-retry loops and parallel DAG execution as first-class.
 
 ## Packages
 
@@ -66,3 +101,7 @@ We use [Changesets](https://github.com/changesets/changesets). Add one with `pnp
 ## License
 
 ISC
+
+---
+
+Built by [Ben Rogerson](https://benrogerson.dev).
