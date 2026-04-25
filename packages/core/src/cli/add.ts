@@ -28,7 +28,7 @@ export async function runAdd(opts: AddOpts): Promise<void> {
     const manifest = loadManifest(tmpl.dir);
     console.log(fmt.dim(`  ${manifest.name} - ${manifest.description}`));
 
-    const installPaths = withDefaults(manifest.installPaths);
+    const installPaths = withDefaults(manifest.installPaths, manifest.name);
     const totalWritten: string[] = [];
     const totalWouldWrite: string[] = [];
 
@@ -82,12 +82,16 @@ export async function runAdd(opts: AddOpts): Promise<void> {
   }
 }
 
-function withDefaults(installPaths: Record<string, string>): Record<string, string> {
+function withDefaults(
+  installPaths: Record<string, string>,
+  manifestName: string,
+): Record<string, string> {
+  const alias = manifestName.replace(/^@[^/]+\//, "");
   const defaults: Record<string, string> = {
     "agents/": "agents/",
     "skills/": ".claude/skills/",
     "files/": "./",
-    "README.md": "README.md",
+    "README.md": `README-${alias}.md`,
   };
   return { ...defaults, ...installPaths };
 }
