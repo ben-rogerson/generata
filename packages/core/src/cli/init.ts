@@ -18,15 +18,11 @@ export interface InitOpts {
   skipPreflight?: boolean;
   skipInstall?: boolean;
   yes?: boolean;
+  force?: boolean;
 }
 
 export async function runInit(opts: InitOpts): Promise<void> {
   const destAbs = isAbsolute(opts.dest) ? opts.dest : resolve(opts.dest);
-  if (existsSync(destAbs) && hasUserContent(destAbs)) {
-    throw new Error(
-      `Destination ${destAbs} already has files. Use 'generata add' to merge into an existing project.`,
-    );
-  }
 
   console.log(fmt.dim(`[1/7] Resolving template: ${opts.spec}`));
   const tmpl = await resolveTemplate(opts.spec);
@@ -73,14 +69,20 @@ export async function runInit(opts: InitOpts): Promise<void> {
 
     console.log(fmt.dim(`[6/7] Copying template files...`));
     const installPaths = withDefaults(manifest.installPaths);
+    const force = opts.force ?? false;
     for (const [src, dest] of Object.entries(installPaths)) {
       const srcAbs = resolve(tmpl.dir, src);
       const destSubAbs = resolve(destAbs, dest);
       if (!existsSync(srcAbs)) continue;
       const stat = statSync(srcAbs);
       if (stat.isDirectory()) {
-        copyTree({ src: srcAbs, dest: destSubAbs, force: false, dryRun: false });
+        copyTree({ src: srcAbs, dest: destSubAbs, force, dryRun: false });
       } else {
+        if (existsSync(destSubAbs) && !force) {
+          throw new Error(
+            `File conflict at ${destSubAbs}. Re-run with --force to overwrite.`,
+          );
+        }
         mkdirSync(join(destSubAbs, ".."), { recursive: true });
         writeFileSync(destSubAbs, readFileSync(srcAbs));
       }
@@ -106,12 +108,6 @@ export async function runInit(opts: InitOpts): Promise<void> {
   } finally {
     if (tmpl.cleanup) await tmpl.cleanup();
   }
-}
-
-function hasUserContent(dir: string): boolean {
-  if (!existsSync(dir)) return false;
-  const entries = readdirSync(dir).filter((e) => !e.startsWith(".") && e !== "node_modules");
-  return entries.length > 0;
 }
 
 function withDefaults(installPaths: Record<string, string>): Record<string, string> {

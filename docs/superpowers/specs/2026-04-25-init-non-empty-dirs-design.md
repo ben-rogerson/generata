@@ -22,13 +22,13 @@ Make `init` tolerant of non-empty destination directories. The `add` command sta
 
 1. **Drop the non-empty-dir guard.** Remove the `hasUserContent(destAbs)` check (lines 25-29) and the `hasUserContent` helper (lines 111-115). `init` proceeds in any directory.
 
-2. **Template-file copy gains `add`-style conflict handling.** Today `init`'s copy step (lines 75-87) unconditionally overwrites. Change it to error on existing files unless `--force` is passed, mirroring `runAdd`'s semantics. `--dry-run` already exists on `add`; add it to `init` too for symmetry.
+2. **Template-file copy gains `add`-style conflict handling.** Today `init`'s copy step (lines 75-87) unconditionally overwrites. Change it to error on existing files unless `--force` is passed, mirroring `runAdd`'s semantics. (`--dry-run` deferred — non-trivial for `init`'s preflight/env-prompt/install steps; tracked separately if needed.)
 
 3. **Idempotent scaffolding.**
    - `package.json`: already idempotent (line 232 returns early if it exists). No change.
    - `.env`: env prompt already loads existing `.env` values (line 69). Keep as-is — keys already present in `.env` are pre-filled, so the user can skim through.
 
-4. **Flags.** `init` accepts `--force` (overwrite conflicts) and `--dry-run` (list files that would be written).
+4. **Flags.** `init` accepts `--force` (overwrite conflicts).
 
 ## Out of scope
 
