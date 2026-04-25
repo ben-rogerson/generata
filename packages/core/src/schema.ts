@@ -87,7 +87,7 @@ export const AgentDef = z.discriminatedUnion("type", [
     permissions: z.literal("read-only").default("read-only"),
   }).strict(),
 ]);
-export type AgentDef = z.infer<typeof AgentDef>;
+export type AgentDef = z.infer<typeof AgentDef> & { kind: "agent" };
 export type LLMAgentDef = AgentDef;
 
 // AgentType derived from the union rather than a separate enum
@@ -162,7 +162,7 @@ export const WorkflowDef = z.object({
     .optional(),
   steps: z.array(WorkflowStep).min(1),
 });
-export type WorkflowDef = z.infer<typeof WorkflowDef>;
+export type WorkflowDef = z.infer<typeof WorkflowDef> & { kind: "workflow" };
 
 export const GlobalConfig = z.object({
   modelTiers: z.object({

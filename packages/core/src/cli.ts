@@ -265,7 +265,8 @@ async function main() {
           args: { ...flags, ...s.args },
           dependsOn: s.dependsOn,
         })),
-      });
+      }) as WorkflowDef;
+      (workflowDef as unknown as { kind: "workflow" }).kind = "workflow";
 
       console.log(
         `\n${fmt.bold("[supervisor]")} Executing ${fmt.bold(String(workflowDef.steps.length))}-step workflow`,

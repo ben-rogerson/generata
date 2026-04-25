@@ -3,6 +3,7 @@ import { readdir } from "node:fs/promises";
 import { basename, extname, join, relative, resolve } from "node:path";
 import { existsSync } from "node:fs";
 import { loadTs } from "./ts-loader.js";
+import { deriveName } from "./derive-name.js";
 
 export interface AgentRegistry {
   agents: Map<string, AgentDef>;
@@ -74,11 +75,14 @@ export async function loadSingleAgentRegistry(
     : filePaths;
 
   for (const filePath of candidates) {
+    const derived = deriveName(agentsAbs, filePath);
+    if (derived !== name && basename(derived) !== name) continue;
     const mod = await loadTs<{ default: AgentDef }>(filePath, import.meta.url);
     const def = mod.default;
-    if (!def || def.name !== name) continue;
+    if (!def) continue;
+    (def as unknown as { name: string }).name = derived;
     validateAgentDef(def, filePath);
-    return makeRegistry(new Map([[def.name, def]]));
+    return makeRegistry(new Map([[derived, def]]));
   }
 
   throw new Error(`Agent '${name}' not found in ${relative(opts.projectRoot, agentsAbs)}`);
@@ -91,16 +95,18 @@ export async function loadRegistry(opts: RegistryOpts): Promise<AgentRegistry> {
   const filePaths = existsSync(agentsAbs) ? await collectAgentFiles(agentsAbs, workflowsAbs) : [];
 
   for (const filePath of filePaths) {
+    const derived = deriveName(agentsAbs, filePath);
     const mod = await loadTs<{ default: AgentDef }>(filePath, import.meta.url);
     const def = mod.default;
-    if (!def || typeof def.name !== "string") continue;
-    if (agents.has(def.name)) {
+    if (!def) continue;
+    (def as unknown as { name: string }).name = derived;
+    if (agents.has(derived)) {
       throw new Error(
-        `Duplicate agent name '${def.name}' found in ${filePath} - already registered`,
+        `Duplicate agent name '${derived}' found in ${filePath} - already registered`,
       );
     }
     validateAgentDef(def, filePath);
-    agents.set(def.name, def);
+    agents.set(derived, def);
   }
 
   return makeRegistry(agents);
