@@ -1,6 +1,6 @@
 import { AgentDef } from "./schema.js";
 import { readdir } from "node:fs/promises";
-import { basename, extname, join, relative, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { existsSync } from "node:fs";
 import { loadTs } from "./ts-loader.js";
 import { deriveName } from "./derive-name.js";
@@ -61,6 +61,16 @@ function makeRegistry(agents: Map<string, AgentDef>): AgentRegistry {
   };
 }
 
+export function resolveAgentName(input: string, candidates: string[]): string {
+  if (candidates.includes(input)) return input;
+  const matches = candidates.filter((c) => basename(c) === input);
+  if (matches.length === 1) return matches[0];
+  if (matches.length > 1) {
+    throw new Error(`Ambiguous '${input}'. Did you mean: ${matches.join(", ")}?`);
+  }
+  throw new Error(`'${input}' not found. Available: ${candidates.join(", ")}`);
+}
+
 export async function loadSingleAgentRegistry(
   name: string,
   opts: RegistryOpts,
@@ -69,23 +79,22 @@ export async function loadSingleAgentRegistry(
   const workflowsAbs = resolve(opts.projectRoot, opts.workflowsDir);
   const filePaths = existsSync(agentsAbs) ? await collectAgentFiles(agentsAbs, workflowsAbs) : [];
 
-  const hintPath = filePaths.find((fp) => basename(fp, extname(fp)) === name);
-  const candidates = hintPath
-    ? [hintPath, ...filePaths.filter((fp) => fp !== hintPath)]
-    : filePaths;
+  const candidates = filePaths.map((fp) => ({
+    name: deriveName(agentsAbs, fp),
+    path: fp,
+  }));
+  const resolved = resolveAgentName(
+    name,
+    candidates.map((c) => c.name),
+  );
+  const match = candidates.find((c) => c.name === resolved)!;
 
-  for (const filePath of candidates) {
-    const derived = deriveName(agentsAbs, filePath);
-    if (derived !== name && basename(derived) !== name) continue;
-    const mod = await loadTs<{ default: AgentDef }>(filePath, import.meta.url);
-    const def = mod.default;
-    if (!def) continue;
-    (def as unknown as { name: string }).name = derived;
-    validateAgentDef(def);
-    return makeRegistry(new Map([[derived, def]]));
-  }
-
-  throw new Error(`Agent '${name}' not found in ${relative(opts.projectRoot, agentsAbs)}`);
+  const mod = await loadTs<{ default: AgentDef }>(match.path, import.meta.url);
+  const def = mod.default;
+  if (!def) throw new Error(`Agent file ${match.path} has no default export`);
+  (def as unknown as { name: string }).name = resolved;
+  validateAgentDef(def);
+  return makeRegistry(new Map([[resolved, def]]));
 }
 
 export async function loadRegistry(opts: RegistryOpts): Promise<AgentRegistry> {

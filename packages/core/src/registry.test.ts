@@ -1,4 +1,4 @@
-import { ok, strictEqual, rejects } from "node:assert/strict";
+import { ok, strictEqual, rejects, throws } from "node:assert/strict";
 import { describe, it, before, after } from "node:test";
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -86,5 +86,31 @@ describe("loadRegistry path validation", () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+});
+
+import { resolveAgentName } from "./registry.js";
+
+describe("resolveAgentName", () => {
+  const candidates = ["echo", "core/plan-dreamer", "utilities/plan-remover"];
+
+  it("returns the input when it matches a canonical name exactly", () => {
+    strictEqual(resolveAgentName("echo", candidates), "echo");
+    strictEqual(resolveAgentName("core/plan-dreamer", candidates), "core/plan-dreamer");
+  });
+
+  it("resolves an unambiguous basename", () => {
+    strictEqual(resolveAgentName("plan-dreamer", candidates), "core/plan-dreamer");
+  });
+
+  it("throws on an ambiguous basename", () => {
+    throws(
+      () => resolveAgentName("foo", ["a/foo", "b/foo"]),
+      /Ambiguous 'foo'.*a\/foo.*b\/foo/,
+    );
+  });
+
+  it("throws on no match", () => {
+    throws(() => resolveAgentName("missing", candidates), /not found/);
   });
 });
