@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync, readdirSy
 import { resolve, join } from "node:path";
 import { resolveTemplate } from "./resolver.js";
 import { loadManifest } from "./manifest.js";
-import { copyTree } from "./copy.js";
+import { copyTree, filesEqual } from "./copy.js";
 import { generateSlashCommands } from "./slash-commands.js";
 import { fmt } from "../logger.js";
 import { findProjectRoot } from "../find-project-root.js";
@@ -48,8 +48,12 @@ export async function runAdd(opts: AddOpts): Promise<void> {
         totalWouldWrite.push(...result.wouldWrite);
       } else {
         if (!opts.dryRun) {
-          if (existsSync(destAbs) && !opts.force) {
-            throw new Error(`File conflict at ${destAbs}. Re-run with --force or --dry-run.`);
+          if (existsSync(destAbs)) {
+            // Identical content is a no-op, not a conflict.
+            if (filesEqual(destAbs, srcAbs)) continue;
+            if (!opts.force) {
+              throw new Error(`File conflict at ${destAbs}. Re-run with --force or --dry-run.`);
+            }
           }
           mkdirSync(join(destAbs, ".."), { recursive: true });
           writeFileSync(destAbs, readFileSync(srcAbs));

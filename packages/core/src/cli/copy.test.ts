@@ -60,6 +60,29 @@ describe("copyTree", () => {
     strictEqual(readFileSync(join(dest, "z.md"), "utf8"), "z");
   });
 
+  it("skips files that already match — no conflict, no rewrite", () => {
+    const dest = join(destBase, "match");
+    // First copy populates dest exactly from src.
+    copyTree({ src, dest, force: false, dryRun: false });
+    // Second copy with no force should not throw and should report 0 written.
+    const second = copyTree({ src, dest, force: false, dryRun: false });
+    strictEqual(second.written.length, 0);
+  });
+
+  it("treats different content as a conflict, but identical content as not", () => {
+    const dest = join(destBase, "mixed");
+    mkdirSync(dest, { recursive: true });
+    // identical to src
+    writeFileSync(join(dest, "z.md"), "z");
+    // a file that's already there with a name not in src should be ignored
+    writeFileSync(join(dest, "unrelated.txt"), "keep");
+    // missing a/x.ts and a/b/y.ts entirely so they'll be written cleanly
+    const result = copyTree({ src, dest, force: false, dryRun: false });
+    strictEqual(result.written.length, 2);
+    ok(!result.written.includes("z.md"));
+    strictEqual(readFileSync(join(dest, "unrelated.txt"), "utf8"), "keep");
+  });
+
   it("dryRun writes nothing, returns the file list", () => {
     const dest = join(destBase, "dry");
     const result = copyTree({ src, dest, force: false, dryRun: true });

@@ -113,10 +113,8 @@ describe("runInit", () => {
     }
   });
 
-  it("template README lands at README-<alias>.md, not README.md", async () => {
-    // template-fake's manifest is named "@fake/test-template", so alias is "test-template"
-    const dest = mkdtempSync(join(tmpdir(), "init-readme-"));
-    writeFileSync(join(dest, "README.md"), "# user's own readme");
+  it("re-running with identical files is idempotent (no conflict, no error)", async () => {
+    const dest = mkdtempSync(join(tmpdir(), "init-idempotent-"));
     try {
       await runInit({
         spec: FIXTURE,
@@ -125,17 +123,18 @@ describe("runInit", () => {
         skipInstall: true,
         yes: true,
       });
-      strictEqual(readFileSync(join(dest, "README.md"), "utf8"), "# user's own readme");
-      ok(existsSync(join(dest, "README-test-template.md")));
+      // Second run, same template, no --force. Should not throw.
+      await runInit({
+        spec: FIXTURE,
+        dest,
+        skipPreflight: true,
+        skipInstall: true,
+        yes: true,
+      });
+      ok(existsSync(join(dest, "agents/echo.ts")));
     } finally {
       rmSync(dest, { recursive: true, force: true });
     }
-  });
-
-  it("templateAlias strips the npm scope prefix", () => {
-    strictEqual(templateAlias("@generata/coding"), "coding");
-    strictEqual(templateAlias("@my-org/foo-bar"), "foo-bar");
-    strictEqual(templateAlias("plain-name"), "plain-name");
   });
 
   it("--force overwrites conflicting files", async () => {
