@@ -1,0 +1,23 @@
+#!/bin/bash
+set -euo pipefail
+
+if [ -z "${VERDICT_FILE:-}" ]; then
+  echo "error: VERDICT_FILE environment variable is not set" >&2
+  exit 1
+fi
+
+if [ "$#" -lt 1 ]; then
+  echo "usage: verdict <approve|reject> [summary] [issue1] [issue2] ..." >&2
+  exit 1
+fi
+
+VERDICT_VALUE="$1" node -e "
+const fs = require('fs');
+const args = process.argv.slice(1);
+const [summary = '', ...issues] = args;
+fs.writeFileSync(process.env.VERDICT_FILE, JSON.stringify({
+  verdict: process.env.VERDICT_VALUE,
+  summary,
+  issues,
+}));
+" -- "${@:2}"

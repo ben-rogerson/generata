@@ -1,0 +1,20 @@
+#!/bin/bash
+set -euo pipefail
+
+if [ -z "${PARAMS_FILE:-}" ]; then
+  echo "error: PARAMS_FILE environment variable is not set" >&2
+  exit 1
+fi
+
+if [ "$#" -ne 2 ]; then
+  echo "usage: params <plan_name> <instructions>" >&2
+  exit 1
+fi
+
+PARAMS_PLAN_NAME="$1" PARAMS_INSTRUCTIONS="$2" node -e "
+const fs = require('fs');
+fs.writeFileSync(process.env.PARAMS_FILE, JSON.stringify({
+  plan_name: process.env.PARAMS_PLAN_NAME,
+  instructions: process.env.PARAMS_INSTRUCTIONS
+}));
+"

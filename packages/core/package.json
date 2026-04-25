@@ -1,0 +1,50 @@
+{
+  "name": "@generata/core",
+  "version": "1.0.0",
+  "description": "Composable multi-agent pipelines for trusted AI-driven creation.",
+  "type": "module",
+  "main": "dist/define.js",
+  "types": "dist/define.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/define.ts",
+      "types": "./dist/define.d.ts",
+      "default": "./dist/define.js"
+    }
+  },
+  "bin": {
+    "generata": "./bin/generata"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "src",
+    "templates.json",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "dev": "tsx src/cli.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "prepare": "tsc -p tsconfig.build.json",
+    "test": "node --test --import tsx 'src/**/*.test.ts'",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check"
+  },
+  "dependencies": {
+    "mustache": "^4.2.0",
+    "picocolors": "^1.1.1",
+    "tsx": "^4.19.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/mustache": "^4.2.5",
+    "@types/node": "^22.10.0",
+    "oxfmt": "^0.44.0",
+    "oxlint": "^1.59.0",
+    "typescript": "^5.7.2"
+  }
+}

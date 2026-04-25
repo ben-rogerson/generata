@@ -1,0 +1,27 @@
+{
+  "name": "generata-monorepo",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Composable multi-agent pipelines for trusted AI-driven creation.",
+  "type": "module",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "build": "pnpm --filter @generata/core build",
+    "test": "pnpm --filter @generata/core run test",
+    "typecheck": "pnpm -r --filter './packages/core' typecheck",
+    "lint": "pnpm -r --filter './packages/core' lint",
+    "lint:fix": "pnpm -r --filter './packages/core' lint:fix",
+    "fmt": "pnpm -r --filter './packages/core' fmt",
+    "fmt:check": "pnpm -r --filter './packages/core' fmt:check",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "pnpm build && changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.10",
+    "@generata/core": "workspace:*",
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.2"
+  }
+}
