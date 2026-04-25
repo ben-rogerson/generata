@@ -1,4 +1,12 @@
 {
+  "@generata/starter": {
+    "url": "https://github.com/ben-rogerson/generata.git",
+    "subdir": "packages/templates/starter"
+  },
+  "@generata/standup": {
+    "url": "https://github.com/ben-rogerson/generata.git",
+    "subdir": "packages/templates/standup"
+  },
   "@generata/coding": {
     "url": "https://github.com/ben-rogerson/generata.git",
     "subdir": "packages/templates/coding"
