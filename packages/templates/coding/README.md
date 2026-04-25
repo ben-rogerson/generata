@@ -55,11 +55,10 @@ generata init ~/.generata-coding ~/Projects/my-pipeline
 
 | Variable             | Description                                                |
 | :------------------- | :--------------------------------------------------------- |
-| `WORKDIR`            | Absolute path to your working dir (where projects/ lives)  |
 | `TELEGRAM_BOT_TOKEN` | _(optional)_ Telegram bot token for run notifications      |
 | `TELEGRAM_CHAT_ID`   | _(optional)_ Telegram chat ID where notifications post     |
 
-`generata init` will prompt for these and write them to `.env`.
+`generata init` will prompt for these and write them to `.env`. The working directory (where `projects/`, `plans/`, `metrics/` live) is configured in `generata.config.ts`, not via env.
 
 ## Required commands on PATH
 

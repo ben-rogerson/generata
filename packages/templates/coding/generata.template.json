@@ -5,28 +5,24 @@
   "requiredBins": [
     {
       "name": "claude",
-      "hint": "https://docs.anthropic.com/claude-code"
+      "hint": "Install: https://docs.anthropic.com/claude-code"
     },
     {
       "name": "git",
-      "hint": "Required for git-committer agent"
+      "hint": "Required by the git-committer agent"
     },
     {
       "name": "terminal-notifier",
-      "hint": "brew install terminal-notifier (macOS) - persistent notifications",
+      "hint": "Optional, macOS only: brew install terminal-notifier",
       "optional": true
     },
     {
       "name": "wrangler",
-      "hint": "npm i -g wrangler - only if using cloudflare-deployer",
+      "hint": "Optional: npm i -g wrangler (only if using the cloudflare-deployer agent)",
       "optional": true
     }
   ],
   "requiredEnv": {
-    "WORKDIR": {
-      "description": "Absolute path where projects/, plans/, metrics/ live",
-      "example": "/Users/you/Projects/work"
-    },
     "TELEGRAM_BOT_TOKEN": {
       "description": "Telegram bot token for run notifications",
       "secret": true,
@@ -37,5 +33,5 @@
       "optional": true
     }
   },
-  "postInstall": "Coding template installed. Try:\n  pnpm generata help workflows\n  pnpm generata workflow daily-plan\n  pnpm generata workflow execute-plan --plan_name my-first\n\nNotes:\n  - Set WORKDIR in .env to point at your projects directory\n  - The 'cloudflare-deployer' agent and 'deploy-project' workflow are optional; ignore unless you deploy to Cloudflare\n  - 'ship-ticket' and 'ship-from-slack' workflows are not in this template; use @generata/work for those"
+  "postInstall": "Coding template installed.\n\nNext steps:\n  1. Edit generata.config.ts to set workdir (where projects/, plans/, metrics/ live)\n  2. Try a workflow:\n       pnpm generata workflow daily-plan\n       pnpm generata workflow execute-plan --plan_name my-first\n\nNotes:\n  - cloudflare-deployer agent and deploy-project workflow are optional\n  - ship-ticket / ship-from-slack live in @generata/work, not here"
 }
