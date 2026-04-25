@@ -66,6 +66,7 @@ If already on a feature branch, reuse it. Do not pull (would risk surprise merge
 Never `git add -A` or `git add .`. Stage only files that match the change. Skip:
 - `.env`, `.env.*`
 - Anything under `dist/`, `node_modules/`
+- Anything under `docs/superpowers/` (planning / brainstorming artefacts - local only, gitignored)
 - Files that look like secrets (credentials, tokens)
 - Unrelated changes in the working tree (announce these and ask before staging)
 
