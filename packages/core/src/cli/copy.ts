@@ -1,5 +1,15 @@
-import { readdirSync, mkdirSync, copyFileSync, existsSync, statSync } from "node:fs";
+import { readdirSync, mkdirSync, copyFileSync, existsSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+
+/**
+ * True when both files exist and have byte-identical contents. Used to skip
+ * "conflicts" that aren't really conflicts — a re-run that would write the
+ * exact same bytes is a no-op, not a reason to abort.
+ */
+export function filesEqual(a: string, b: string): boolean {
+  if (!existsSync(a) || !existsSync(b)) return false;
+  return readFileSync(a).equals(readFileSync(b));
+}
 
 export interface CopyTreeOpts {
   src: string;
@@ -37,7 +47,12 @@ export function copyTree(opts: CopyTreeOpts): CopyTreeResult {
   }
 
   if (!opts.force) {
-    const conflicts = files.filter((f) => existsSync(join(opts.dest, f)));
+    const conflicts = files.filter((f) => {
+      const destFile = join(opts.dest, f);
+      if (!existsSync(destFile)) return false;
+      // Identical content is not a real conflict.
+      return !filesEqual(destFile, join(opts.src, f));
+    });
     if (conflicts.length > 0) {
       throw new Error(
         `${conflicts.length} file conflict(s) at ${opts.dest}:\n${conflicts.map((c) => `  ${c}`).join("\n")}\nRe-run with --force to overwrite, or --dry-run to preview.`,
@@ -48,6 +63,8 @@ export function copyTree(opts: CopyTreeOpts): CopyTreeResult {
   const written: string[] = [];
   for (const rel of files) {
     const target = join(opts.dest, rel);
+    // Skip files that already match — re-running shouldn't churn timestamps.
+    if (filesEqual(target, join(opts.src, rel))) continue;
     mkdirSync(join(target, ".."), { recursive: true });
     copyFileSync(join(opts.src, rel), target);
     written.push(rel);

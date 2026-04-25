@@ -163,7 +163,7 @@ async function main() {
     if ("promptTemplate" in agent) {
       const errors = validateAgentArgs(agent, flags, {
         checkProjectExists: true,
-        workdir: config.workdir,
+        workDir: config.workDir,
       });
       if (errors.length > 0) {
         for (const e of errors) console.error(fmt.fail(`Agent '${agent.name}' ${e}`));
@@ -175,7 +175,7 @@ async function main() {
     const logPromptsAgent = flags["log-prompts"] === "true" || config.logPrompts;
     delete flags["log-prompts"];
     const promptLogFile = logPromptsAgent
-      ? resolve(config.workdir, config.logsDir, `prompts-agent-${agent.name}-${runId}.log`)
+      ? resolve(config.workDir, config.logsDir, `prompts-agent-${agent.name}-${runId}.log`)
       : undefined;
 
     let result: Awaited<ReturnType<typeof runAgent>>;
@@ -184,7 +184,7 @@ async function main() {
         agent,
         args: flags,
         config,
-        workdir: config.workdir,
+        workDir: config.workDir,
         onEvent: (event) => logStreamEvent(event),
         promptLogFile,
       });
@@ -270,7 +270,7 @@ async function main() {
       console.log(
         `\n${fmt.bold("[supervisor]")} Executing ${fmt.bold(String(workflowDef.steps.length))}-step workflow`,
       );
-      const workflowResult = await runWorkflow(workflowDef, flags, config, config.workdir);
+      const workflowResult = await runWorkflow(workflowDef, flags, config, config.workDir);
       const wfModels = [
         ...new Set(
           workflowResult.steps.flatMap((s) => (s.metrics?.model ? [s.metrics.model] : [])),
@@ -316,9 +316,9 @@ async function main() {
     const logPrompts = flags["log-prompts"] === "true" || config.logPrompts;
     delete flags["log-prompts"];
     const promptLogFile = logPrompts
-      ? resolve(config.workdir, config.logsDir, `prompts-workflow-${workflow.name}-${runId}.log`)
+      ? resolve(config.workDir, config.logsDir, `prompts-workflow-${workflow.name}-${runId}.log`)
       : undefined;
-    const result = await runWorkflow(workflow, flags, config, config.workdir, promptLogFile);
+    const result = await runWorkflow(workflow, flags, config, config.workDir, promptLogFile);
     const models = [
       ...new Set(result.steps.flatMap((s) => (s.metrics?.model ? [s.metrics.model] : []))),
     ].join(", ");
@@ -358,7 +358,7 @@ async function main() {
         for (const p of workflow.required) if (!(p in paramsForCheck)) paramsForCheck[p] = "__stub";
         const issues = precheckWorkflow(workflow, paramsForCheck, {
           profile,
-          workdir: config.workdir,
+          workDir: config.workDir,
           checkFiles,
         });
         if (issues.length === 0) {
@@ -380,7 +380,7 @@ async function main() {
     const checkFiles = flags["check-files"] === "true";
     const issues = precheckWorkflow(workflow, flags, {
       profile,
-      workdir: config.workdir,
+      workDir: config.workDir,
       checkFiles,
     });
     if (issues.length === 0) {
@@ -392,7 +392,7 @@ async function main() {
   }
 
   if (command === "metrics") {
-    const metricsDir = resolve(config.workdir, config.metricsDir);
+    const metricsDir = resolve(config.workDir, config.metricsDir);
     if (target === "today" || !target) {
       const records = readMetrics(metricsDir);
       const summary = summariseMetrics(records);

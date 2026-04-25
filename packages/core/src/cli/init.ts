@@ -7,7 +7,7 @@ import { loadManifest, TemplateManifest } from "./manifest.js";
 import { runPreflight, formatPreflight } from "./preflight.js";
 import { generateEnvExample } from "./env-example.js";
 import { promptForEnv, writeDotEnv, PromptItem } from "./env-prompt.js";
-import { copyTree } from "./copy.js";
+import { copyTree, filesEqual } from "./copy.js";
 import { generateSlashCommands } from "./slash-commands.js";
 import { loadTs } from "../ts-loader.js";
 import type { AgentDef, WorkflowDef } from "../define.js";
@@ -106,7 +106,7 @@ export async function runInit(opts: InitOpts): Promise<void> {
     }
 
     console.log(fmt.dim(`[6/7] Copying template files...`));
-    const installPaths = withDefaults(manifest.installPaths);
+    const installPaths = withDefaults(manifest.installPaths, manifest.name);
     const force = opts.force ?? false;
     for (const [src, dest] of Object.entries(installPaths)) {
       const srcAbs = resolve(tmpl.dir, src);
@@ -116,10 +116,14 @@ export async function runInit(opts: InitOpts): Promise<void> {
       if (stat.isDirectory()) {
         copyTree({ src: srcAbs, dest: destSubAbs, force, dryRun: false });
       } else {
-        if (existsSync(destSubAbs) && !force) {
-          throw new Error(
-            `File conflict at ${destSubAbs}. Re-run with --force to overwrite.`,
-          );
+        if (existsSync(destSubAbs)) {
+          // Identical content is a no-op, not a conflict.
+          if (filesEqual(destSubAbs, srcAbs)) continue;
+          if (!force) {
+            throw new Error(
+              `File conflict at ${destSubAbs}. Re-run with --force to overwrite.`,
+            );
+          }
         }
         mkdirSync(join(destSubAbs, ".."), { recursive: true });
         writeFileSync(destSubAbs, readFileSync(srcAbs));
@@ -149,14 +153,22 @@ export async function runInit(opts: InitOpts): Promise<void> {
   }
 }
 
-function withDefaults(installPaths: Record<string, string>): Record<string, string> {
+function withDefaults(
+  installPaths: Record<string, string>,
+  manifestName: string,
+): Record<string, string> {
+  const alias = templateAlias(manifestName);
   const defaults: Record<string, string> = {
     "agents/": "agents/",
     "skills/": ".claude/skills/",
     "files/": "./",
-    "README.md": "README.md",
+    "README.md": `README-${alias}.md`,
   };
   return { ...defaults, ...installPaths };
+}
+
+export function templateAlias(manifestName: string): string {
+  return manifestName.replace(/^@[^/]+\//, "");
 }
 
 async function scanTemplate(dir: string): Promise<{
@@ -299,7 +311,7 @@ function writeGenerataConfig(dest: string): boolean {
     `    standard: "claude-sonnet-4-6",\n` +
     `    light: "claude-haiku-4-5",\n` +
     `  },\n` +
-    `  workdir: ${JSON.stringify(dest)},\n` +
+    `  workDir: ${JSON.stringify(dest)},\n` +
     `});\n`;
   writeFileSync(join(dest, "generata.config.ts"), content);
   return true;

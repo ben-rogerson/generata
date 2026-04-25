@@ -63,11 +63,11 @@ function resolvePath(
 function renderContextEntry(
   ctx: ContextSource,
   resolvedPath: string,
-  workdir: string,
+  workDir: string,
   agentName: string,
 ): string {
   if (!resolvedPath) return "";
-  const fullPath = resolve(workdir, resolvedPath);
+  const fullPath = resolve(workDir, resolvedPath);
   if (!existsSync(fullPath)) {
     if (ctx.optional) return "";
     console.warn(
@@ -98,18 +98,18 @@ export interface BuildPromptOptions {
   agent: LLMAgentDef;
   args: Record<string, unknown>;
   config: GlobalConfig;
-  workdir: string;
+  workDir: string;
   stepOutputs?: Record<string, string>;
   retryPreamble?: string;
   workflowVariables?: Record<string, string>;
 }
 
 export function buildPrompt(options: BuildPromptOptions): string {
-  const { agent, args, workdir, stepOutputs } = options;
+  const { agent, args, workDir, stepOutputs } = options;
   const { today, time } = getTodayAndTime();
 
   const fnArgs: PromptArgs = {
-    work_dir: resolve(workdir),
+    work_dir: resolve(workDir),
     today,
     time,
     ...options.workflowVariables,
@@ -120,12 +120,12 @@ export function buildPrompt(options: BuildPromptOptions): string {
   const strictFnArgs = strictArgs(fnArgs, agent.name);
 
   // 1. Role prefix - engine-owned boilerplate
-  const rolePrefix = `Your role: ${agent.description}.\nWorking directory: ${workdir}\nDate: ${today}\nTime: ${time}`;
+  const rolePrefix = `Your role: ${agent.description}.\nWorking directory: ${workDir}\nDate: ${today}\nTime: ${time}`;
 
   // 2. Context files
   const contextSections = agent.promptContext
     .map((ctx) =>
-      renderContextEntry(ctx, resolvePath(ctx.filepath, strictFnArgs), workdir, agent.name),
+      renderContextEntry(ctx, resolvePath(ctx.filepath, strictFnArgs), workDir, agent.name),
     )
     .filter(Boolean)
     .join("\n\n");

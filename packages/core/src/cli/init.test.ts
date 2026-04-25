@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runInit, runBareInit } from "./init.js";
+import { runInit, runBareInit, templateAlias } from "./init.js";
 
 const FIXTURE = fileURLToPath(new URL("../../test/fixtures/template-fake", import.meta.url));
 
@@ -108,6 +108,30 @@ describe("runInit", () => {
     try {
       await runBareInit(dest);
       strictEqual(readFileSync(join(dest, "generata.config.ts"), "utf8"), existing);
+    } finally {
+      rmSync(dest, { recursive: true, force: true });
+    }
+  });
+
+  it("re-running with identical files is idempotent (no conflict, no error)", async () => {
+    const dest = mkdtempSync(join(tmpdir(), "init-idempotent-"));
+    try {
+      await runInit({
+        spec: FIXTURE,
+        dest,
+        skipPreflight: true,
+        skipInstall: true,
+        yes: true,
+      });
+      // Second run, same template, no --force. Should not throw.
+      await runInit({
+        spec: FIXTURE,
+        dest,
+        skipPreflight: true,
+        skipInstall: true,
+        yes: true,
+      });
+      ok(existsSync(join(dest, "agents/echo.ts")));
     } finally {
       rmSync(dest, { recursive: true, force: true });
     }

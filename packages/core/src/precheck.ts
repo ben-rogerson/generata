@@ -13,8 +13,8 @@ export interface PrecheckIssue {
 export interface PrecheckOptions {
   /** Enable disk existence check on fully-resolved context file paths. */
   checkFiles?: boolean;
-  /** Required with checkFiles to resolve paths against the project workdir. */
-  workdir?: string;
+  /** Required with checkFiles to resolve paths against the project workDir. */
+  workDir?: string;
   /** Active env profile (from `--profile`). Extracted from params before the precheck runs. */
   profile?: string;
 }
@@ -280,12 +280,12 @@ export function precheckWorkflow(
         }
         if (
           options.checkFiles &&
-          options.workdir &&
+          options.workDir &&
           resolved &&
           !ctx.optional &&
           refs.every((r) => effective.has(r))
         ) {
-          const full = resolve(options.workdir, resolved);
+          const full = resolve(options.workDir, resolved);
           if (!existsSync(full)) {
             issues.push({
               stepId: step.id,
@@ -340,7 +340,7 @@ export function formatPrecheckReport(workflowName: string, issues: PrecheckIssue
 
 export interface ValidateAgentArgsOptions {
   checkProjectExists?: boolean;
-  workdir?: string;
+  workDir?: string;
 }
 
 /**
@@ -360,12 +360,12 @@ export function validateAgentArgs(
   }
   if (
     options.checkProjectExists &&
-    options.workdir &&
+    options.workDir &&
     !(agent.type === "planner" && agent.interactive)
   ) {
     for (const param of required.filter((p) => PROJECT_PARAMS.has(p))) {
       const val = String(args[param] ?? "");
-      if (val && !existsSync(resolve(options.workdir, "projects", val))) {
+      if (val && !existsSync(resolve(options.workDir, "projects", val))) {
         errors.push(`project '${val}' not found in projects/`);
       }
     }
