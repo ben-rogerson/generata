@@ -4,21 +4,12 @@ Plan-driven coding pipeline: interview the goal, write a plan, audit it, execute
 
 ## Install
 
-Workmates with access to this template repo can install via local path:
-
 ```bash
 # 1. Once: install the engine globally
 npm i -g @generata/core
-# 2. Scaffold a project
-generata init <path-to-this-template> ~/Projects/my-pipeline
+# 2. Scaffold a project from the catalog
+generata init @generata/coding ~/Projects/my-pipeline
 cd ~/Projects/my-pipeline
-```
-
-Or clone-and-init in one step:
-
-```bash
-git clone <this-template-url> ~/.generata-coding
-generata init ~/.generata-coding ~/Projects/my-pipeline
 ```
 
 ## What's included

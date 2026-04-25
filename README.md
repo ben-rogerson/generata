@@ -2,7 +2,7 @@
 
 Composable multi-agent pipelines on top of the Claude Code CLI. The engine - `@generata/core` - runs every step through the [Claude Code CLI](https://docs.anthropic.com/claude-code) so there is no API key to manage.
 
-## Install (workmate flow)
+## Install
 
 ```bash
 npm i -g @generata/core
