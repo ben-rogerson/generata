@@ -34,7 +34,7 @@ async function collectAgentFiles(dir: string, skipAbs: string): Promise<string[]
   return files;
 }
 
-function validateAgentDef(def: AgentDef, _filePath: string): void {
+function validateAgentDef(def: AgentDef): void {
   if (def.type === "supervisor") {
     const writeTools = def.tools.filter((t) => ["write", "edit", "bash"].includes(t));
     if (writeTools.length > 0) {
@@ -81,7 +81,7 @@ export async function loadSingleAgentRegistry(
     const def = mod.default;
     if (!def) continue;
     (def as unknown as { name: string }).name = derived;
-    validateAgentDef(def, filePath);
+    validateAgentDef(def);
     return makeRegistry(new Map([[derived, def]]));
   }
 
@@ -105,7 +105,7 @@ export async function loadRegistry(opts: RegistryOpts): Promise<AgentRegistry> {
         `Duplicate agent name '${derived}' found in ${filePath} - already registered`,
       );
     }
-    validateAgentDef(def, filePath);
+    validateAgentDef(def);
     agents.set(derived, def);
   }
 

@@ -38,11 +38,4 @@ describe("deriveName", () => {
       /invalid path segment 'foo_bar'/,
     );
   });
-
-  it("normalises Windows-style separators to forward slashes", () => {
-    strictEqual(
-      deriveName("/proj/agents", "/proj/agents/core/plan.ts".replace(/\//g, "/")),
-      "core/plan",
-    );
-  });
 });
