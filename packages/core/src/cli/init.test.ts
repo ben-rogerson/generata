@@ -50,6 +50,44 @@ describe("runInit", () => {
     }
   });
 
+  it("writes a default generata.config.ts when none exists", async () => {
+    const dest = mkdtempSync(join(tmpdir(), "init-config-"));
+    try {
+      await runInit({
+        spec: FIXTURE,
+        dest,
+        skipPreflight: true,
+        skipInstall: true,
+        yes: true,
+      });
+      ok(existsSync(join(dest, "generata.config.ts")));
+      const body = readFileSync(join(dest, "generata.config.ts"), "utf8");
+      ok(body.includes("defineConfig"));
+      ok(body.includes("modelTiers"));
+      ok(body.includes(JSON.stringify(dest)));
+    } finally {
+      rmSync(dest, { recursive: true, force: true });
+    }
+  });
+
+  it("preserves an existing generata.config.ts", async () => {
+    const dest = mkdtempSync(join(tmpdir(), "init-config-existing-"));
+    const existing = "// hand-edited config\nexport default { custom: true };\n";
+    writeFileSync(join(dest, "generata.config.ts"), existing);
+    try {
+      await runInit({
+        spec: FIXTURE,
+        dest,
+        skipPreflight: true,
+        skipInstall: true,
+        yes: true,
+      });
+      strictEqual(readFileSync(join(dest, "generata.config.ts"), "utf8"), existing);
+    } finally {
+      rmSync(dest, { recursive: true, force: true });
+    }
+  });
+
   it("--force overwrites conflicting files", async () => {
     const dest = mkdtempSync(join(tmpdir(), "init-force-"));
     mkdirSync(join(dest, "agents"), { recursive: true });

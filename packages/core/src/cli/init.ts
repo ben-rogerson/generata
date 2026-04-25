@@ -88,6 +88,7 @@ export async function runInit(opts: InitOpts): Promise<void> {
       }
     }
 
+    writeGenerataConfig(destAbs);
     writePackageJson(destAbs, manifest);
     if (opts.skipInstall) {
       console.log(fmt.dim(`      Skipping dependency install (--skip-install)`));
@@ -244,6 +245,25 @@ function readExistingEnv(dir: string): Record<string, string> {
     if (m) out[m[1]] = m[2];
   }
   return out;
+}
+
+function writeGenerataConfig(dest: string): void {
+  const anchors = ["generata.config.ts", "generata.config.mjs", "generata.config.js"];
+  for (const name of anchors) {
+    if (existsSync(join(dest, name))) return;
+  }
+  const content =
+    `import { defineConfig } from "@generata/core";\n` +
+    `\n` +
+    `export default defineConfig({\n` +
+    `  modelTiers: {\n` +
+    `    heavy: "claude-opus-4-7",\n` +
+    `    standard: "claude-sonnet-4-6",\n` +
+    `    light: "claude-haiku-4-5",\n` +
+    `  },\n` +
+    `  workdir: ${JSON.stringify(dest)},\n` +
+    `});\n`;
+  writeFileSync(join(dest, "generata.config.ts"), content);
 }
 
 function writePackageJson(dest: string, manifest: TemplateManifest): void {
