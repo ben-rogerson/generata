@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runInit, runBareInit } from "./init.js";
+import { runInit, runBareInit, templateAlias } from "./init.js";
 
 const FIXTURE = fileURLToPath(new URL("../../test/fixtures/template-fake", import.meta.url));
 
@@ -111,6 +111,31 @@ describe("runInit", () => {
     } finally {
       rmSync(dest, { recursive: true, force: true });
     }
+  });
+
+  it("template README lands at README-<alias>.md, not README.md", async () => {
+    // template-fake's manifest is named "@fake/test-template", so alias is "test-template"
+    const dest = mkdtempSync(join(tmpdir(), "init-readme-"));
+    writeFileSync(join(dest, "README.md"), "# user's own readme");
+    try {
+      await runInit({
+        spec: FIXTURE,
+        dest,
+        skipPreflight: true,
+        skipInstall: true,
+        yes: true,
+      });
+      strictEqual(readFileSync(join(dest, "README.md"), "utf8"), "# user's own readme");
+      ok(existsSync(join(dest, "README-test-template.md")));
+    } finally {
+      rmSync(dest, { recursive: true, force: true });
+    }
+  });
+
+  it("templateAlias strips the npm scope prefix", () => {
+    strictEqual(templateAlias("@generata/coding"), "coding");
+    strictEqual(templateAlias("@my-org/foo-bar"), "foo-bar");
+    strictEqual(templateAlias("plain-name"), "plain-name");
   });
 
   it("--force overwrites conflicting files", async () => {
