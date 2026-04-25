@@ -85,9 +85,9 @@ async function main() {
   }
 
   if (command === "init") {
-    const { runInit } = await import("./cli/init.js");
+    const { runInit, printInitUsage } = await import("./cli/init.js");
     if (!target) {
-      console.error("Usage: generata init <template> [dest]");
+      printInitUsage();
       process.exit(1);
     }
     const dest = positional[2] ?? process.cwd();

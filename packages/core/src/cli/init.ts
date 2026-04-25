@@ -1,7 +1,8 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { join, resolve, isAbsolute } from "node:path";
+import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
-import { resolveTemplate } from "./resolver.js";
+import { resolveTemplate, type CatalogEntry } from "./resolver.js";
 import { loadManifest, TemplateManifest } from "./manifest.js";
 import { runPreflight, formatPreflight } from "./preflight.js";
 import { generateEnvExample } from "./env-example.js";
@@ -19,6 +20,29 @@ export interface InitOpts {
   skipInstall?: boolean;
   yes?: boolean;
   force?: boolean;
+}
+
+export function printInitUsage(): void {
+  console.error("Usage: generata init <template> [dest]");
+  try {
+    const catalogPath = fileURLToPath(new URL("../../templates.json", import.meta.url));
+    const catalog = JSON.parse(readFileSync(catalogPath, "utf8")) as Record<string, CatalogEntry>;
+    const aliases = Object.keys(catalog);
+    if (aliases.length === 0) return;
+    console.error("");
+    console.error(fmt.bold("Available templates:"));
+    for (const alias of aliases) {
+      const entry = catalog[alias];
+      const url = typeof entry === "string" ? entry : entry.url;
+      const subdir = typeof entry === "string" ? undefined : entry.subdir;
+      const suffix = subdir ? ` (${subdir})` : "";
+      console.error(`  ${alias.padEnd(22)} ${fmt.dim(url + suffix)}`);
+    }
+    console.error("");
+    console.error(`Example: ${fmt.bold(`generata init ${aliases[0]} .`)}`);
+  } catch {
+    // Catalog read failed - fall back to bare usage line.
+  }
 }
 
 export async function runInit(opts: InitOpts): Promise<void> {
