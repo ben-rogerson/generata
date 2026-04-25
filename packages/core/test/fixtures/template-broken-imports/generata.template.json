@@ -1,0 +1,5 @@
+{
+  "name": "@fake/broken-imports",
+  "description": "Fixture template with one valid agent and one agent whose imports cannot resolve",
+  "engineVersion": "^1.0.0"
+}
