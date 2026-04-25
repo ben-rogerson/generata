@@ -47,8 +47,9 @@
   ],
   "scripts": {
     "dev": "tsx src/cli.ts",
-    "build": "tsc -p tsconfig.build.json",
-    "prepare": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
+    "build": "pnpm clean && tsc -p tsconfig.build.json",
+    "prepare": "pnpm clean && tsc -p tsconfig.build.json",
     "test": "node --test --import tsx 'src/**/*.test.ts'",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint",
@@ -57,13 +58,11 @@
     "fmt:check": "oxfmt --check"
   },
   "dependencies": {
-    "mustache": "^4.2.0",
     "picocolors": "^1.1.1",
     "tsx": "^4.19.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/mustache": "^4.2.5",
     "@types/node": "^22.10.0",
     "oxfmt": "^0.44.0",
     "oxlint": "^1.59.0",
