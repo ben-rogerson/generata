@@ -19,7 +19,7 @@ export interface RunOptions {
   agent: LLMAgentDef;
   args: Record<string, unknown>;
   config: GlobalConfig;
-  workdir: string;
+  workDir: string;
   workflowId?: string | null;
   stepId?: string | null;
   stepOutputs?: Record<string, string>;
@@ -60,12 +60,12 @@ function resolveModel(
 }
 
 async function runInteractive(options: RunOptions): Promise<RunResult> {
-  const { agent, args, config, workdir, stepOutputs } = options;
+  const { agent, args, config, workDir, stepOutputs } = options;
   const basePrompt = buildPrompt({
     agent,
     args,
     config,
-    workdir,
+    workDir,
     stepOutputs,
     workflowVariables: options.workflowVariables,
   });
@@ -132,7 +132,7 @@ async function runInteractive(options: RunOptions): Promise<RunResult> {
         status: exitCode === 0 ? "success" : "failure",
         exit_code: exitCode,
       };
-      writeMetrics(metrics, resolve(workdir, config.metricsDir));
+      writeMetrics(metrics, resolve(workDir, config.metricsDir));
 
       // Read params file for interactive planners
       let paramsData: { plan_name: string; instructions: string } | undefined;
@@ -156,7 +156,7 @@ async function runInteractive(options: RunOptions): Promise<RunResult> {
 }
 
 export async function runAgent(options: RunOptions): Promise<RunResult> {
-  const { agent, args, config, workdir, stepOutputs, retryPreamble } = options;
+  const { agent, args, config, workDir, stepOutputs, retryPreamble } = options;
 
   if (agent.type === "planner" && agent.interactive) {
     return runInteractive(options);
@@ -167,7 +167,7 @@ export async function runAgent(options: RunOptions): Promise<RunResult> {
     agent,
     args,
     config,
-    workdir,
+    workDir,
     stepOutputs,
     retryPreamble,
     workflowVariables: options.workflowVariables,
@@ -351,7 +351,7 @@ export async function runAgent(options: RunOptions): Promise<RunResult> {
         } catch {}
       }
 
-      writeMetrics(metrics, resolve(workdir, config.metricsDir));
+      writeMetrics(metrics, resolve(workDir, config.metricsDir));
       resolve_p({ output, metrics, verdict: verdictData, params: paramsData });
     });
 

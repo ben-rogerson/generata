@@ -70,7 +70,7 @@ export async function runWorkflow(
   workflow: WorkflowDef,
   params: Record<string, unknown>,
   config: GlobalConfig,
-  workdir: string,
+  workDir: string,
   promptLogFile?: string,
 ): Promise<WorkflowResult> {
   const workflowId = `${workflow.name}-${Date.now()}`;
@@ -86,7 +86,7 @@ export async function runWorkflow(
 
   // One static pass before any step fires - catches variable wiring, structural, context-path,
   // and env-key issues. Any issue aborts the run with zero LLM calls.
-  const precheckIssues = precheckWorkflow(workflow, params, { profile, workdir });
+  const precheckIssues = precheckWorkflow(workflow, params, { profile, workDir });
   if (precheckIssues.length > 0) {
     console.error(formatPrecheckReport(workflow.name, precheckIssues));
     throw new Error(
@@ -177,7 +177,7 @@ export async function runWorkflow(
         // Builtins and resolved step args are merged as input to derive().
         const { today: _stepToday, time: _stepTime } = getTodayAndTime();
         const workflowVariables = computeWorkflowVariables(workflow, {
-          work_dir: resolve(workdir),
+          work_dir: resolve(workDir),
           today: _stepToday,
           time: _stepTime,
           ...Object.fromEntries(Object.entries(resolvedArgs).map(([k, v]) => [k, String(v)])),
@@ -201,7 +201,7 @@ export async function runWorkflow(
                 agent: targetAgent,
                 args: targetArgs,
                 config,
-                workdir,
+                workDir,
                 workflowId,
                 stepId: targetStep.id,
                 stepOutputs,
@@ -246,9 +246,9 @@ export async function runWorkflow(
         if (planName) {
           // Move plan into project folder once the executor has created the code dir.
           // Fires once: when code/ exists but the plan hasn't been moved yet.
-          const projectDir = resolve(workdir, workflow.variables.output_dir ?? "", planName);
+          const projectDir = resolve(workDir, workflow.variables.output_dir ?? "", planName);
           const plansDir = workflow.variables.plans_dir ?? "plans";
-          const planSrc = resolve(workdir, plansDir, `${planName}.md`);
+          const planSrc = resolve(workDir, plansDir, `${planName}.md`);
           const planDst = resolve(projectDir, plansDir, `${planName}.md`);
           if (existsSync(planSrc) && existsSync(resolve(projectDir, "code"))) {
             mkdirSync(dirname(planDst), { recursive: true });
@@ -324,7 +324,7 @@ export async function runWorkflow(
           } else {
             params = { ...params, ...result.params };
             planName = result.params.plan_name;
-            const projDir = resolve(workdir, workflow.variables.output_dir ?? "", planName);
+            const projDir = resolve(workDir, workflow.variables.output_dir ?? "", planName);
             mkdirSync(projDir, { recursive: true });
           }
         }
