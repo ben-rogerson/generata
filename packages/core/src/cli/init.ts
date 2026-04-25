@@ -22,26 +22,40 @@ export interface InitOpts {
   force?: boolean;
 }
 
-export function printInitUsage(): void {
-  console.error("Usage: generata init <template> [dest]");
+/**
+ * `generata init` with no template: bootstrap the current directory as a generata
+ * project (write a default config if absent), then list the catalog so the user
+ * can pick a template to add next.
+ */
+export async function runBareInit(cwd: string): Promise<void> {
+  const destAbs = isAbsolute(cwd) ? cwd : resolve(cwd);
+  mkdirSync(destAbs, { recursive: true });
+  const wrote = writeGenerataConfig(destAbs);
+  if (wrote) {
+    console.log(fmt.dim(`Wrote ${join(destAbs, "generata.config.ts")}`));
+  } else {
+    console.log(fmt.dim(`generata.config.* already present in ${destAbs}`));
+  }
+
   try {
     const catalogPath = fileURLToPath(new URL("../../templates.json", import.meta.url));
     const catalog = JSON.parse(readFileSync(catalogPath, "utf8")) as Record<string, CatalogEntry>;
     const aliases = Object.keys(catalog);
-    if (aliases.length === 0) return;
-    console.error("");
-    console.error(fmt.bold("Available templates:"));
-    for (const alias of aliases) {
-      const entry = catalog[alias];
-      const url = typeof entry === "string" ? entry : entry.url;
-      const subdir = typeof entry === "string" ? undefined : entry.subdir;
-      const suffix = subdir ? ` (${subdir})` : "";
-      console.error(`  ${alias.padEnd(22)} ${fmt.dim(url + suffix)}`);
+    if (aliases.length > 0) {
+      console.log("");
+      console.log(fmt.bold("Available templates:"));
+      for (const alias of aliases) {
+        const entry = catalog[alias];
+        const url = typeof entry === "string" ? entry : entry.url;
+        const subdir = typeof entry === "string" ? undefined : entry.subdir;
+        const suffix = subdir ? ` (${subdir})` : "";
+        console.log(`  ${alias.padEnd(22)} ${fmt.dim(url + suffix)}`);
+      }
+      console.log("");
+      console.log(`Add one with: ${fmt.bold(`generata add ${aliases[0]}`)}`);
     }
-    console.error("");
-    console.error(`Example: ${fmt.bold(`generata init ${aliases[0]} .`)}`);
   } catch {
-    // Catalog read failed - fall back to bare usage line.
+    // Catalog read failed - skip the listing.
   }
 }
 
@@ -271,10 +285,10 @@ function readExistingEnv(dir: string): Record<string, string> {
   return out;
 }
 
-function writeGenerataConfig(dest: string): void {
+function writeGenerataConfig(dest: string): boolean {
   const anchors = ["generata.config.ts", "generata.config.mjs", "generata.config.js"];
   for (const name of anchors) {
-    if (existsSync(join(dest, name))) return;
+    if (existsSync(join(dest, name))) return false;
   }
   const content =
     `import { defineConfig } from "@generata/core";\n` +
@@ -288,6 +302,7 @@ function writeGenerataConfig(dest: string): void {
     `  workdir: ${JSON.stringify(dest)},\n` +
     `});\n`;
   writeFileSync(join(dest, "generata.config.ts"), content);
+  return true;
 }
 
 function writePackageJson(dest: string, manifest: TemplateManifest): void {

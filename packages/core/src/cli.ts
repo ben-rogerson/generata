@@ -85,10 +85,10 @@ async function main() {
   }
 
   if (command === "init") {
-    const { runInit, printInitUsage } = await import("./cli/init.js");
+    const { runInit, runBareInit } = await import("./cli/init.js");
     if (!target) {
-      printInitUsage();
-      process.exit(1);
+      await runBareInit(process.cwd());
+      return;
     }
     const dest = positional[2] ?? process.cwd();
     await runInit({

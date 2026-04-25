@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runInit } from "./init.js";
+import { runInit, runBareInit } from "./init.js";
 
 const FIXTURE = fileURLToPath(new URL("../../test/fixtures/template-fake", import.meta.url));
 
@@ -82,6 +82,31 @@ describe("runInit", () => {
         skipInstall: true,
         yes: true,
       });
+      strictEqual(readFileSync(join(dest, "generata.config.ts"), "utf8"), existing);
+    } finally {
+      rmSync(dest, { recursive: true, force: true });
+    }
+  });
+
+  it("runBareInit writes a default config in the cwd", async () => {
+    const dest = mkdtempSync(join(tmpdir(), "bare-init-"));
+    try {
+      await runBareInit(dest);
+      ok(existsSync(join(dest, "generata.config.ts")));
+      const body = readFileSync(join(dest, "generata.config.ts"), "utf8");
+      ok(body.includes("defineConfig"));
+      ok(body.includes(JSON.stringify(dest)));
+    } finally {
+      rmSync(dest, { recursive: true, force: true });
+    }
+  });
+
+  it("runBareInit preserves an existing config", async () => {
+    const dest = mkdtempSync(join(tmpdir(), "bare-init-existing-"));
+    const existing = "// hand-edited\nexport default { custom: true };\n";
+    writeFileSync(join(dest, "generata.config.ts"), existing);
+    try {
+      await runBareInit(dest);
       strictEqual(readFileSync(join(dest, "generata.config.ts"), "utf8"), existing);
     } finally {
       rmSync(dest, { recursive: true, force: true });
