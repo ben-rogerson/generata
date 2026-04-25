@@ -25,6 +25,9 @@
   "license": "ISC",
   "author": "Ben Rogerson <info@benrogerson.dev>",
   "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "dist/define.js",
   "types": "dist/define.d.ts",
   "exports": {
