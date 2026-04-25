@@ -54,6 +54,7 @@ That's the whole API surface for most use cases - `defineAgent`, `defineWorkflow
 ## What you get
 
 - **Composable agents** - planners, workers, critics, supervisors. Mix and match.
+- **Heavy/standard/light tiers** - each agent declares the tier it needs; you map tiers to actual models once in `generata.config.ts`. Swap a whole pipeline from Opus to Haiku by editing three lines.
 - **Workflows as graphs** - steps run in parallel where they can; critics can retry an upstream step on rejection.
 - **Runs on the Claude Code CLI you already have** - no separate API key, no provider config.
 - **Zod-validated** end to end. Bad configs and bad step args fail loud at the edges.
