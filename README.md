@@ -60,6 +60,7 @@ That's the whole API surface for most use cases - `defineAgent`, `defineWorkflow
 - **Zod-validated** end to end. Bad configs and bad step args fail loud at the edges.
 - **Metrics included** - cost, tokens, and duration per agent and per workflow, out of the box.
 - **Prompt logs on demand** - flip `logPrompts: true` (or pass `--log-prompts`) and every prompt sent to Claude Code lands in `logs/` so you can replay, diff, or debug what an agent actually saw.
+- **Work/personal env profiles** - pass `--profile work` and required env keys are pulled from `WORK_`-prefixed vars, so the same pipeline can run against a work GitHub token one minute and your personal one the next without `.env` shuffling.
 
 ## Why?
 
