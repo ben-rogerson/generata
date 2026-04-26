@@ -256,6 +256,10 @@ async function main() {
         `\n${fmt.bold("[supervisor]")} Executing ${fmt.bold(String(workflowDef.steps.length))}-step workflow`,
       );
       const workflowResult = await runWorkflow(workflowDef, flags, config, config.workDir);
+
+      const wfPrintable = pickPrintableFinalOutput(workflowResult.steps, workflowDef);
+      if (wfPrintable) console.log(`\n${wfPrintable}\n`);
+
       const wfModels = [
         ...new Set(
           workflowResult.steps.flatMap((s) => (s.metrics?.model ? [s.metrics.model] : [])),
