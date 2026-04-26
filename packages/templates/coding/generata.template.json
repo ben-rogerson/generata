@@ -1,6 +1,6 @@
 {
   "name": "@generata/coding",
-  "description": "Plan-driven coding pipeline: interview, plan, audit, execute, review, commit. Optional Cloudflare deploy.",
+  "description": "Spec-driven coding pipeline: dream, plan, audit, code, review.",
   "engineVersion": "^1.0.0",
   "requiredBins": [
     {
@@ -8,30 +8,11 @@
       "hint": "Install: https://docs.anthropic.com/claude-code"
     },
     {
-      "name": "git",
-      "hint": "Required by the git-committer agent"
-    },
-    {
       "name": "terminal-notifier",
       "hint": "Optional, macOS only: brew install terminal-notifier",
       "optional": true
-    },
-    {
-      "name": "wrangler",
-      "hint": "Optional: npm i -g wrangler (only if using the cloudflare-deployer agent)",
-      "optional": true
     }
   ],
-  "requiredEnv": {
-    "TELEGRAM_BOT_TOKEN": {
-      "description": "Telegram bot token for run notifications",
-      "secret": true,
-      "optional": true
-    },
-    "TELEGRAM_CHAT_ID": {
-      "description": "Telegram chat ID where notifications post",
-      "optional": true
-    }
-  },
-  "postInstall": "  1. Edit generata.config.ts to set workDir (where projects/, plans/, metrics/ live)\n  2. Try a workflow:\n       pnpm generata workflow daily-plan\n       pnpm generata workflow execute-plan --plan_name my-first\n\nNotes:\n  - cloudflare-deployer agent and deploy-project workflow are optional\n  - ship-ticket / ship-from-slack live in @generata/work, not here"
+  "requiredEnv": {},
+  "postInstall": "  1. Edit generata.config.ts to set workDir (where NOTES.md and projects/ live)\n  2. Add ideas to NOTES.md\n  3. Run: pnpm generata workflow build-project"
 }
