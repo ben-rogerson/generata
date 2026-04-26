@@ -13,8 +13,9 @@ Bare-minimum starter template. One worker agent, one workflow. Designed to be ed
 
 ```bash
 pnpm generata workflow hello --message "world"
-# or: npx generata workflow hello --message "world"
 ```
+
+If you didn't `cd` into the project, prefix with `pnpm dlx` or `npx`.
 
 ## What's next
 
