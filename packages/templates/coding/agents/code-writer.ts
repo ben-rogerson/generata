@@ -1,4 +1,3 @@
-// packages/templates/coding/agents/code-writer.ts
 import { defineAgent } from "@generata/core";
 
 export default defineAgent({

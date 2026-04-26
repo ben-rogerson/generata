@@ -1,4 +1,3 @@
-// packages/templates/coding/agents/spec-creator.ts
 import { defineAgent } from "@generata/core";
 
 export default defineAgent({

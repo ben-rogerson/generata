@@ -1,4 +1,3 @@
-// packages/templates/coding/agents/end-tidier.ts
 import { defineAgent } from "@generata/core";
 
 export default defineAgent({

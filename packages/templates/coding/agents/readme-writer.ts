@@ -1,4 +1,3 @@
-// packages/templates/coding/agents/readme-writer.ts
 import { defineAgent } from "@generata/core";
 
 export default defineAgent({
