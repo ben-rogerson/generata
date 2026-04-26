@@ -71,4 +71,56 @@ describe("pickPrintableFinalOutput", () => {
     ];
     strictEqual(pickPrintableFinalOutput(steps, emptyWorkflow), null);
   });
+
+  it("returns null when the final step's agent is a critic", () => {
+    const workflow = {
+      description: "x",
+      required: [],
+      variables: {},
+      steps: [
+        {
+          id: "judge",
+          agent: { type: "critic", name: "judge" } as any,
+          args: {},
+        },
+      ],
+      kind: "workflow" as const,
+      name: "test",
+    } as unknown as WorkflowDef;
+
+    const steps = [
+      {
+        stepId: "judge",
+        output: "raw critic chatter",
+        metrics: { agent: "judge" } as any,
+      },
+    ];
+    strictEqual(pickPrintableFinalOutput(steps, workflow), null);
+  });
+
+  it("returns the output when the final step's agent is a worker (not critic)", () => {
+    const workflow = {
+      description: "x",
+      required: [],
+      variables: {},
+      steps: [
+        {
+          id: "do-it",
+          agent: { type: "worker", name: "do-it" } as any,
+          args: {},
+        },
+      ],
+      kind: "workflow" as const,
+      name: "test",
+    } as unknown as WorkflowDef;
+
+    const steps = [
+      {
+        stepId: "do-it",
+        output: "I did the thing",
+        metrics: { agent: "do-it" } as any,
+      },
+    ];
+    strictEqual(pickPrintableFinalOutput(steps, workflow), "I did the thing");
+  });
 });
