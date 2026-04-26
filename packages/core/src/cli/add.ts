@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync, readdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { resolveTemplate } from "./resolver.js";
 import { loadManifest } from "./manifest.js";
@@ -7,8 +7,7 @@ import { generateSlashCommands } from "./slash-commands.js";
 import { fmt } from "../logger.js";
 import { findProjectRoot } from "../find-project-root.js";
 import { loadConfig } from "../config.js";
-import { loadTs } from "../ts-loader.js";
-import type { WorkflowDef } from "../define.js";
+import { loadRegistry } from "../registry.js";
 
 export interface AddOpts {
   spec: string;
@@ -72,9 +71,9 @@ export async function runAdd(opts: AddOpts): Promise<void> {
 
     console.log(fmt.dim(`Wrote ${totalWritten.length} files`));
 
-    const workflows = await readWorkflows(projectRoot, config.workflowsDir);
+    const registry = await loadRegistry({ projectRoot, agentsDir: config.agentsDir });
     generateSlashCommands({
-      workflows,
+      workflows: registry.listWorkflows(),
       destDir: join(projectRoot, ".claude", "commands"),
     });
 
@@ -100,14 +99,3 @@ function withDefaults(
   return { ...defaults, ...installPaths };
 }
 
-async function readWorkflows(projectRoot: string, workflowsDir: string): Promise<WorkflowDef[]> {
-  const dir = resolve(projectRoot, workflowsDir);
-  if (!existsSync(dir)) return [];
-  const out: WorkflowDef[] = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (!entry.isFile() || (!entry.name.endsWith(".ts") && !entry.name.endsWith(".js"))) continue;
-    const mod = await loadTs<{ default: WorkflowDef }>(join(dir, entry.name), import.meta.url);
-    if (mod.default?.name) out.push(mod.default);
-  }
-  return out;
-}

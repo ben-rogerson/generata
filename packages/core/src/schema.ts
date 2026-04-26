@@ -172,7 +172,6 @@ export const GlobalConfig = z.object({
   }),
   workDir: z.string(),
   agentsDir: z.string().default("agents"),
-  workflowsDir: z.string().default("agents/workflows"),
   metricsDir: z.string().default("metrics"),
   logsDir: z.string().default("logs"),
   notifications: z.boolean().default(true),

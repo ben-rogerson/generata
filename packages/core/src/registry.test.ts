@@ -44,7 +44,6 @@ describe("loadRegistry", () => {
     const registry = await loadRegistry({
       projectRoot: root,
       agentsDir: "agents",
-      workflowsDir: "agents/workflows",
     });
     ok(registry.has("echo"));
     ok(registry.has("core/plan-dreamer"));
@@ -54,7 +53,6 @@ describe("loadRegistry", () => {
     const registry = await loadRegistry({
       projectRoot: root,
       agentsDir: "agents",
-      workflowsDir: "agents/workflows",
     });
     strictEqual(registry.get("echo").name, "echo");
   });
@@ -63,7 +61,6 @@ describe("loadRegistry", () => {
     const registry = await loadRegistry({
       projectRoot: root,
       agentsDir: "agents",
-      workflowsDir: "agents/workflows",
     });
     const echo = registry.get("echo") as unknown as { kind: string };
     strictEqual(echo.kind, "agent");
@@ -79,7 +76,6 @@ describe("loadRegistry path validation", () => {
         loadRegistry({
           projectRoot: root,
           agentsDir: "agents",
-          workflowsDir: "agents/workflows",
         }),
         /invalid path segment 'Bad'/,
       );
@@ -110,5 +106,47 @@ describe("resolveAgentName", () => {
 
   it("throws on no match", () => {
     throws(() => resolveAgentName("missing", candidates), /not found/);
+  });
+});
+
+function writeWorkflow(file: string, name: string, agentRel: string): void {
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(
+    file,
+    `import { defineWorkflow } from ${JSON.stringify(DEFINE_PATH)};
+import agent from "${agentRel}";
+export default defineWorkflow({
+  name: ${JSON.stringify(name)},
+  description: "test",
+  steps: [{ id: "s", agent }],
+});
+`,
+  );
+}
+
+describe("loadRegistry workflows", () => {
+  let root: string;
+
+  before(() => {
+    root = mkdtempSync(join(tmpdir(), "registry-wf-"));
+    writeAgent(join(root, "agents/echo.ts"), "echo");
+    writeWorkflow(join(root, "agents/standup/flow.ts"), "flow", "../echo.js");
+  });
+
+  after(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("discovers workflows anywhere under agentsDir", async () => {
+    const registry = await loadRegistry({ projectRoot: root, agentsDir: "agents" });
+    ok(registry.workflows.has("standup/flow"));
+  });
+
+  it("routes by kind: agents go to agents map, workflows go to workflows map", async () => {
+    const registry = await loadRegistry({ projectRoot: root, agentsDir: "agents" });
+    ok(registry.agents.has("echo"));
+    ok(!registry.workflows.has("echo"));
+    ok(registry.workflows.has("standup/flow"));
+    ok(!registry.agents.has("standup/flow"));
   });
 });
