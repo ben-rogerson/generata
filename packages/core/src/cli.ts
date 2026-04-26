@@ -132,7 +132,7 @@ async function main() {
     }
     // Load only the target agent to reduce heap before fork()
     let registry = await loadSingleAgentRegistry(target, registryOpts);
-    const agent = registry.get(target);
+    const [agent] = registry.list();
     // Supervisors enumerate all agents in their prompt template
     if (agent.type === "supervisor") {
       registry = await loadRegistry(registryOpts);

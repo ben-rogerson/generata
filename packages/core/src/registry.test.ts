@@ -124,6 +124,29 @@ export default defineWorkflow({
   );
 }
 
+describe("loadSingleAgentRegistry basename resolution", () => {
+  let root: string;
+
+  before(() => {
+    root = mkdtempSync(join(tmpdir(), "registry-single-"));
+    writeAgent(join(root, "agents/core/plan-dreamer.ts"), "plan-dreamer");
+  });
+
+  after(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("loads a nested agent by its basename", async () => {
+    const { loadSingleAgentRegistry } = await import("./registry.js");
+    const registry = await loadSingleAgentRegistry("plan-dreamer", {
+      projectRoot: root,
+      agentsDir: "agents",
+    });
+    const [agent] = registry.list();
+    strictEqual(agent.name, "core/plan-dreamer");
+  });
+});
+
 describe("loadRegistry workflows", () => {
   let root: string;
 
