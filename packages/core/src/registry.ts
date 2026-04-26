@@ -1,6 +1,6 @@
 import { AgentDef, WorkflowDef } from "./schema.js";
 import { readdir } from "node:fs/promises";
-import { basename, join, resolve } from "node:path";
+import { basename, join, relative, resolve } from "node:path";
 import { existsSync } from "node:fs";
 import { loadTs } from "./ts-loader.js";
 import { deriveName } from "./derive-name.js";
@@ -105,7 +105,9 @@ export async function loadSingleAgentRegistry(
   const mod = await loadTs<{ default: AgentDef | WorkflowDef }>(match.path, import.meta.url);
   const def = mod.default as AgentDef & { kind?: string };
   if (!def || def.kind !== "agent") {
-    throw new Error(`'${resolved}' is not an agent`);
+    throw new Error(
+      `'${resolved}' is not an agent (found in ${relative(opts.projectRoot, match.path)})`,
+    );
   }
   (def as unknown as { name: string }).name = resolved;
   validateAgentDef(def);
