@@ -1,4 +1,3 @@
-// packages/templates/coding/agents/plan-creator.ts
 import { defineAgent } from "@generata/core";
 
 export default defineAgent({

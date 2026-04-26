@@ -1,4 +1,3 @@
-// packages/templates/coding/agents/rejected-code-tidier.ts
 import { defineAgent } from "@generata/core";
 
 export default defineAgent({

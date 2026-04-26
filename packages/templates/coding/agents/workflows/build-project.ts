@@ -1,4 +1,3 @@
-// packages/templates/coding/agents/workflows/build-project.ts
 import { defineWorkflow } from "@generata/core";
 import specCreator from "../spec-creator.js";
 import planCreator from "../plan-creator.js";

@@ -14,5 +14,5 @@
     }
   ],
   "requiredEnv": {},
-  "postInstall": "  1. Edit generata.config.ts to set workDir (where NOTES.md and projects/ live)\n  2. Add ideas to NOTES.md\n  3. Run: pnpm generata workflow build-project"
+  "postInstall": "  1. NOTES.md is pre-populated with starter ideas - edit, replace, or add your own\n  2. Run: pnpm generata workflow build-project\n\nThe workflow picks the most compelling idea, writes a SPEC and PLAN, builds the project under projects/<name>/, and removes the used idea from NOTES.md."
 }

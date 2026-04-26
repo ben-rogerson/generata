@@ -1,4 +1,3 @@
-// packages/templates/coding/agents/plan-reviewer.ts
 import { defineAgent } from "@generata/core";
 
 export default defineAgent({

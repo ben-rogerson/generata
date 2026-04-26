@@ -35,7 +35,7 @@ cd ~/Projects/my-pipeline
 
 ```
 <workDir>/
-├── NOTES.md                          # your idea backlog
+├── NOTES.md                          # idea backlog (pre-populated; you edit it)
 ├── projects/
 │   ├── <plan-name>/                  # successful build
 │   │   ├── SPEC.md
@@ -58,10 +58,13 @@ cd ~/Projects/my-pipeline
 
 ## Quick start
 
+`NOTES.md` ships pre-populated with starter ideas, so you can run the workflow immediately:
+
 ```bash
-# Add some ideas to NOTES.md, then:
 pnpm generata workflow build-project
 ```
+
+Edit `NOTES.md` to add your own ideas, replace the starters, or remove anything you don't want built.
 
 ## Customising
 
