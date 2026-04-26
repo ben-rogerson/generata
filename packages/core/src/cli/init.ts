@@ -198,7 +198,7 @@ async function scanTemplate(dir: string): Promise<{
   let skipped = 0;
 
   for (const file of tsFilesUnder(agentsRoot)) {
-    let def: (AgentDef | WorkflowDef) | undefined;
+    let def: AgentDef | WorkflowDef | undefined;
     try {
       const mod = await loadTs<{ default: AgentDef | WorkflowDef }>(file, import.meta.url);
       def = mod.default;
@@ -207,18 +207,15 @@ async function scanTemplate(dir: string): Promise<{
       continue;
     }
     if (!def) continue;
-    const kind = (def as unknown as { kind?: string }).kind;
     const name = deriveName(agentsRoot, file);
-    if (kind === "agent") {
-      const agent = def as AgentDef;
-      for (const key of agent.envKeys ?? []) {
+    if (def.kind === "agent") {
+      for (const key of def.envKeys ?? []) {
         (agentEnvKeys[key] ??= []).push(name);
       }
-    } else if (kind === "workflow") {
-      const wf = def as WorkflowDef;
-      (wf as unknown as { name: string }).name = name;
-      workflows.push(wf);
-      for (const step of wf.steps ?? []) {
+    } else if (def.kind === "workflow") {
+      (def as unknown as { name: string }).name = name;
+      workflows.push(def);
+      for (const step of def.steps ?? []) {
         for (const key of step.agent?.envKeys ?? []) {
           (workflowEnvKeys[key] ??= []).push(name);
         }
