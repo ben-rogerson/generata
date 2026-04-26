@@ -127,7 +127,11 @@ export async function runInit(opts: InitOpts): Promise<void> {
       agentEnvKeys,
       workflowEnvKeys,
     });
-    writeFileSync(join(destAbs, ".env.example"), envExample);
+    if (envExample.trim()) {
+      writeFileSync(join(destAbs, ".env.example"), envExample);
+    } else {
+      console.log(fmt.dim(`      No env vars declared - skipping .env.example`));
+    }
     const promptItems = buildPromptItems(manifest, agentEnvKeys, workflowEnvKeys);
     const collected = opts.yes
       ? Object.fromEntries(
