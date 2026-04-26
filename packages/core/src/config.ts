@@ -1,4 +1,4 @@
-import { resolve } from "node:path";
+import { resolve, dirname } from "node:path";
 import { existsSync } from "node:fs";
 import { findProjectRoot } from "./find-project-root.js";
 import { loadTs } from "./ts-loader.js";
@@ -31,8 +31,10 @@ export async function loadConfig(projectRoot?: string): Promise<GlobalConfig> {
   const cached = cache.get(configPath);
   if (cached) return cached;
 
-  const mod = await loadTs<{ default: GlobalConfig }>(configPath, import.meta.url);
-  const parsed = GlobalConfig.parse(mod.default);
+  const mod = await loadTs<{ default: unknown }>(configPath, import.meta.url);
+  const raw = (mod.default ?? {}) as Record<string, unknown>;
+  if (raw.workDir === undefined) raw.workDir = dirname(configPath);
+  const parsed = GlobalConfig.parse(raw);
   cache.set(configPath, parsed);
   return parsed;
 }
