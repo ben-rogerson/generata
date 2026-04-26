@@ -3,7 +3,6 @@ import projectRef from "../core/project-ref.js";
 import cloudflareDeployer from "../deployment/cloudflare-deployer.js";
 
 export default defineWorkflow({
-  name: "deploy-project",
   description: "Deploy a project to Cloudflare",
   required: ["project"] as const,
   variables: { plans_dir: "plans", output_dir: "projects" },

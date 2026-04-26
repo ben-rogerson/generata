@@ -11,6 +11,7 @@ import { copyTree, filesEqual } from "./copy.js";
 import { generateSlashCommands } from "./slash-commands.js";
 import { loadTs } from "../ts-loader.js";
 import type { AgentDef, WorkflowDef } from "../define.js";
+import { deriveName } from "../derive-name.js";
 import { fmt } from "../logger.js";
 
 export interface InitOpts {
@@ -181,14 +182,12 @@ async function scanTemplate(dir: string): Promise<{
   const workflows: WorkflowDef[] = [];
 
   const agentsRoot = resolve(dir, "agents");
-  const workflowsRoot = resolve(dir, "agents/workflows");
 
   function* tsFilesUnder(root: string): IterableIterator<string> {
     if (!existsSync(root)) return;
     for (const entry of readdirSync(root, { withFileTypes: true })) {
       const full = join(root, entry.name);
       if (entry.isDirectory()) {
-        if (resolve(full) === resolve(workflowsRoot)) continue;
         yield* tsFilesUnder(full);
       } else if (entry.name.endsWith(".ts") || entry.name.endsWith(".js")) {
         yield full;
@@ -199,39 +198,29 @@ async function scanTemplate(dir: string): Promise<{
   let skipped = 0;
 
   for (const file of tsFilesUnder(agentsRoot)) {
-    let def: AgentDef | undefined;
+    let def: (AgentDef | WorkflowDef) | undefined;
     try {
-      const mod = await loadTs<{ default: AgentDef }>(file, import.meta.url);
+      const mod = await loadTs<{ default: AgentDef | WorkflowDef }>(file, import.meta.url);
       def = mod.default;
     } catch {
       skipped++;
       continue;
     }
-    if (!def?.name) continue;
-    for (const key of def.envKeys ?? []) {
-      (agentEnvKeys[key] ??= []).push(def.name);
-    }
-  }
-
-  if (existsSync(workflowsRoot)) {
-    for (const entry of readdirSync(workflowsRoot, { withFileTypes: true })) {
-      if (!entry.isFile() || (!entry.name.endsWith(".ts") && !entry.name.endsWith(".js"))) {
-        continue;
+    if (!def) continue;
+    const kind = (def as unknown as { kind?: string }).kind;
+    const name = deriveName(agentsRoot, file);
+    if (kind === "agent") {
+      const agent = def as AgentDef;
+      for (const key of agent.envKeys ?? []) {
+        (agentEnvKeys[key] ??= []).push(name);
       }
-      const file = join(workflowsRoot, entry.name);
-      let wf: WorkflowDef | undefined;
-      try {
-        const mod = await loadTs<{ default: WorkflowDef }>(file, import.meta.url);
-        wf = mod.default;
-      } catch {
-        skipped++;
-        continue;
-      }
-      if (!wf?.name) continue;
+    } else if (kind === "workflow") {
+      const wf = def as WorkflowDef;
+      (wf as unknown as { name: string }).name = name;
       workflows.push(wf);
       for (const step of wf.steps ?? []) {
         for (const key of step.agent?.envKeys ?? []) {
-          (workflowEnvKeys[key] ??= []).push(wf.name);
+          (workflowEnvKeys[key] ??= []).push(name);
         }
       }
     }

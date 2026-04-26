@@ -1,7 +1,6 @@
 import { defineAgent } from "@generata/core";
 
 export default defineAgent({
-  name: "readme-writer",
   type: "worker",
   description: "Generate a README.md for a completed project",
   modelTier: "light",

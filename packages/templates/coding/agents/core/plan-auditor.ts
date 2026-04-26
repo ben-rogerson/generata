@@ -1,7 +1,6 @@
 import { defineAgent } from "@generata/core";
 
 export default defineAgent({
-  name: "plan-auditor",
   type: "critic",
   description:
     "Triage staged plans - approve to proceed or reject to halt the workflow",

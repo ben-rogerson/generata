@@ -1,7 +1,6 @@
 import { defineAgent } from "@generata/core";
 
 export default defineAgent({
-  name: "code-reviewer", // Get this name from the filename
   type: "critic",
   description: "Post-implementation review: checks code after execution",
   modelTier: "standard",

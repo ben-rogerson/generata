@@ -1,7 +1,6 @@
 import { defineAgent } from "@generata/core";
 
 export default defineAgent({
-  name: "standup-writer",
   type: "worker",
   description: "Turns a git activity summary into a 3-section standup (yesterday / today / blockers)",
   modelTier: "standard",

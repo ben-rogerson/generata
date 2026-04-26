@@ -1,7 +1,6 @@
 import { defineAgent } from "@generata/core";
 
 export default defineAgent({
-  name: "plan-interviewer",
   type: "planner",
   description:
     "Gather requirements from the user and write a structured plan document",

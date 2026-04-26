@@ -1,7 +1,6 @@
 import { defineAgent } from "@generata/core";
 
 export default defineAgent({
-  name: "echo",
   type: "worker",
   description: "Repeats whatever message it receives. Replace with your own agent.",
   modelTier: "light",

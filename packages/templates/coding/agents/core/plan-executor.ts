@@ -1,7 +1,6 @@
 import { defineAgent } from "@generata/core";
 
 export default defineAgent({
-  name: "plan-executor",
   type: "worker",
   description: "Execute a plan - scaffolding, coding, file creation",
   modelTier: "heavy",

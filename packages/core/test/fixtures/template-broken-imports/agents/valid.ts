@@ -1,7 +1,6 @@
 import { defineAgent } from "@generata/core";
 
 export default defineAgent({
-  name: "valid",
   type: "worker",
   description: "Valid sibling of the broken-imports agent",
   modelTier: "light",

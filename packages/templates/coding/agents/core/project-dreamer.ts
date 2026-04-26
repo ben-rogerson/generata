@@ -1,7 +1,6 @@
 import { defineAgent } from "@generata/core";
 
 export default defineAgent({
-  name: "project-dreamer",
   type: "planner",
   permissions: "read-only",
   description:

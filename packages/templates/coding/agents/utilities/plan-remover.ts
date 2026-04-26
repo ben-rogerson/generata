@@ -1,7 +1,6 @@
 import { defineAgent } from "@generata/core";
 
 export default defineAgent({
-  name: "plan-remover",
   type: "worker",
   description: "Removes a rejected plan file from the plans directory",
   modelTier: "light",

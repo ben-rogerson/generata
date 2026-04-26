@@ -8,13 +8,12 @@ import { loadRegistry, resolveAgentName } from "./registry.js";
 
 const DEFINE_PATH = fileURLToPath(new URL("./define.ts", import.meta.url));
 
-function writeAgent(file: string, name: string): void {
+function writeAgent(file: string): void {
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(
     file,
     `import { defineAgent } from ${JSON.stringify(DEFINE_PATH)};
 export default defineAgent({
-  name: ${JSON.stringify(name)},
   type: "worker",
   description: "test",
   modelTier: "light",
@@ -32,8 +31,8 @@ describe("loadRegistry", () => {
 
   before(() => {
     root = mkdtempSync(join(tmpdir(), "registry-test-"));
-    writeAgent(join(root, "agents/echo.ts"), "echo-old-name");
-    writeAgent(join(root, "agents/core/plan-dreamer.ts"), "plan-dreamer");
+    writeAgent(join(root, "agents/echo.ts"));
+    writeAgent(join(root, "agents/core/plan-dreamer.ts"));
   });
 
   after(() => {
@@ -49,7 +48,7 @@ describe("loadRegistry", () => {
     ok(registry.has("core/plan-dreamer"));
   });
 
-  it("derived name overrides the value supplied to defineAgent", async () => {
+  it("stamps the derived name onto the loaded def", async () => {
     const registry = await loadRegistry({
       projectRoot: root,
       agentsDir: "agents",
@@ -71,7 +70,7 @@ describe("loadRegistry path validation", () => {
   it("throws on an invalid filename segment", async () => {
     const root = mkdtempSync(join(tmpdir(), "registry-bad-"));
     try {
-      writeAgent(join(root, "agents/Bad.ts"), "bad");
+      writeAgent(join(root, "agents/Bad.ts"));
       await rejects(
         loadRegistry({
           projectRoot: root,
@@ -109,14 +108,13 @@ describe("resolveAgentName", () => {
   });
 });
 
-function writeWorkflow(file: string, name: string, agentRel: string): void {
+function writeWorkflow(file: string, agentRel: string): void {
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(
     file,
     `import { defineWorkflow } from ${JSON.stringify(DEFINE_PATH)};
 import agent from "${agentRel}";
 export default defineWorkflow({
-  name: ${JSON.stringify(name)},
   description: "test",
   steps: [{ id: "s", agent }],
 });
@@ -129,7 +127,7 @@ describe("loadSingleAgentRegistry basename resolution", () => {
 
   before(() => {
     root = mkdtempSync(join(tmpdir(), "registry-single-"));
-    writeAgent(join(root, "agents/core/plan-dreamer.ts"), "plan-dreamer");
+    writeAgent(join(root, "agents/core/plan-dreamer.ts"));
   });
 
   after(() => {
@@ -152,8 +150,8 @@ describe("loadRegistry workflows", () => {
 
   before(() => {
     root = mkdtempSync(join(tmpdir(), "registry-wf-"));
-    writeAgent(join(root, "agents/echo.ts"), "echo");
-    writeWorkflow(join(root, "agents/standup/flow.ts"), "flow", "../echo.js");
+    writeAgent(join(root, "agents/echo.ts"));
+    writeWorkflow(join(root, "agents/standup/flow.ts"), "../echo.js");
   });
 
   after(() => {

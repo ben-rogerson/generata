@@ -25,7 +25,6 @@ That's a one-agent, one-workflow starter. `init` scaffolds the project, asks for
 import { defineAgent } from "@generata/core";
 
 export default defineAgent({
-  name: "echo",
   type: "worker",
   description: "Repeats whatever message it receives.",
   modelTier: "light",
@@ -35,15 +34,15 @@ export default defineAgent({
 });
 ```
 
-And a workflow that uses it:
+And a workflow that uses it. Workflows can live anywhere under `agents/`. The filename is the workflow name.
 
 ```ts
-// agents/workflows/say-hello.ts
+// agents/say-hello.ts
 import { defineWorkflow } from "@generata/core";
-import echo from "../echo.js";
+import echo from "./echo.js";
 
 export default defineWorkflow({
-  name: "say-hello",
+  description: "Echoes the supplied message.",
   required: ["message"],
   steps: [{ id: "echo", agent: echo }],
 });

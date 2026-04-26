@@ -1,7 +1,6 @@
 import { defineAgent } from "@generata/core";
 
 export default defineAgent({
-  name: "cloudflare-deployer",
   type: "worker",
   description: "Deploy a project to Cloudflare Workers or Pages",
   modelTier: "standard",

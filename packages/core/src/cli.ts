@@ -239,7 +239,6 @@ async function main() {
 
       // Hydrate: inject CLI flags as args for every step (plan_name etc. flow through)
       const workflowDef = WorkflowDef.parse({
-        name: `supervisor-${Date.now()}`,
         description: String(flags.goal ?? "Supervisor-generated workflow"),
         required: [],
         steps: supervisorOutput.steps.map((s) => ({
@@ -249,6 +248,7 @@ async function main() {
           dependsOn: s.dependsOn,
         })),
       }) as WorkflowDef;
+      (workflowDef as unknown as { name: string }).name = `supervisor-${Date.now()}`;
       (workflowDef as unknown as { kind: "workflow" }).kind = "workflow";
 
       console.log(

@@ -1,7 +1,6 @@
 import { defineAgent } from "@generata/core";
 
 export default defineAgent({
-  name: "notes-tidier",
   type: "worker",
   description:
     "Tidies notes.md after a plan is written - removes or marks ideas that are now captured in the plan",

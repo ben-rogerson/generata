@@ -58,7 +58,6 @@ type WorkflowInput<
   TVars extends Record<string, string>,
   TDerived extends Record<string, string>,
 > = {
-  name: string;
   description: string;
   required?: TRequired;
   variables?: TVars;

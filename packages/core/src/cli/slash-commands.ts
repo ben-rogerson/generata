@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import type { WorkflowDef } from "../define.js";
 
 export interface GenerateSlashCommandsInput {
@@ -11,6 +11,7 @@ export function generateSlashCommands(input: GenerateSlashCommandsInput): void {
   mkdirSync(input.destDir, { recursive: true });
   for (const wf of input.workflows) {
     const path = join(input.destDir, `${wf.name}.md`);
+    mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, renderSlashCommand(wf), "utf8");
   }
 }
