@@ -1,7 +1,7 @@
 import type { StepResult } from "../engine.js";
 import type { WorkflowDef } from "../schema.js";
 
-const _INTERACTIVE_PLACEHOLDER = "[interactive session completed]";
+const INTERACTIVE_PLACEHOLDER = "[interactive session completed]";
 
 export function pickPrintableFinalOutput(
   steps: StepResult[],
@@ -11,5 +11,6 @@ export function pickPrintableFinalOutput(
   const last = steps[steps.length - 1];
   const trimmed = last.output.trim();
   if (trimmed === "") return null;
+  if (trimmed === INTERACTIVE_PLACEHOLDER) return null;
   return trimmed;
 }

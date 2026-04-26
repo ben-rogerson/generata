@@ -60,4 +60,15 @@ describe("pickPrintableFinalOutput", () => {
     ];
     strictEqual(pickPrintableFinalOutput(steps, emptyWorkflow), "a haiku");
   });
+
+  it("returns null when the final step's output is the interactive placeholder", () => {
+    const steps = [
+      {
+        stepId: "only",
+        output: "[interactive session completed]",
+        metrics: { agent: "x" } as any,
+      },
+    ];
+    strictEqual(pickPrintableFinalOutput(steps, emptyWorkflow), null);
+  });
 });
