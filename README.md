@@ -9,6 +9,8 @@ Multi-agent pipelines for Claude Code. Define agents, wire them into workflows, 
 
 ## Try it
 
+For a "one-agent, one-workflow starter", run:
+
 ```bash
 pnpm dlx @generata/core init @generata/starter ~/Projects/hello-generata
 # or: npx @generata/core init @generata/starter ~/Projects/hello-generata
@@ -16,7 +18,9 @@ cd ~/Projects/hello-generata
 pnpm generata workflow hello --message "world"
 ```
 
-That's a one-agent, one-workflow starter. `init` scaffolds the project, asks for any env values, and writes Claude Code slash commands for every workflow it finds. When you want the full plan-driven coding pipeline, swap `@generata/starter` for [`@generata/coding`](./packages/templates/coding).
+The `init` command above scaffolds the project, asks for any env values, and writes Claude Code slash commands for every workflow it finds.
+
+If you want the full plan-driven coding pipeline, initialize [`@generata/coding`](./packages/templates/coding) (or add it to an existing project with `pnpm generata add @generata/coding`).
 
 ## What an agent looks like
 
@@ -26,7 +30,8 @@ import { defineAgent } from "@generata/core";
 
 export default defineAgent({
   type: "worker",
-  description: "Greets a message in any creative one-line form.",
+  description:
+    "Greets using a supplied message using a creative one-line form.",
   modelTier: "light",
   permissions: "read-only",
   tools: [],
@@ -37,14 +42,29 @@ export default defineAgent({
 And a workflow that uses it. Workflows live under `agents/workflows/`. The filename is the workflow name.
 
 ```ts
-// agents/workflows/hello.ts
+// agents/hello.ts
 import { defineWorkflow } from "@generata/core";
-import greeter from "../greeter.js";
+import greeter from "./greeter.js";
 
 export default defineWorkflow({
   description: "Greets the supplied message.",
   required: ["message"],
   steps: [{ id: "greet", agent: greeter }],
+});
+```
+
+And the project config - `init` writes one for you, but here's what it looks like:
+
+```ts
+// generata.config.ts
+import { defineConfig } from "@generata/core";
+
+export default defineConfig({
+  modelTiers: {
+    heavy: "claude-opus-4-7",
+    standard: "claude-sonnet-4-6",
+    light: "claude-haiku-4-5",
+  },
 });
 ```
 
@@ -67,44 +87,12 @@ Most agent frameworks expect you to manage Anthropic/OpenAI API keys, juggle Pyt
 
 ## Packages
 
-| Package | What it is |
-| :--- | :--- |
-| [`packages/core`](./packages/core) | `@generata/core` - the engine and CLI, published to npm |
-| [`packages/templates/coding`](./packages/templates/coding) | The default coding pipeline template, cloned by `init` |
-| [`packages/templates/starter`](./packages/templates/starter) | Minimal starter for building your own pipeline |
-| [`packages/templates/standup`](./packages/templates/standup) | Daily standup summariser template |
-
-## Hack on it
-
-```bash
-pnpm install
-pnpm typecheck
-pnpm test
-pnpm build
-```
-
-Run the CLI without building:
-
-```bash
-node --import tsx packages/core/src/cli.ts help
-```
-
-Scaffold from the local template into a temp dir:
-
-```bash
-TMP=$(mktemp -d)
-node --import tsx packages/core/src/cli.ts init ./packages/templates/coding "$TMP" --yes --skip-install
-```
-
-See [AGENTS.md](./AGENTS.md) for the full development guide.
-
-## Release
-
-We use [Changesets](https://github.com/changesets/changesets). Add one with `pnpm changeset`, merge to `main`, and the release workflow opens a version PR. Merge that PR to publish.
-
-## License
-
-ISC
+| Package                                                      | What it is                                              |
+| :----------------------------------------------------------- | :------------------------------------------------------ |
+| [`packages/core`](./packages/core)                           | `@generata/core` - the engine and CLI, published to npm |
+| [`packages/templates/coding`](./packages/templates/coding)   | The default coding pipeline template, cloned by `init`  |
+| [`packages/templates/starter`](./packages/templates/starter) | Minimal starter for building your own pipeline          |
+| [`packages/templates/standup`](./packages/templates/standup) | Daily standup summariser template                       |
 
 ---
 

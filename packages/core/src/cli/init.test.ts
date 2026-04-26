@@ -64,7 +64,7 @@ describe("runInit", () => {
       const body = readFileSync(join(dest, "generata.config.ts"), "utf8");
       ok(body.includes("defineConfig"));
       ok(body.includes("modelTiers"));
-      ok(body.includes(JSON.stringify(dest)));
+      ok(!body.includes("workDir"));
     } finally {
       rmSync(dest, { recursive: true, force: true });
     }
@@ -95,7 +95,7 @@ describe("runInit", () => {
       ok(existsSync(join(dest, "generata.config.ts")));
       const body = readFileSync(join(dest, "generata.config.ts"), "utf8");
       ok(body.includes("defineConfig"));
-      ok(body.includes(JSON.stringify(dest)));
+      ok(!body.includes("workDir"));
     } finally {
       rmSync(dest, { recursive: true, force: true });
     }

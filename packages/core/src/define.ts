@@ -75,8 +75,12 @@ export function defineWorkflow<
   return parsed as WorkflowDef;
 }
 
-export function defineConfig(config: z.input<typeof GlobalConfig>): GlobalConfig {
-  return GlobalConfig.parse(config);
+type DefineConfigInput = Omit<z.input<typeof GlobalConfig>, "workDir"> & { workDir?: string };
+
+export function defineConfig(config: DefineConfigInput): GlobalConfig {
+  // workDir is optional here - loadConfig back-fills it with the directory
+  // containing generata.config.ts, and validates the full shape at load time.
+  return config as unknown as GlobalConfig;
 }
 
 // Public type re-exports for consumers. Internals (engine, registry, runner)
