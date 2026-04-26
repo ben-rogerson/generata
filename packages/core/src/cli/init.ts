@@ -195,15 +195,16 @@ async function scanTemplate(dir: string): Promise<{
     }
   }
 
-  let skipped = 0;
+  const failures: Array<{ file: string; error: string }> = [];
 
   for (const file of tsFilesUnder(agentsRoot)) {
     let def: AgentDef | WorkflowDef | undefined;
     try {
       const mod = await loadTs<{ default: AgentDef | WorkflowDef }>(file, import.meta.url);
       def = mod.default;
-    } catch {
-      skipped++;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      failures.push({ file: file.slice(dir.length + 1), error: message.split("\n")[0] });
       continue;
     }
     if (!def) continue;
@@ -223,11 +224,15 @@ async function scanTemplate(dir: string): Promise<{
     }
   }
 
-  if (skipped > 0) {
+  if (failures.length > 0) {
+    console.log(fmt.fail(`      Failed to load ${failures.length} file(s):`));
+    for (const { file, error } of failures) {
+      console.log(fmt.dim(`        ${file}: ${error}`));
+    }
     console.log(
       fmt.dim(
-        `      Skipped ${skipped} file(s) that could not be loaded (typically a fresh template clone without dependencies). ` +
-          `Env keys declared in those files won't appear in .env.example; the workflow precheck will catch any missing vars at run time.`,
+        `      If this is a fresh template clone, run \`pnpm install\` and re-run init. ` +
+          `Otherwise the template may be incompatible with this engine version.`,
       ),
     );
   }
