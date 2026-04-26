@@ -84,7 +84,9 @@ export async function runInit(opts: InitOpts): Promise<void> {
     }
 
     console.log(fmt.dim(`[3/7] Walking template files...`));
-    const { agentEnvKeys, workflowEnvKeys, workflows } = await scanTemplate(tmpl.dir);
+    const { agentEnvKeys, workflowEnvKeys, workflows, failureCount } = await scanTemplate(
+      tmpl.dir,
+    );
 
     console.log(fmt.dim(`[4/7] Generating .env.example...`));
     mkdirSync(destAbs, { recursive: true });
@@ -145,7 +147,14 @@ export async function runInit(opts: InitOpts): Promise<void> {
       destDir: join(destAbs, ".claude", "commands"),
     });
 
-    if (manifest.postInstall) {
+    if (failureCount > 0) {
+      console.log(
+        "\n" +
+          fmt.fail(
+            `Template files failed to load - skipping post-install instructions. Fix the errors above and re-run.`,
+          ),
+      );
+    } else if (manifest.postInstall) {
       console.log("\n" + fmt.bold("Next steps:"));
       console.log(manifest.postInstall);
     }
@@ -176,6 +185,7 @@ async function scanTemplate(dir: string): Promise<{
   agentEnvKeys: Record<string, string[]>;
   workflowEnvKeys: Record<string, string[]>;
   workflows: WorkflowDef[];
+  failureCount: number;
 }> {
   const agentEnvKeys: Record<string, string[]> = {};
   const workflowEnvKeys: Record<string, string[]> = {};
@@ -237,7 +247,7 @@ async function scanTemplate(dir: string): Promise<{
     );
   }
 
-  return { agentEnvKeys, workflowEnvKeys, workflows };
+  return { agentEnvKeys, workflowEnvKeys, workflows, failureCount: failures.length };
 }
 
 function buildPromptItems(
