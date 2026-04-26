@@ -11,6 +11,7 @@ import { copyTree, filesEqual } from "./copy.js";
 import { generateSlashCommands } from "./slash-commands.js";
 import { loadTs } from "../ts-loader.js";
 import type { AgentDef, WorkflowDef } from "../define.js";
+import { deriveName } from "../derive-name.js";
 import { fmt } from "../logger.js";
 
 export interface InitOpts {
@@ -83,7 +84,9 @@ export async function runInit(opts: InitOpts): Promise<void> {
     }
 
     console.log(fmt.dim(`[3/7] Walking template files...`));
-    const { agentEnvKeys, workflowEnvKeys, workflows } = await scanTemplate(tmpl.dir);
+    const { agentEnvKeys, workflowEnvKeys, workflows, failureCount } = await scanTemplate(
+      tmpl.dir,
+    );
 
     console.log(fmt.dim(`[4/7] Generating .env.example...`));
     mkdirSync(destAbs, { recursive: true });
@@ -144,7 +147,14 @@ export async function runInit(opts: InitOpts): Promise<void> {
       destDir: join(destAbs, ".claude", "commands"),
     });
 
-    if (manifest.postInstall) {
+    if (failureCount > 0) {
+      console.log(
+        "\n" +
+          fmt.fail(
+            `Template files failed to load - skipping post-install instructions. Fix the errors above and re-run.`,
+          ),
+      );
+    } else if (manifest.postInstall) {
       console.log("\n" + fmt.bold("Next steps:"));
       console.log(manifest.postInstall);
     }
@@ -175,20 +185,19 @@ async function scanTemplate(dir: string): Promise<{
   agentEnvKeys: Record<string, string[]>;
   workflowEnvKeys: Record<string, string[]>;
   workflows: WorkflowDef[];
+  failureCount: number;
 }> {
   const agentEnvKeys: Record<string, string[]> = {};
   const workflowEnvKeys: Record<string, string[]> = {};
   const workflows: WorkflowDef[] = [];
 
   const agentsRoot = resolve(dir, "agents");
-  const workflowsRoot = resolve(dir, "agents/workflows");
 
   function* tsFilesUnder(root: string): IterableIterator<string> {
     if (!existsSync(root)) return;
     for (const entry of readdirSync(root, { withFileTypes: true })) {
       const full = join(root, entry.name);
       if (entry.isDirectory()) {
-        if (resolve(full) === resolve(workflowsRoot)) continue;
         yield* tsFilesUnder(full);
       } else if (entry.name.endsWith(".ts") || entry.name.endsWith(".js")) {
         yield full;
@@ -196,57 +205,49 @@ async function scanTemplate(dir: string): Promise<{
     }
   }
 
-  let skipped = 0;
+  const failures: Array<{ file: string; error: string }> = [];
 
   for (const file of tsFilesUnder(agentsRoot)) {
-    let def: AgentDef | undefined;
+    let def: AgentDef | WorkflowDef | undefined;
     try {
-      const mod = await loadTs<{ default: AgentDef }>(file, import.meta.url);
+      const mod = await loadTs<{ default: AgentDef | WorkflowDef }>(file, import.meta.url);
       def = mod.default;
-    } catch {
-      skipped++;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      failures.push({ file: file.slice(dir.length + 1), error: message.split("\n")[0] });
       continue;
     }
-    if (!def?.name) continue;
-    for (const key of def.envKeys ?? []) {
-      (agentEnvKeys[key] ??= []).push(def.name);
-    }
-  }
-
-  if (existsSync(workflowsRoot)) {
-    for (const entry of readdirSync(workflowsRoot, { withFileTypes: true })) {
-      if (!entry.isFile() || (!entry.name.endsWith(".ts") && !entry.name.endsWith(".js"))) {
-        continue;
+    if (!def) continue;
+    const name = deriveName(agentsRoot, file);
+    if (def.kind === "agent") {
+      for (const key of def.envKeys ?? []) {
+        (agentEnvKeys[key] ??= []).push(name);
       }
-      const file = join(workflowsRoot, entry.name);
-      let wf: WorkflowDef | undefined;
-      try {
-        const mod = await loadTs<{ default: WorkflowDef }>(file, import.meta.url);
-        wf = mod.default;
-      } catch {
-        skipped++;
-        continue;
-      }
-      if (!wf?.name) continue;
-      workflows.push(wf);
-      for (const step of wf.steps ?? []) {
+    } else if (def.kind === "workflow") {
+      (def as unknown as { name: string }).name = name;
+      workflows.push(def);
+      for (const step of def.steps ?? []) {
         for (const key of step.agent?.envKeys ?? []) {
-          (workflowEnvKeys[key] ??= []).push(wf.name);
+          (workflowEnvKeys[key] ??= []).push(name);
         }
       }
     }
   }
 
-  if (skipped > 0) {
+  if (failures.length > 0) {
+    console.log(fmt.fail(`      Failed to load ${failures.length} file(s):`));
+    for (const { file, error } of failures) {
+      console.log(fmt.dim(`        ${file}: ${error}`));
+    }
     console.log(
       fmt.dim(
-        `      Skipped ${skipped} file(s) that could not be loaded (typically a fresh template clone without dependencies). ` +
-          `Env keys declared in those files won't appear in .env.example; the workflow precheck will catch any missing vars at run time.`,
+        `      If this is a fresh template clone, run \`pnpm install\` and re-run init. ` +
+          `Otherwise the template may be incompatible with this engine version.`,
       ),
     );
   }
 
-  return { agentEnvKeys, workflowEnvKeys, workflows };
+  return { agentEnvKeys, workflowEnvKeys, workflows, failureCount: failures.length };
 }
 
 function buildPromptItems(

@@ -25,7 +25,9 @@ type AgentInput =
     });
 
 export function defineAgent<T extends AgentInput>(def: T): Extract<AgentDef, { type: T["type"] }> {
-  return AgentDef.parse(def) as Extract<AgentDef, { type: T["type"] }>;
+  const parsed = AgentDef.parse(def) as Extract<AgentDef, { type: T["type"] }>;
+  (parsed as unknown as { kind: "agent" }).kind = "agent";
+  return parsed;
 }
 
 // z.custom<fn> breaks contextual typing (same issue as promptTemplate above).
@@ -56,7 +58,6 @@ type WorkflowInput<
   TVars extends Record<string, string>,
   TDerived extends Record<string, string>,
 > = {
-  name: string;
   description: string;
   required?: TRequired;
   variables?: TVars;
@@ -69,7 +70,9 @@ export function defineWorkflow<
   TVars extends Record<string, string>,
   TDerived extends Record<string, string>,
 >(def: WorkflowInput<TRequired, TVars, TDerived>): WorkflowDef {
-  return WorkflowDef.parse(def);
+  const parsed = WorkflowDef.parse(def);
+  (parsed as unknown as { kind: "workflow" }).kind = "workflow";
+  return parsed as WorkflowDef;
 }
 
 export function defineConfig(config: z.input<typeof GlobalConfig>): GlobalConfig {

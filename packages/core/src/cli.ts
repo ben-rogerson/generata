@@ -1,8 +1,7 @@
 import { resolve } from "node:path";
 import { z } from "zod";
 import { findProjectRoot } from "./find-project-root.js";
-import { loadTs } from "./ts-loader.js";
-import { loadRegistry, loadSingleAgentRegistry } from "./registry.js";
+import { loadRegistry, loadSingleAgentRegistry, resolveAgentName } from "./registry.js";
 import { loadConfig } from "./config.js";
 import { runAgent } from "./agent-runner.js";
 import { runWorkflow } from "./engine.js";
@@ -50,21 +49,6 @@ function parseArgs(argv: string[]): {
     i++;
   }
   return { positional, flags };
-}
-
-async function loadWorkflow(
-  name: string,
-  projectRoot: string,
-  workflowsDir: string,
-): Promise<WorkflowDef> {
-  for (const ext of ["ts", "js"]) {
-    const p = resolve(projectRoot, workflowsDir, `${name}.${ext}`);
-    try {
-      const mod = await loadTs<{ default: WorkflowDef }>(p, import.meta.url);
-      return mod.default;
-    } catch {}
-  }
-  throw new Error(`Workflow '${name}' not found in ${workflowsDir}/`);
 }
 
 async function main() {
@@ -129,7 +113,6 @@ async function main() {
   const registryOpts = {
     projectRoot,
     agentsDir: config.agentsDir,
-    workflowsDir: config.workflowsDir,
   };
 
   if (command === "agent") {
@@ -149,7 +132,7 @@ async function main() {
     }
     // Load only the target agent to reduce heap before fork()
     let registry = await loadSingleAgentRegistry(target, registryOpts);
-    const agent = registry.get(target);
+    const [agent] = registry.list();
     // Supervisors enumerate all agents in their prompt template
     if (agent.type === "supervisor") {
       registry = await loadRegistry(registryOpts);
@@ -256,7 +239,6 @@ async function main() {
 
       // Hydrate: inject CLI flags as args for every step (plan_name etc. flow through)
       const workflowDef = WorkflowDef.parse({
-        name: `supervisor-${Date.now()}`,
         description: String(flags.goal ?? "Supervisor-generated workflow"),
         required: [],
         steps: supervisorOutput.steps.map((s) => ({
@@ -265,7 +247,9 @@ async function main() {
           args: { ...flags, ...s.args },
           dependsOn: s.dependsOn,
         })),
-      });
+      }) as WorkflowDef;
+      (workflowDef as unknown as { name: string }).name = `supervisor-${Date.now()}`;
+      (workflowDef as unknown as { kind: "workflow" }).kind = "workflow";
 
       console.log(
         `\n${fmt.bold("[supervisor]")} Executing ${fmt.bold(String(workflowDef.steps.length))}-step workflow`,
@@ -293,17 +277,10 @@ async function main() {
 
   if (command === "workflow" || command === "run") {
     if (flags.list || target === "--list") {
-      const { readdir } = await import("node:fs/promises");
-      const { existsSync } = await import("node:fs");
-      const wfDir = resolve(projectRoot, config.workflowsDir);
-      if (existsSync(wfDir)) {
-        const files = await readdir(wfDir);
-        console.log("Available workflows:");
-        for (const f of files) {
-          if (f.endsWith(".ts") || f.endsWith(".js")) {
-            console.log(`  ${f.replace(/\.(ts|js)$/, "")}`);
-          }
-        }
+      const registry = await loadRegistry({ projectRoot, agentsDir: config.agentsDir });
+      console.log("Available workflows:");
+      for (const wf of registry.listWorkflows()) {
+        console.log(`  ${wf.name}`);
       }
       return;
     }
@@ -311,7 +288,10 @@ async function main() {
       console.error("Usage: generata workflow <name> [--key value ...]");
       process.exit(1);
     }
-    const workflow = await loadWorkflow(target, projectRoot, config.workflowsDir);
+    const registry = await loadRegistry({ projectRoot, agentsDir: config.agentsDir });
+    const candidates = [...registry.workflows.keys()];
+    const resolvedName = resolveAgentName(target, candidates);
+    const workflow = registry.getWorkflow(resolvedName);
     const runId = makeRunId();
     const logPrompts = flags["log-prompts"] === "true" || config.logPrompts;
     delete flags["log-prompts"];
@@ -338,20 +318,9 @@ async function main() {
 
   if (command === "validate") {
     if (flags.list || flags.all || target === "--list" || target === "--all") {
-      const { readdir } = await import("node:fs/promises");
-      const { existsSync } = await import("node:fs");
-      const wfDir = resolve(projectRoot, config.workflowsDir);
-      if (!existsSync(wfDir)) {
-        console.error(fmt.fail(`No workflow directory at ${wfDir}`));
-        process.exit(1);
-      }
-      const files = await readdir(wfDir);
-      const names = files
-        .filter((f) => f.endsWith(".ts") || f.endsWith(".js"))
-        .map((f) => f.replace(/\.(ts|js)$/, ""));
+      const registry = await loadRegistry({ projectRoot, agentsDir: config.agentsDir });
       let failed = 0;
-      for (const name of names) {
-        const workflow = await loadWorkflow(name, projectRoot, config.workflowsDir);
+      for (const workflow of registry.listWorkflows()) {
         const profile = typeof flags.profile === "string" ? flags.profile : undefined;
         const checkFiles = flags["check-files"] === "true";
         const paramsForCheck: Record<string, unknown> = { ...flags };
@@ -362,10 +331,10 @@ async function main() {
           checkFiles,
         });
         if (issues.length === 0) {
-          console.log(`${fmt.bold(name)} ${fmt.dim("ok")}`);
+          console.log(`${fmt.bold(workflow.name)} ${fmt.dim("ok")}`);
         } else {
           failed++;
-          console.error(formatPrecheckReport(name, issues));
+          console.error(formatPrecheckReport(workflow.name, issues));
         }
       }
       if (failed > 0) process.exit(1);
@@ -375,7 +344,10 @@ async function main() {
       console.error("Usage: generata validate <workflow> [--check-files] [--profile P] [--key v]");
       process.exit(1);
     }
-    const workflow = await loadWorkflow(target, projectRoot, config.workflowsDir);
+    const registry = await loadRegistry({ projectRoot, agentsDir: config.agentsDir });
+    const candidates = [...registry.workflows.keys()];
+    const resolvedName = resolveAgentName(target, candidates);
+    const workflow = registry.getWorkflow(resolvedName);
     const profile = typeof flags.profile === "string" ? flags.profile : undefined;
     const checkFiles = flags["check-files"] === "true";
     const issues = precheckWorkflow(workflow, flags, {

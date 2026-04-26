@@ -1,7 +1,6 @@
 import { defineAgent } from "@generata/core";
 
 export default defineAgent({
-  name: "git-summariser",
   type: "worker",
   description: "Reads recent git activity and emits a terse list of what happened",
   modelTier: "light",

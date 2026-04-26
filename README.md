@@ -10,10 +10,10 @@ Multi-agent pipelines for Claude Code. Define agents, wire them into workflows, 
 ## Try it
 
 ```bash
-npm i -g @generata/core
-generata init @generata/starter ~/Projects/hello-generata
+npx @generata/core init @generata/starter ~/Projects/hello-generata
+# or: pnpm dlx @generata/core init @generata/starter ~/Projects/hello-generata
 cd ~/Projects/hello-generata
-generata workflow hello --message "world"
+pnpm generata workflow hello --message "world"
 ```
 
 That's a one-agent, one-workflow starter. `init` scaffolds the project, asks for any env values, and writes Claude Code slash commands for every workflow it finds. When you want the full plan-driven coding pipeline, swap `@generata/starter` for [`@generata/coding`](./packages/templates/coding).
@@ -25,7 +25,6 @@ That's a one-agent, one-workflow starter. `init` scaffolds the project, asks for
 import { defineAgent } from "@generata/core";
 
 export default defineAgent({
-  name: "echo",
   type: "worker",
   description: "Repeats whatever message it receives.",
   modelTier: "light",
@@ -35,15 +34,15 @@ export default defineAgent({
 });
 ```
 
-And a workflow that uses it:
+And a workflow that uses it. Workflows can live anywhere under `agents/`. The filename is the workflow name.
 
 ```ts
-// agents/workflows/say-hello.ts
+// agents/say-hello.ts
 import { defineWorkflow } from "@generata/core";
-import echo from "../echo.js";
+import echo from "./echo.js";
 
 export default defineWorkflow({
-  name: "say-hello",
+  description: "Echoes the supplied message.",
   required: ["message"],
   steps: [{ id: "echo", agent: echo }],
 });

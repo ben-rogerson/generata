@@ -1,31 +1,34 @@
-import { AgentDef } from "./schema.js";
+import { AgentDef, WorkflowDef } from "./schema.js";
 import { readdir } from "node:fs/promises";
-import { basename, extname, join, relative, resolve } from "node:path";
+import { basename, join, relative, resolve } from "node:path";
 import { existsSync } from "node:fs";
 import { loadTs } from "./ts-loader.js";
+import { deriveName } from "./derive-name.js";
 
 export interface AgentRegistry {
   agents: Map<string, AgentDef>;
+  workflows: Map<string, WorkflowDef>;
   list(): AgentDef[];
   get(name: string): AgentDef;
   has(name: string): boolean;
   byType(type: AgentDef["type"]): AgentDef[];
+  getWorkflow(name: string): WorkflowDef;
+  hasWorkflow(name: string): boolean;
+  listWorkflows(): WorkflowDef[];
 }
 
 interface RegistryOpts {
   projectRoot: string;
   agentsDir: string;
-  workflowsDir: string;
 }
 
-async function collectAgentFiles(dir: string, skipAbs: string): Promise<string[]> {
+async function collectFiles(dir: string): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
   const files: string[] = [];
   for (const entry of entries) {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (resolve(full) === skipAbs) continue;
-      files.push(...(await collectAgentFiles(full, skipAbs)));
+      files.push(...(await collectFiles(full)));
     } else if (entry.name.endsWith(".ts") || entry.name.endsWith(".js")) {
       files.push(full);
     }
@@ -33,7 +36,7 @@ async function collectAgentFiles(dir: string, skipAbs: string): Promise<string[]
   return files;
 }
 
-function validateAgentDef(def: AgentDef, _filePath: string): void {
+function validateAgentDef(def: AgentDef): void {
   if (def.type === "supervisor") {
     const writeTools = def.tools.filter((t) => ["write", "edit", "bash"].includes(t));
     if (writeTools.length > 0) {
@@ -44,9 +47,13 @@ function validateAgentDef(def: AgentDef, _filePath: string): void {
   }
 }
 
-function makeRegistry(agents: Map<string, AgentDef>): AgentRegistry {
+function makeRegistry(
+  agents: Map<string, AgentDef>,
+  workflows: Map<string, WorkflowDef>,
+): AgentRegistry {
   return {
     agents,
+    workflows,
     list: () => [...agents.values()],
     get: (name) => {
       const def = agents.get(name);
@@ -57,7 +64,28 @@ function makeRegistry(agents: Map<string, AgentDef>): AgentRegistry {
     },
     has: (name) => agents.has(name),
     byType: (type) => [...agents.values()].filter((a) => a.type === type),
+    getWorkflow: (name) => {
+      const def = workflows.get(name);
+      if (!def) {
+        throw new Error(
+          `Workflow '${name}' not found. Available: ${[...workflows.keys()].join(", ")}`,
+        );
+      }
+      return def;
+    },
+    hasWorkflow: (name) => workflows.has(name),
+    listWorkflows: () => [...workflows.values()],
   };
+}
+
+export function resolveAgentName(input: string, candidates: string[]): string {
+  if (candidates.includes(input)) return input;
+  const matches = candidates.filter((c) => basename(c) === input);
+  if (matches.length === 1) return matches[0];
+  if (matches.length > 1) {
+    throw new Error(`Ambiguous '${input}'. Did you mean: ${matches.join(", ")}?`);
+  }
+  throw new Error(`'${input}' not found. Available: ${candidates.join(", ")}`);
 }
 
 export async function loadSingleAgentRegistry(
@@ -65,43 +93,57 @@ export async function loadSingleAgentRegistry(
   opts: RegistryOpts,
 ): Promise<AgentRegistry> {
   const agentsAbs = resolve(opts.projectRoot, opts.agentsDir);
-  const workflowsAbs = resolve(opts.projectRoot, opts.workflowsDir);
-  const filePaths = existsSync(agentsAbs) ? await collectAgentFiles(agentsAbs, workflowsAbs) : [];
+  const filePaths = existsSync(agentsAbs) ? await collectFiles(agentsAbs) : [];
+  const candidates = filePaths.map((fp) => ({ name: deriveName(agentsAbs, fp), path: fp }));
 
-  const hintPath = filePaths.find((fp) => basename(fp, extname(fp)) === name);
-  const candidates = hintPath
-    ? [hintPath, ...filePaths.filter((fp) => fp !== hintPath)]
-    : filePaths;
+  const resolved = resolveAgentName(
+    name,
+    candidates.map((c) => c.name),
+  );
+  const match = candidates.find((c) => c.name === resolved)!;
 
-  for (const filePath of candidates) {
-    const mod = await loadTs<{ default: AgentDef }>(filePath, import.meta.url);
-    const def = mod.default;
-    if (!def || def.name !== name) continue;
-    validateAgentDef(def, filePath);
-    return makeRegistry(new Map([[def.name, def]]));
+  const mod = await loadTs<{ default: AgentDef | WorkflowDef }>(match.path, import.meta.url);
+  const def = mod.default as AgentDef & { kind?: string };
+  if (!def || def.kind !== "agent") {
+    throw new Error(
+      `'${resolved}' is not an agent (found in ${relative(opts.projectRoot, match.path)})`,
+    );
   }
-
-  throw new Error(`Agent '${name}' not found in ${relative(opts.projectRoot, agentsAbs)}`);
+  (def as unknown as { name: string }).name = resolved;
+  validateAgentDef(def);
+  return makeRegistry(new Map([[resolved, def]]), new Map());
 }
 
 export async function loadRegistry(opts: RegistryOpts): Promise<AgentRegistry> {
   const agents = new Map<string, AgentDef>();
+  const workflows = new Map<string, WorkflowDef>();
   const agentsAbs = resolve(opts.projectRoot, opts.agentsDir);
-  const workflowsAbs = resolve(opts.projectRoot, opts.workflowsDir);
-  const filePaths = existsSync(agentsAbs) ? await collectAgentFiles(agentsAbs, workflowsAbs) : [];
+  const filePaths = existsSync(agentsAbs) ? await collectFiles(agentsAbs) : [];
 
   for (const filePath of filePaths) {
-    const mod = await loadTs<{ default: AgentDef }>(filePath, import.meta.url);
+    const derived = deriveName(agentsAbs, filePath);
+    const mod = await loadTs<{ default: (AgentDef | WorkflowDef) & { kind?: string } }>(
+      filePath,
+      import.meta.url,
+    );
     const def = mod.default;
-    if (!def || typeof def.name !== "string") continue;
-    if (agents.has(def.name)) {
-      throw new Error(
-        `Duplicate agent name '${def.name}' found in ${filePath} - already registered`,
-      );
+    if (!def) continue;
+    (def as unknown as { name: string }).name = derived;
+    if (def.kind === "agent") {
+      if (agents.has(derived)) {
+        throw new Error(`Duplicate agent name '${derived}' in ${filePath}`);
+      }
+      validateAgentDef(def as AgentDef);
+      agents.set(derived, def as AgentDef);
+    } else if (def.kind === "workflow") {
+      if (workflows.has(derived)) {
+        throw new Error(`Duplicate workflow name '${derived}' in ${filePath}`);
+      }
+      workflows.set(derived, def as WorkflowDef);
+    } else {
+      console.warn(`Skipping ${filePath}: default export is not an agent or workflow`);
     }
-    validateAgentDef(def, filePath);
-    agents.set(def.name, def);
   }
 
-  return makeRegistry(agents);
+  return makeRegistry(agents, workflows);
 }

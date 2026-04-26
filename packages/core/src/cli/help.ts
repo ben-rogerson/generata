@@ -1,13 +1,10 @@
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { resolve, join } from "node:path";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { findProjectRoot } from "../find-project-root.js";
 import { loadConfig } from "../config.js";
 import { loadRegistry } from "../registry.js";
-import { loadTs } from "../ts-loader.js";
-import type { WorkflowDef } from "../define.js";
 import { fmt } from "../logger.js";
 
 const exec = promisify(execFile);
@@ -53,7 +50,6 @@ async function helpAgents(): Promise<void> {
   const registry = await loadRegistry({
     projectRoot,
     agentsDir: config.agentsDir,
-    workflowsDir: config.workflowsDir,
   });
   console.log(fmt.bold("Installed agents:"));
   for (const a of registry.list()) {
@@ -66,18 +62,14 @@ async function helpAgents(): Promise<void> {
 async function helpWorkflows(): Promise<void> {
   const projectRoot = findProjectRoot();
   const config = await loadConfig(projectRoot);
-  const wfDir = resolve(projectRoot, config.workflowsDir);
-  if (!existsSync(wfDir)) {
-    console.error(fmt.fail(`No workflow directory at ${wfDir}`));
+  const registry = await loadRegistry({ projectRoot, agentsDir: config.agentsDir });
+  const wfs = registry.listWorkflows();
+  if (wfs.length === 0) {
+    console.error(fmt.fail(`No workflows found under ${config.agentsDir}/`));
     return;
   }
   console.log(fmt.bold("Installed workflows:"));
-  for (const entry of readdirSync(wfDir, { withFileTypes: true })) {
-    if (!entry.isFile()) continue;
-    if (!entry.name.endsWith(".ts") && !entry.name.endsWith(".js")) continue;
-    const mod = await loadTs<{ default: WorkflowDef }>(join(wfDir, entry.name), import.meta.url);
-    const wf = mod.default;
-    if (!wf?.name) continue;
+  for (const wf of wfs) {
     const required = (wf.required ?? []).join(", ") || "(none)";
     const vars = Object.keys(wf.variables ?? {}).join(", ") || "(none)";
     console.log(`  ${wf.name.padEnd(20)}  ${wf.description}`);
@@ -92,7 +84,6 @@ async function helpEnv(): Promise<void> {
   const registry = await loadRegistry({
     projectRoot,
     agentsDir: config.agentsDir,
-    workflowsDir: config.workflowsDir,
   });
 
   const keys = new Map<string, { from: string[] }>();

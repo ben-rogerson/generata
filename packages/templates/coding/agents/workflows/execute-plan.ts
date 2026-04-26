@@ -6,7 +6,6 @@ import readmeWriter from "../utilities/readme-writer.js";
 import notesTidier from "../utilities/notes-tidier.js";
 
 export default defineWorkflow({
-  name: "execute-plan",
   description: "Execute a plan with post-validation and tidy up notes",
   required: ["plan_name"] as const,
   variables: { plans_dir: "plans", output_dir: "projects" },

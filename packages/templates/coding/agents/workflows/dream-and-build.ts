@@ -10,7 +10,6 @@ import readmeWriter from "../utilities/readme-writer.js";
 import notesTidier from "../utilities/notes-tidier.js";
 
 export default defineWorkflow({
-  name: "dream-and-build",
   description: "Autonomously pick the next project and build it end to end",
   variables: { plans_dir: "plans", output_dir: "projects" },
   derive: ({ plans_dir, plan_name }) => ({

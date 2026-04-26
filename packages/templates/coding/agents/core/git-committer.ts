@@ -1,7 +1,6 @@
 import { defineAgent } from "@generata/core";
 
 export default defineAgent({
-  name: "git-committer",
   type: "worker",
   description: "Create a git commit with a well-structured message",
   modelTier: "light",

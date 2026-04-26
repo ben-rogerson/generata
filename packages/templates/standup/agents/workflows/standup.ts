@@ -3,7 +3,6 @@ import gitSummariser from "../git-summariser.js";
 import standupWriter from "../standup-writer.js";
 
 export default defineWorkflow({
-  name: "standup",
   description: "Read yesterday's git activity and draft a daily standup",
   variables: { repo: "", today_focus: "" },
   steps: [

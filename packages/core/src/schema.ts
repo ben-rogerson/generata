@@ -37,7 +37,6 @@ export type ContextSource = z.infer<typeof ContextSource>;
 
 // Shared base across all agent types
 const AgentBase = z.object({
-  name: z.string().regex(/^[a-z][a-z0-9-]*$/),
   description: z.string(),
   timeoutSeconds: z.number().default(600),
   envKeys: z.array(z.string()).default([]),
@@ -87,7 +86,7 @@ export const AgentDef = z.discriminatedUnion("type", [
     permissions: z.literal("read-only").default("read-only"),
   }).strict(),
 ]);
-export type AgentDef = z.infer<typeof AgentDef>;
+export type AgentDef = z.infer<typeof AgentDef> & { kind: "agent"; name: string };
 export type LLMAgentDef = AgentDef;
 
 // AgentType derived from the union rather than a separate enum
@@ -150,7 +149,6 @@ export type WorkflowStep = z.infer<typeof WorkflowStep>;
 export type DeriveFn = (args: Record<string, string>) => Record<string, string>;
 
 export const WorkflowDef = z.object({
-  name: z.string(),
   description: z.string(),
   required: z.array(z.string()).default([]),
   variables: z.record(z.string(), z.string()).default({}),
@@ -161,8 +159,8 @@ export const WorkflowDef = z.object({
     )
     .optional(),
   steps: z.array(WorkflowStep).min(1),
-});
-export type WorkflowDef = z.infer<typeof WorkflowDef>;
+}).strict();
+export type WorkflowDef = z.infer<typeof WorkflowDef> & { kind: "workflow"; name: string };
 
 export const GlobalConfig = z.object({
   modelTiers: z.object({
@@ -172,7 +170,6 @@ export const GlobalConfig = z.object({
   }),
   workDir: z.string(),
   agentsDir: z.string().default("agents"),
-  workflowsDir: z.string().default("agents/workflows"),
   metricsDir: z.string().default("metrics"),
   logsDir: z.string().default("logs"),
   notifications: z.boolean().default(true),

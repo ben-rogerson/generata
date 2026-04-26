@@ -6,7 +6,6 @@ import planRemover from "../utilities/plan-remover.js";
 import notesTidier from "../utilities/notes-tidier.js";
 
 export default defineWorkflow({
-  name: "daily-plan",
   description: "Synthesise today's focus and generate the daily plan",
   variables: { plans_dir: "plans", output_dir: "projects" },
   derive: ({ plans_dir, plan_name }) => ({

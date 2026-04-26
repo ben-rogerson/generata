@@ -1,7 +1,6 @@
 import { defineAgent } from "@generata/core";
 
 export default defineAgent({
-  name: "plan-creator",
   type: "planner",
   description: "Reads goals.md + notes.md, generates structured plan files",
   modelTier: "standard",
