@@ -83,32 +83,8 @@ export async function runInit(opts: InitOpts): Promise<void> {
       }
     }
 
-    console.log(fmt.dim(`[3/7] Walking template files...`));
-    const { agentEnvKeys, workflowEnvKeys, workflows, failureCount } = await scanTemplate(
-      tmpl.dir,
-    );
-
-    console.log(fmt.dim(`[4/7] Generating .env.example...`));
+    console.log(fmt.dim(`[3/7] Copying template files...`));
     mkdirSync(destAbs, { recursive: true });
-    const envExample = generateEnvExample({
-      manifestEnv: manifest.requiredEnv,
-      agentEnvKeys,
-      workflowEnvKeys,
-    });
-    writeFileSync(join(destAbs, ".env.example"), envExample);
-
-    console.log(fmt.dim(`[5/7] Prompting for env values...`));
-    const promptItems = buildPromptItems(manifest, agentEnvKeys, workflowEnvKeys);
-    const collected = opts.yes
-      ? Object.fromEntries(
-          promptItems.filter((i) => i.required).map((i) => [i.key, i.example ?? ""]),
-        )
-      : await promptForEnv(promptItems, readExistingEnv(destAbs));
-    if (Object.keys(collected).length > 0) {
-      writeDotEnv(collected, join(destAbs, ".env"));
-    }
-
-    console.log(fmt.dim(`[6/7] Copying template files...`));
     const installPaths = withDefaults(manifest.installPaths, manifest.name);
     const force = opts.force ?? false;
     for (const [src, dest] of Object.entries(installPaths)) {
@@ -136,9 +112,30 @@ export async function runInit(opts: InitOpts): Promise<void> {
     writeGenerataConfig(destAbs);
     writePackageJson(destAbs, manifest);
     if (opts.skipInstall) {
-      console.log(fmt.dim(`      Skipping dependency install (--skip-install)`));
+      console.log(fmt.dim(`[4/7] Skipping dependency install (--skip-install)`));
     } else {
+      console.log(fmt.dim(`[4/7] Installing dependencies...`));
       runPmInstall(destAbs);
+    }
+
+    console.log(fmt.dim(`[5/7] Walking template files...`));
+    const { agentEnvKeys, workflowEnvKeys, workflows, failureCount } = await scanTemplate(destAbs);
+
+    console.log(fmt.dim(`[6/7] Generating .env.example and prompting for values...`));
+    const envExample = generateEnvExample({
+      manifestEnv: manifest.requiredEnv,
+      agentEnvKeys,
+      workflowEnvKeys,
+    });
+    writeFileSync(join(destAbs, ".env.example"), envExample);
+    const promptItems = buildPromptItems(manifest, agentEnvKeys, workflowEnvKeys);
+    const collected = opts.yes
+      ? Object.fromEntries(
+          promptItems.filter((i) => i.required).map((i) => [i.key, i.example ?? ""]),
+        )
+      : await promptForEnv(promptItems, readExistingEnv(destAbs));
+    if (Object.keys(collected).length > 0) {
+      writeDotEnv(collected, join(destAbs, ".env"));
     }
 
     console.log(fmt.dim(`[7/7] Generating slash commands...`));
@@ -213,8 +210,8 @@ async function scanTemplate(dir: string): Promise<{
       const mod = await loadTs<{ default: AgentDef | WorkflowDef }>(file, import.meta.url);
       def = mod.default;
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      failures.push({ file: file.slice(dir.length + 1), error: message.split("\n")[0] });
+      const message = (err instanceof Error ? err.message : String(err)).trim();
+      failures.push({ file: file.slice(dir.length + 1), error: message });
       continue;
     }
     if (!def) continue;
@@ -237,13 +234,13 @@ async function scanTemplate(dir: string): Promise<{
   if (failures.length > 0) {
     console.log(fmt.fail(`      Failed to load ${failures.length} file(s):`));
     for (const { file, error } of failures) {
-      console.log(fmt.dim(`        ${file}: ${error}`));
+      console.log(fmt.dim(`        ${file}:`));
+      for (const line of error.split("\n")) {
+        console.log(fmt.dim(`          ${line}`));
+      }
     }
     console.log(
-      fmt.dim(
-        `      If this is a fresh template clone, run \`pnpm install\` and re-run init. ` +
-          `Otherwise the template may be incompatible with this engine version.`,
-      ),
+      fmt.dim(`      The template may be incompatible with this engine version.`),
     );
   }
 
