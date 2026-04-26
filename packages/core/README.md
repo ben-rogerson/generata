@@ -3,7 +3,8 @@
 Composable multi-agent pipelines on top of the Claude Code CLI.
 
 ```bash
-pnpm dlx @generata/core init <template> ~/path/to/new-project
+npx @generata/core init <template> ~/path/to/new-project
+# or: pnpm dlx @generata/core init <template> ~/path/to/new-project
 ```
 
 ## Public API

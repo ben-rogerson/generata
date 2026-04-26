@@ -5,7 +5,8 @@ Plan-driven coding pipeline: interview the goal, write a plan, audit it, execute
 ## Install
 
 ```bash
-pnpm dlx @generata/core init @generata/coding ~/Projects/my-pipeline
+npx @generata/core init @generata/coding ~/Projects/my-pipeline
+# or: pnpm dlx @generata/core init @generata/coding ~/Projects/my-pipeline
 cd ~/Projects/my-pipeline
 ```
 

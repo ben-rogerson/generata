@@ -10,7 +10,8 @@ Multi-agent pipelines for Claude Code. Define agents, wire them into workflows, 
 ## Try it
 
 ```bash
-pnpm dlx @generata/core init @generata/starter ~/Projects/hello-generata
+npx @generata/core init @generata/starter ~/Projects/hello-generata
+# or: pnpm dlx @generata/core init @generata/starter ~/Projects/hello-generata
 cd ~/Projects/hello-generata
 pnpm generata workflow hello --message "world"
 ```
