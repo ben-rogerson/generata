@@ -8,5 +8,5 @@
       "hint": "Install: https://docs.anthropic.com/claude-code"
     }
   ],
-  "postInstall": "Starter template installed.\n\nNext steps:\n  1. pnpm generata workflow hello --message \"world\"\n  2. Edit agents/echo.ts and agents/workflows/hello.ts\n  3. Add your own agents alongside or replace echo entirely\n\nSee README.md for the smallest possible map of what you got."
+  "postInstall": "  1. pnpm generata workflow hello --message \"world\"\n  2. Edit agents/echo.ts and agents/workflows/hello.ts\n  3. Add your own agents alongside or replace echo entirely\n\nSee README.md for the smallest possible map of what you got."
 }

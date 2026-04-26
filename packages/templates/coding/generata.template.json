@@ -33,5 +33,5 @@
       "optional": true
     }
   },
-  "postInstall": "Coding template installed.\n\nNext steps:\n  1. Edit generata.config.ts to set workDir (where projects/, plans/, metrics/ live)\n  2. Try a workflow:\n       pnpm generata workflow daily-plan\n       pnpm generata workflow execute-plan --plan_name my-first\n\nNotes:\n  - cloudflare-deployer agent and deploy-project workflow are optional\n  - ship-ticket / ship-from-slack live in @generata/work, not here"
+  "postInstall": "  1. Edit generata.config.ts to set workDir (where projects/, plans/, metrics/ live)\n  2. Try a workflow:\n       pnpm generata workflow daily-plan\n       pnpm generata workflow execute-plan --plan_name my-first\n\nNotes:\n  - cloudflare-deployer agent and deploy-project workflow are optional\n  - ship-ticket / ship-from-slack live in @generata/work, not here"
 }

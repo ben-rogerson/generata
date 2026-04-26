@@ -12,5 +12,5 @@
       "hint": "Required by the git-summariser agent"
     }
   ],
-  "postInstall": "Standup template installed.\n\nNext steps:\n  1. cd into a git repo (or set --repo <path> on the workflow)\n  2. pnpm generata workflow standup\n\nThe workflow reads yesterday's commits and prints a draft standup. Edit agents/standup-writer.ts to adjust tone or format."
+  "postInstall": "  1. cd into a git repo (or set --repo <path> on the workflow)\n  2. pnpm generata workflow standup\n\nThe workflow reads yesterday's commits and prints a draft standup. Edit agents/standup-writer.ts to adjust tone or format."
 }
