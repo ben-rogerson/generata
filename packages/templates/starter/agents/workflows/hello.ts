@@ -1,8 +1,8 @@
 import { defineWorkflow } from "@generata/core";
-import echo from "../echo.js";
+import greeter from "../greeter.js";
 
 export default defineWorkflow({
-  description: "Single-step workflow that calls the echo agent with a message",
+  description: "Single-step workflow that greets a message",
   required: ["message"],
-  steps: [{ id: "echo", agent: echo }],
+  steps: [{ id: "greet", agent: greeter }],
 });
