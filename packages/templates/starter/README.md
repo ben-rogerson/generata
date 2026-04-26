@@ -13,6 +13,7 @@ Bare-minimum starter template. One worker agent, one workflow. Designed to be ed
 
 ```bash
 pnpm generata workflow hello --message "world"
+# or: npx generata workflow hello --message "world"
 ```
 
 ## What's next

@@ -63,6 +63,7 @@ cd ~/Projects/my-pipeline
 ```bash
 # Try the daily-plan workflow (no required args)
 pnpm generata workflow daily-plan
+# or: npx generata workflow daily-plan
 
 # Or kick off a fresh plan and execute it
 pnpm generata workflow execute-plan --plan_name my-first
