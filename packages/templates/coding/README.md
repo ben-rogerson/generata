@@ -5,8 +5,8 @@ Spec-driven coding pipeline: pick an idea from `NOTES.md`, spec it, plan it, bui
 ## Install
 
 ```bash
-npx @generata/core init @generata/coding ~/Projects/my-pipeline
-# or: pnpm dlx @generata/core init @generata/coding ~/Projects/my-pipeline
+pnpm dlx @generata/core init @generata/coding ~/Projects/my-pipeline
+# or: npx @generata/core init @generata/coding ~/Projects/my-pipeline
 cd ~/Projects/my-pipeline
 ```
 
