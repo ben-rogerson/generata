@@ -4,10 +4,10 @@ Bare-minimum starter template. One worker agent, one workflow. Designed to be ed
 
 ## What you get
 
-| File                           | Purpose                                          |
-| :----------------------------- | :----------------------------------------------- |
-| `agents/echo.ts`               | A trivial worker that echoes a message           |
-| `agents/workflows/hello.ts`    | A one-step workflow that runs `echo`             |
+| File                           | Purpose                                                    |
+| :----------------------------- | :--------------------------------------------------------- |
+| `agents/greeter.ts`            | A worker that greets a message in a creative one-liner    |
+| `agents/workflows/hello.ts`    | A one-step workflow that runs `greeter`                    |
 
 ## Quick start
 
@@ -18,7 +18,7 @@ pnpm generata workflow hello --message "world"
 
 ## What's next
 
-1. Open `agents/echo.ts` and rename / repurpose it.
+1. Open `agents/greeter.ts` and rename / repurpose it.
 2. Add new agents in `agents/` (or subdirectories - they're scanned recursively).
 3. Add workflows in `agents/workflows/` and they'll show up in `pnpm generata help workflows`.
 4. Run `pnpm generata skills sync` after adding workflows to refresh `.claude/commands/`.

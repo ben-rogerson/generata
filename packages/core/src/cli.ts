@@ -18,6 +18,7 @@ import { formatPrecheckReport, precheckWorkflow, validateAgentArgs } from "./pre
 import { sendNotification, formatWorkflowNotification, formatAgentNotification } from "./notify.js";
 import { humanizeOutput } from "./humanize.js";
 import { makeRunId } from "./time.js";
+import { pickPrintableFinalOutput } from "./cli/workflow-output.js";
 
 // Minimal schema for supervisor output - engine hydrates the rest from agent definitions
 const SupervisorOutput = z.object({
@@ -255,6 +256,10 @@ async function main() {
         `\n${fmt.bold("[supervisor]")} Executing ${fmt.bold(String(workflowDef.steps.length))}-step workflow`,
       );
       const workflowResult = await runWorkflow(workflowDef, flags, config, config.workDir);
+
+      const wfPrintable = pickPrintableFinalOutput(workflowResult.steps, workflowDef);
+      if (wfPrintable) console.log(`\n${wfPrintable}\n`);
+
       const wfModels = [
         ...new Set(
           workflowResult.steps.flatMap((s) => (s.metrics?.model ? [s.metrics.model] : [])),
@@ -299,6 +304,10 @@ async function main() {
       ? resolve(config.workDir, config.logsDir, `prompts-workflow-${workflow.name}-${runId}.log`)
       : undefined;
     const result = await runWorkflow(workflow, flags, config, config.workDir, promptLogFile);
+
+    const printable = pickPrintableFinalOutput(result.steps, workflow);
+    if (printable) console.log(`\n${printable}\n`);
+
     const models = [
       ...new Set(result.steps.flatMap((s) => (s.metrics?.model ? [s.metrics.model] : []))),
     ].join(", ");
