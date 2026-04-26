@@ -8,5 +8,8 @@ export function pickPrintableFinalOutput(
   _workflow: WorkflowDef,
 ): string | null {
   if (steps.length === 0) return null;
-  return null;
+  const last = steps[steps.length - 1];
+  const trimmed = last.output.trim();
+  if (trimmed === "") return null;
+  return trimmed;
 }
