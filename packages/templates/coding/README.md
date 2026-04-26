@@ -5,10 +5,7 @@ Plan-driven coding pipeline: interview the goal, write a plan, audit it, execute
 ## Install
 
 ```bash
-# 1. Once: install the engine globally
-npm i -g @generata/core
-# 2. Scaffold a project from the catalog
-generata init @generata/coding ~/Projects/my-pipeline
+pnpm dlx @generata/core init @generata/coding ~/Projects/my-pipeline
 cd ~/Projects/my-pipeline
 ```
 

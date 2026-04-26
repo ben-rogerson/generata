@@ -10,10 +10,9 @@ Multi-agent pipelines for Claude Code. Define agents, wire them into workflows, 
 ## Try it
 
 ```bash
-npm i -g @generata/core
-generata init @generata/starter ~/Projects/hello-generata
+pnpm dlx @generata/core init @generata/starter ~/Projects/hello-generata
 cd ~/Projects/hello-generata
-generata workflow hello --message "world"
+pnpm generata workflow hello --message "world"
 ```
 
 That's a one-agent, one-workflow starter. `init` scaffolds the project, asks for any env values, and writes Claude Code slash commands for every workflow it finds. When you want the full plan-driven coding pipeline, swap `@generata/starter` for [`@generata/coding`](./packages/templates/coding).
