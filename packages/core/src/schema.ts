@@ -169,6 +169,7 @@ export const GlobalConfig = z.object({
   agentSummaries: z.boolean().default(true),
   logPrompts: z.boolean().default(false),
   showPricing: z.boolean().default(false),
+  verboseOutput: z.boolean().default(false),
   maxCriticRetries: z.number().default(3),
   telegram: z
     .object({
