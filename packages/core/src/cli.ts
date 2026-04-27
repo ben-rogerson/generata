@@ -180,7 +180,7 @@ async function main() {
     );
 
     await sendNotification(
-      formatAgentNotification(agent.name, result.metrics, result.output),
+      formatAgentNotification(agent.name, result.metrics, result.output, config.showPricing),
       config,
     );
     return;
