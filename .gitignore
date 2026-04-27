@@ -12,5 +12,10 @@ dist/
 # Planning / brainstorming artefacts - kept local, not committed
 docs/superpowers/
 
+# Self-improve runtime artefacts - regenerated each workflow run
+internal/self-improve/metrics/
+internal/self-improve/logs/
+internal/self-improve/last-run.md
+
 # Marker for the user-level rtk-rewrite hook to skip this project
 .no-rtk-rewrite
