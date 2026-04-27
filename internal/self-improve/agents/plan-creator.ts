@@ -26,10 +26,10 @@ Sizing rule (matches the spec's first-line SIZE: declaration; trust it verbatim)
 - SUBSTANTIAL: full numbered plan with Objective, Acceptance criteria, Implementation steps (each step concrete and actionable - no vague "set up X" or "handle Y" steps), Risks.
 
 Procedure:
-1. Read the spec file referenced in SPEC CREATOR OUTPUT. The first line is \`SIZE: trivial\` / \`small\` / \`substantial\`. If the SIZE line is missing or malformed, print exactly \`SPEC SIZE MISSING: <path>\` and stop.
+1. Read the spec file referenced in SPEC CREATOR OUTPUT. The first line must match the regex \`^SIZE: (trivial|small|substantial)$\` exactly - no markdown formatting, no surrounding whitespace. If it does not, print exactly \`SPEC SIZE MISSING: <path>\` and stop.
 2. Note the SIZE.
-3. Derive the slug from the spec filename: the segment between the date (\`YYYY-MM-DD-\`) and the trailing \`-design.md\`.
-4. Write the plan to: \`${work_dir}/../../docs/superpowers/plans/${today}-<slug>.md\`.
+3. Derive the slug from the spec filename: strip the leading \`YYYY-MM-DD-\` (the first 11 characters) and the literal trailing suffix \`-design.md\`. What remains is the slug. The slug itself may contain \`-design\` internally; only the trailing suffix is stripped.
+4. Write the plan to: \`${work_dir}/../../docs/superpowers/plans/${today}-<slug>.md\`. (The path traverses from \`internal/self-improve/\` up to the repo root, then into \`docs/superpowers/plans/\`. That directory is gitignored - the plan is local scaffolding, not committed.)
 5. Lead your final response with: \`PLAN WRITTEN: <absolute path>\` then a one-line objective summary.
 
 Constraints: the only file you may create is the plan at the path in step 4. Do not write outside docs/superpowers/plans/. Do not run bash. Do not edit existing source files.`,
