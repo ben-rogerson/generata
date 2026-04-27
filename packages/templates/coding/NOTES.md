@@ -1,13 +1,13 @@
 # Project ideas
 
-This file is your idea backlog. The `build-project` workflow reads it, picks the most compelling unfinished idea, and builds the whole project end-to-end. After a successful build the idea is plucked from this file automatically.
+This file is your idea backlog. The `build-project` workflow reads it, picks one idea at random, and builds the whole project end-to-end. After a successful build the chosen idea is removed from this file automatically.
 
 Edit, replace, or extend the list below.
 
 ## Ideas
 
-- A CLI that converts markdown tables to CSV. Reads from stdin or a file path, writes CSV to stdout. Single command, handles multi-line cells.
-- A clipboard-to-QR-code generator. Takes the current clipboard contents and prints a scannable QR code to the terminal using ANSI block characters.
-- A countdown timer for the terminal. `countdown 5m` prints a single self-updating line until it hits zero, then beeps. Accepts `30s`, `5m`, `1h30m` style durations.
-- A password generator with configurable length and class flags (`--no-symbols`, `--length 32`). Cryptographically secure source. Prints one password per line.
-- A URL health checker. Reads a list of URLs from a file, hits each with a HEAD request in parallel, prints `URL  STATUS  LATENCY` one line each. Exits non-zero if any check fails.
+- **Terminal weather card.** A TypeScript CLI invoked as `weather <city>` (e.g. `weather Sydney`). Geocodes the city via Open-Meteo's free geocoding endpoint (`https://geocoding-api.open-meteo.com/v1/search`), then fetches current conditions and the next-12-hour forecast from `https://api.open-meteo.com/v1/forecast`. No API key required. Renders an ASCII-art weather card to stdout: large block-letter temperature, weather-condition icon, Unicode-block sparkline (`▁▂▃▄▅▆▇█`) of hourly temperatures, sunrise/sunset times, mood-coloured background. Single package; only runtime dependency is `chalk`. Modern TypeScript, pnpm + tsx run loop, no JavaScript fallbacks.
+
+- **Markdown slide deck for the terminal.** A TypeScript CLI invoked as `slides <file.md>` (e.g. `slides intro.md`). Splits the markdown on `---` separators or top-level `#` headings into slides, then renders one slide at a time full-screen using **Ink** (React for CLIs). Arrow keys navigate between slides; `q` quits. Code blocks are syntax-highlighted via `cli-highlight`. Single package; runtime dependencies: `ink`, `cli-highlight`, `meow`. Modern TypeScript, pnpm + tsx run loop, no JavaScript fallbacks.
+
+- **Code-to-Carbon-style PNG screenshot generator.** A TypeScript CLI invoked as `snap <file>` (e.g. `snap ./hello.ts`). Reads the source file, detects language from extension, tokenises and syntax-highlights with `shiki` using a dark theme such as `dracula` or `github-dark`, then composites a tweetable PNG with `sharp`: gradient background, macOS-style window chrome (three coloured dots: red/yellow/green), padded code block with the highlighted source. Outputs `<file>.png` next to the input file. Single package; runtime dependencies: `shiki`, `sharp`. Modern TypeScript, pnpm + tsx run loop, no JavaScript fallbacks.

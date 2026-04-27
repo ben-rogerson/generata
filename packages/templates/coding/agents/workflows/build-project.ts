@@ -16,6 +16,7 @@ export default defineWorkflow({
     project_dir: `${output_dir}/${plan_name}`,
     spec_filepath: `${output_dir}/${plan_name}/SPEC.md`,
     plan_filepath: `${output_dir}/${plan_name}/PLAN.md`,
+    random_pick: String(Math.floor(Math.random() * 1_000_000)),
   }),
   steps: [
     { id: "dream", agent: specCreator },
