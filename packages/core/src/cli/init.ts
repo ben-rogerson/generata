@@ -313,6 +313,7 @@ function writeGenerataConfig(dest: string): boolean {
     `    standard: "claude-sonnet-4-6",\n` +
     `    light: "claude-haiku-4-5",\n` +
     `  },\n` +
+    `  logPrompts: true,\n` +
     `});\n`;
   writeFileSync(join(dest, "generata.config.ts"), content);
   return true;
