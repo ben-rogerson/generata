@@ -17,7 +17,9 @@
     "fmt:check": "pnpm -r --filter './packages/core' fmt:check",
     "changeset": "changeset",
     "version": "changeset version",
-    "release": "pnpm build && changeset publish"
+    "release": "pnpm build && changeset publish",
+    "self-improve:audit":   "pnpm --filter @generata/self-improve run audit",
+    "self-improve:improve": "pnpm --filter @generata/self-improve run improve"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.10",
