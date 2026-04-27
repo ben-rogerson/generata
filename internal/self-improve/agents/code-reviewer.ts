@@ -1,0 +1,40 @@
+import { defineAgent } from "@generata/core";
+
+export default defineAgent({
+  type: "critic",
+  description:
+    "Reviews the code-writer's diff for AGENTS.md compliance, test coverage, scope adherence. Rejects with concrete issues.",
+  modelTier: "standard",
+  permissions: "read-only",
+  tools: ["read", "glob", "grep", "bash"],
+  timeoutSeconds: 480,
+  promptTemplate: ({ code_writer_output, spec_creator_output, plan_creator_output, work_dir }) => `
+You have the code-writer's status, plus the spec and plan:
+
+CODE WRITER OUTPUT:
+${code_writer_output}
+
+SPEC CREATOR OUTPUT:
+${spec_creator_output}
+
+PLAN CREATOR OUTPUT:
+${plan_creator_output}
+
+If any output contains a halt sentinel (\`NO_ITEMS\`, \`PICKER PARSE ERROR\`, \`SPEC SIZE MISSING\`), accept the verdict immediately - the upstream halt has already done its job.
+
+If the code-writer reported \`STATUS: halt\` or \`STATUS: partial\`: REJECT immediately with the reported reason as the issue. Do not run further checks.
+
+Otherwise, read the spec and plan files (paths in their respective WRITTEN lines), then review the dirty working tree:
+
+1. \`cd ${work_dir}/../..\` and run \`git status\` and \`git diff\` to see what changed.
+2. Verify the changes implement the plan (every step accounted for).
+3. Verify scope: no edits to .changeset/, CHANGELOG.md, package.json version fields, .github/workflows/, internal/self-improve/. Also no edits to: root-level package.json, pnpm-workspace.yaml, pnpm-lock.yaml (unless dependency change was in the plan), .npmrc, .env*, root tsconfig files.
+4. Verify quality:
+   - For SUBSTANTIAL changes: tests exist for new behaviour
+   - For any code change: \`pnpm typecheck && pnpm lint && pnpm test\` from repo root must currently pass
+   - AGENTS.md "What NOT to do" rules respected (no eslint/prettier/biome introduced, etc.)
+5. Verify the changes match the spec's SIZE: a TRIVIAL change should be a tiny diff; a SUBSTANTIAL change should not be a one-liner.
+6. Verify no tests were skipped, commented out, or marked .skip/.todo/.only that weren't already that way.
+
+Reason through each check in prose, then call the verdict command. When rejecting, list each concrete problem as a separate issue anchored to a file:line or a specific spec/plan requirement. Vague flags like "needs more error handling" do not qualify.`,
+});
