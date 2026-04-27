@@ -53,6 +53,31 @@ export function pickTagline(type: AgentType): string {
   return options[Math.floor(Math.random() * options.length)];
 }
 
+const WORKFLOW_TAGLINES = [
+  "All systems nominal. Probably.",
+  "Compiling enthusiasm.",
+  "May your stack traces be shallow.",
+  "Reticulating splines.",
+  "Determinism not guaranteed.",
+  "It compiles. That's a start.",
+  "We negotiated with the linter. We won.",
+  "git blame is going to be funny.",
+  "Production-grade vibes only.",
+  "Resisting the urge to refactor everything.",
+  "Reading the docs so you don't have to.",
+  "Side effects: free. Time complexity: TBD.",
+  "Plan A. Through Plan F.",
+  "Ship it. Then panic. Then ship a fix.",
+  "Cache invalidated. Naming things, next.",
+  "Off-by-one errors: 0. Or 1.",
+  "Turning coffee into commits.",
+  "Yak shaved. Onward.",
+];
+
+export function pickWorkflowTagline(): string {
+  return WORKFLOW_TAGLINES[Math.floor(Math.random() * WORKFLOW_TAGLINES.length)];
+}
+
 const SUMMARISING_PHRASES = [
   "Crunching the dust...",
   "Digesting the output...",
@@ -102,7 +127,7 @@ export function logAgentWelcome(
 
 export function logWorkflowStart(name: string, stepCount: number): void {
   console.log(`\n  ${pc.bold(pc.blue("workflow"))} ${pc.bold(name)}`);
-  console.log(`  ${pc.italic("Let's get to work.")}`);
+  console.log(`  ${pc.italic(pickWorkflowTagline())}`);
   console.log(`  ${pc.dim(`${stepCount} steps queued`)}\n`);
 }
 
