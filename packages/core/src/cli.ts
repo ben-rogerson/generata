@@ -5,16 +5,9 @@ import { loadConfig } from "./config.js";
 import { runAgent } from "./agent-runner.js";
 import { runWorkflow } from "./engine.js";
 import { readMetrics, readMetricsRange, summariseMetrics } from "./metrics.js";
-import {
-  fmt,
-  logWorkflowResult,
-  logStreamEvent,
-  pickSummarisingPhrase,
-  startSpinner,
-} from "./logger.js";
+import { fmt, logWorkflowResult, logStreamEvent } from "./logger.js";
 import { formatPrecheckReport, precheckWorkflow, validateAgentArgs } from "./precheck.js";
 import { sendNotification, formatWorkflowNotification, formatAgentNotification } from "./notify.js";
-import { humanizeOutput } from "./humanize.js";
 import { makeRunId } from "./time.js";
 import { pickPrintableFinalOutput } from "./cli/workflow-output.js";
 
@@ -160,16 +153,6 @@ async function main() {
     }
 
     console.log(result.output);
-
-    if (!result.interactive && config.agentSummaries) {
-      const stopSpinner = startSpinner(pickSummarisingPhrase());
-      const summary = await humanizeOutput(result.output, config);
-      stopSpinner();
-      if (summary) {
-        console.log(`\n${fmt.dim("─".repeat(50))}`);
-        console.log(`  ${fmt.bold("Summary")}  ${summary}`);
-      }
-    }
 
     const agentUsage =
       result.metrics.cost_was_reported && config.showPricing

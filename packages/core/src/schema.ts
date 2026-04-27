@@ -166,7 +166,6 @@ export const GlobalConfig = z.object({
   metricsDir: z.string().default("metrics"),
   logsDir: z.string().default("logs"),
   notifications: z.boolean().default(true),
-  agentSummaries: z.boolean().default(true),
   logPrompts: z.boolean().default(false),
   showPricing: z.boolean().default(false),
   verboseOutput: z.boolean().default(false),
