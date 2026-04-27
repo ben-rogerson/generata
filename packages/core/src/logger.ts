@@ -78,23 +78,6 @@ export function pickWorkflowTagline(): string {
   return WORKFLOW_TAGLINES[Math.floor(Math.random() * WORKFLOW_TAGLINES.length)];
 }
 
-const SUMMARISING_PHRASES = [
-  "Crunching the dust...",
-  "Digesting the output...",
-  "Making sense of this...",
-  "Translating agent-speak...",
-  "Distilling the findings...",
-  "Boiling it down...",
-  "Reading between the lines...",
-  "Extracting the good bits...",
-  "Putting it in plain English...",
-  "Thinking it over...",
-];
-
-export function pickSummarisingPhrase(): string {
-  return SUMMARISING_PHRASES[Math.floor(Math.random() * SUMMARISING_PHRASES.length)];
-}
-
 export function startSpinner(label: string): () => void {
   if (!process.stdout.isTTY) return () => {};
   const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
