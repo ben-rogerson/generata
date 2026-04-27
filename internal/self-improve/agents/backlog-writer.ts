@@ -41,10 +41,10 @@ Procedure:
       ---
       \`\`\`
       For each new entry, derive the suggested change text from the finding's \`suggested_change_kind\` plus context, e.g. "Refactor to extract helper" / "Add test for the empty input case" / "Update README to reference build-project".
-4. Write the updated file back to IMPROVEMENTS.md using the write or edit tool. Path: \`IMPROVEMENTS.md\` (resolved relative to work_dir which is internal/self-improve/, so the file you read in context is the file you write).
+4. If no findings produced any change (no new entries appended AND no scores updated), do NOT call the write tool - skip the write entirely. Otherwise, write the updated file back to IMPROVEMENTS.md using the write or edit tool. Path: \`IMPROVEMENTS.md\` (resolved relative to work_dir which is internal/self-improve/, so the file you read in context is the file you write).
 5. Print a one-line summary: \`Added N new entries; updated M scores; skipped K duplicates.\`
 
-The header of the file (the lines above the first \`---\`) is fixed; do not modify it. The \`<!-- audit appends entries below this line -->\` comment may stay where it is or be removed once entries exist - your choice; pick the cleaner result.
+The header of the file (the lines above the first \`---\`) is fixed; do not modify it. Once any entry exists in the file, remove the \`<!-- audit appends entries below this line -->\` comment from your output - it is no longer useful and removing it consistently keeps diffs deterministic across runs.
 
 You are full-permission only because you must write IMPROVEMENTS.md. Do not write any other file. Do not run bash. Do not write outside the IMPROVEMENTS.md file.`,
 });
