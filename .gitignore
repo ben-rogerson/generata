@@ -11,3 +11,6 @@ dist/
 
 # Planning / brainstorming artefacts - kept local, not committed
 docs/superpowers/
+
+# Marker for the user-level rtk-rewrite hook to skip this project
+.no-rtk-rewrite

@@ -171,12 +171,16 @@ async function main() {
       }
     }
 
+    const agentUsage =
+      result.metrics.cost_was_reported && config.showPricing
+        ? `cost: ${fmt.cost(result.metrics.estimated_cost_usd)}`
+        : `tokens: ${fmt.dim(`${Math.round((result.metrics.input_tokens + result.metrics.output_tokens) / 1000)}k`)}`;
     console.log(
-      `\n${fmt.dim("[metrics]")} cost: ${fmt.cost(result.metrics.estimated_cost_usd)}  time: ${fmt.duration(result.metrics.duration_ms)}${result.metrics.model ? `  ${fmt.dim(result.metrics.model)}` : ""}`,
+      `\n${fmt.dim("[metrics]")} ${agentUsage}  time: ${fmt.duration(result.metrics.duration_ms)}${result.metrics.model ? `  ${fmt.dim(result.metrics.model)}` : ""}`,
     );
 
     await sendNotification(
-      formatAgentNotification(agent.name, result.metrics, result.output),
+      formatAgentNotification(agent.name, result.metrics, result.output, config.showPricing),
       config,
     );
     return;
@@ -222,8 +226,9 @@ async function main() {
       result.haltReason,
       result.costWasReported,
       result.totalTokens,
+      config.showPricing,
     );
-    await sendNotification(formatWorkflowNotification(result), config);
+    await sendNotification(formatWorkflowNotification(result, config.showPricing), config);
     return;
   }
 

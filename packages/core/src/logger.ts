@@ -118,10 +118,12 @@ export function logStepDone(
   verdict?: { verdict: string; summary: string; issues: string[] },
   costWasReported?: boolean,
   totalTokens?: number,
+  showPricing?: boolean,
 ): void {
   const approved = !verdict || verdict.verdict === "approve";
   const check = approved ? pc.green(`✓ ${id}`) : pc.red(`✗ ${id}`);
-  const costStr = costWasReported ? pc.green(`$${costUsd.toFixed(4)} USD`) : "";
+  const costStr =
+    costWasReported && showPricing ? pc.green(`$${costUsd.toFixed(4)} USD`) : "";
   const usageStr = pc.green(
     `${Math.round((totalTokens ?? 0) / 1000)}k tok${costStr ? ` (${costStr})` : ""}`,
   );
@@ -181,12 +183,14 @@ export function logWorkflowResult(
   haltReason?: string,
   costWasReported?: boolean,
   totalTokens?: number,
+  showPricing?: boolean,
 ): void {
   const status = success ? pc.green("SUCCESS") : pc.red("FAILED");
   console.log(`\n${pc.bold(pc.blue("[workflow]"))} ${name}: ${status}`);
-  const usageStr = costWasReported
-    ? `cost: ${pc.magenta(`$${cost.toFixed(4)}`)}`
-    : `tokens: ${pc.cyan(`${Math.round((totalTokens ?? 0) / 1000)}k`)}`;
+  const usageStr =
+    costWasReported && showPricing
+      ? `cost: ${pc.magenta(`$${cost.toFixed(4)}`)}`
+      : `tokens: ${pc.cyan(`${Math.round((totalTokens ?? 0) / 1000)}k`)}`;
   const parts = [`  ${usageStr}  time: ${pc.dim(`${(durationMs / 1000).toFixed(1)}s`)}`];
   if (model) parts.push(pc.dim(model));
   console.log(parts.join("  "));
