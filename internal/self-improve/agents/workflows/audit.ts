@@ -1,11 +1,15 @@
 import { defineWorkflow } from "@generata/core";
-import stub from "../stub.js";
+import repoScanner from "../repo-scanner.js";
+import auditPrioritiser from "../audit-prioritiser.js";
+import backlogWriter from "../backlog-writer.js";
 
 export default defineWorkflow({
-  description: "Audit the generata repo for improvements (stub).",
+  description: "Scan the generata repo for improvements and append findings to IMPROVEMENTS.md.",
   steps: [
-    { id: "scan", agent: stub, args: { step_id: "scan" } },
-    { id: "prioritise", agent: stub, args: { step_id: "prioritise" }, dependsOn: ["scan"] },
-    { id: "write", agent: stub, args: { step_id: "write" }, dependsOn: ["prioritise"] },
+    { id: "scan",       agent: repoScanner },
+    { id: "prioritise", agent: auditPrioritiser, dependsOn: ["scan"],
+      args: ({ scan }) => ({ scanner_output: scan }) },
+    { id: "write",      agent: backlogWriter, dependsOn: ["prioritise"],
+      args: ({ prioritise }) => ({ prioritiser_output: prioritise }) },
   ],
 });
