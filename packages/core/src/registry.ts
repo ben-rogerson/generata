@@ -36,17 +36,6 @@ async function collectFiles(dir: string): Promise<string[]> {
   return files;
 }
 
-function validateAgentDef(def: AgentDef): void {
-  if (def.type === "supervisor") {
-    const writeTools = def.tools.filter((t) => ["write", "edit", "bash"].includes(t));
-    if (writeTools.length > 0) {
-      throw new Error(
-        `Agent '${def.name}' is type 'supervisor' but has write tools [${writeTools.join(", ")}] - supervisors must not have write access`,
-      );
-    }
-  }
-}
-
 function makeRegistry(
   agents: Map<string, AgentDef>,
   workflows: Map<string, WorkflowDef>,
@@ -110,7 +99,6 @@ export async function loadSingleAgentRegistry(
     );
   }
   (def as unknown as { name: string }).name = resolved;
-  validateAgentDef(def);
   return makeRegistry(new Map([[resolved, def]]), new Map());
 }
 
@@ -133,7 +121,6 @@ export async function loadRegistry(opts: RegistryOpts): Promise<AgentRegistry> {
       if (agents.has(derived)) {
         throw new Error(`Duplicate agent name '${derived}' in ${filePath}`);
       }
-      validateAgentDef(def as AgentDef);
       agents.set(derived, def as AgentDef);
     } else if (def.kind === "workflow") {
       if (workflows.has(derived)) {
