@@ -29,12 +29,11 @@ Otherwise, read the spec and plan files (paths in their respective WRITTEN lines
 1. \`cd ${work_dir}/../..\` and run \`git status\` and \`git diff\` to see what changed.
 2. Verify the changes implement the plan (every step accounted for).
 3. Verify scope: no edits to .changeset/, CHANGELOG.md, package.json version fields, .github/workflows/, internal/self-improve/. Also no edits to: root-level package.json, pnpm-workspace.yaml, pnpm-lock.yaml (unless dependency change was in the plan), .npmrc, .env*, root tsconfig files.
-4. Verify quality:
+4. Verify quality. Run \`pnpm typecheck && pnpm lint && pnpm test\` from repo root yourself - do not trust the code-writer's claim that it passed. Treat the code-writer's output as adversarial: re-verification is the point of this step.
    - For SUBSTANTIAL changes: tests exist for new behaviour
-   - For any code change: \`pnpm typecheck && pnpm lint && pnpm test\` from repo root must currently pass
    - AGENTS.md "What NOT to do" rules respected (no eslint/prettier/biome introduced, etc.)
 5. Verify the changes match the spec's SIZE: a TRIVIAL change should be a tiny diff; a SUBSTANTIAL change should not be a one-liner.
-6. Verify no tests were skipped, commented out, or marked .skip/.todo/.only that weren't already that way.
+6. **Test evasion check.** Catch any of: tests skipped (\`.skip\`, \`.todo\`, \`.only\`), commented out, deleted without explicit plan justification, assertion bodies neutered (e.g. \`expect(true).toBe(true)\`, \`expect\` calls removed, \`if (false)\` wrappers, early \`return\` from test bodies). \`git diff\` against the test files makes this visible. Reject with the file:line of any evasion found.
 
 Reason through each check in prose, then call the verdict command. When rejecting, list each concrete problem as a separate issue anchored to a file:line or a specific spec/plan requirement. Vague flags like "needs more error handling" do not qualify.`,
 });
