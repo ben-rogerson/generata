@@ -80,11 +80,6 @@ export const AgentDef = z.discriminatedUnion("type", [
     permissions: Permissions.default("full"),
     interactive: z.boolean().default(false),
   }).strict(),
-  // supervisor: orchestrates other agents; always read-only
-  LLMAgentBase.extend({
-    type: z.literal("supervisor"),
-    permissions: z.literal("read-only").default("read-only"),
-  }).strict(),
 ]);
 export type AgentDef = z.infer<typeof AgentDef> & { kind: "agent"; name: string };
 export type LLMAgentDef = AgentDef;
@@ -116,9 +111,7 @@ const CriticWorkflowStep = z.object({
         typeof val === "object" &&
         val !== null &&
         "type" in val &&
-        ["worker", "planner", "critic", "supervisor"].includes(
-          (val as { type: unknown }).type as string,
-        ),
+        ["worker", "planner", "critic"].includes((val as { type: unknown }).type as string),
       "onReject must be an LLM agent definition",
     )
     .optional(),
@@ -131,7 +124,7 @@ const NonCriticWorkflowStep = z.object({
       typeof val === "object" &&
       val !== null &&
       "type" in val &&
-      ["worker", "planner", "supervisor"].includes((val as { type: unknown }).type as string),
+      ["worker", "planner"].includes((val as { type: unknown }).type as string),
   ),
   args: z
     .custom<Record<string, unknown> | ((params: StepParams) => Record<string, unknown>)>(

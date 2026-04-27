@@ -19,9 +19,6 @@ type AgentInput =
     })
   | (Omit<Extract<z.input<typeof AgentDef>, { type: "planner" }>, "promptTemplate"> & {
       promptTemplate: PromptFn;
-    })
-  | (Omit<Extract<z.input<typeof AgentDef>, { type: "supervisor" }>, "promptTemplate"> & {
-      promptTemplate: PromptFn;
     });
 
 export function defineAgent<T extends AgentInput>(def: T): Extract<AgentDef, { type: T["type"] }> {

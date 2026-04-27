@@ -1,12 +1,10 @@
 import { resolve } from "node:path";
-import { z } from "zod";
 import { findProjectRoot } from "./find-project-root.js";
 import { loadRegistry, loadSingleAgentRegistry, resolveAgentName } from "./registry.js";
 import { loadConfig } from "./config.js";
 import { runAgent } from "./agent-runner.js";
 import { runWorkflow } from "./engine.js";
 import { readMetrics, readMetricsRange, summariseMetrics } from "./metrics.js";
-import { WorkflowDef } from "./schema.js";
 import {
   fmt,
   logWorkflowResult,
@@ -19,18 +17,6 @@ import { sendNotification, formatWorkflowNotification, formatAgentNotification }
 import { humanizeOutput } from "./humanize.js";
 import { makeRunId } from "./time.js";
 import { pickPrintableFinalOutput } from "./cli/workflow-output.js";
-
-// Minimal schema for supervisor output - engine hydrates the rest from agent definitions
-const SupervisorOutput = z.object({
-  steps: z.array(
-    z.object({
-      id: z.string(),
-      agent: z.string(),
-      args: z.record(z.string(), z.unknown()).optional(),
-      dependsOn: z.array(z.string()).default([]),
-    }),
-  ),
-});
 
 function parseArgs(argv: string[]): {
   positional: string[];
@@ -132,12 +118,8 @@ async function main() {
       process.exit(1);
     }
     // Load only the target agent to reduce heap before fork()
-    let registry = await loadSingleAgentRegistry(target, registryOpts);
+    const registry = await loadSingleAgentRegistry(target, registryOpts);
     const [agent] = registry.list();
-    // Supervisors enumerate all agents in their prompt template
-    if (agent.type === "supervisor") {
-      registry = await loadRegistry(registryOpts);
-    }
 
     if (flags.plan_name && !flags.plan_filepath) {
       const plansDir = (flags.plans_dir as string) ?? "plans";
@@ -193,90 +175,10 @@ async function main() {
       `\n${fmt.dim("[metrics]")} cost: ${fmt.cost(result.metrics.estimated_cost_usd)}  time: ${fmt.duration(result.metrics.duration_ms)}${result.metrics.model ? `  ${fmt.dim(result.metrics.model)}` : ""}`,
     );
 
-    if (agent.type !== "supervisor") {
-      await sendNotification(
-        formatAgentNotification(agent.name, result.metrics, result.output),
-        config,
-      );
-    }
-
-    // If the agent is a supervisor, parse its step list and hydrate into a full workflow
-    if (agent.type === "supervisor") {
-      let supervisorOutput: z.infer<typeof SupervisorOutput>;
-      try {
-        const raw = result.output
-          .replace(/^```(?:json)?\s*/i, "")
-          .replace(/\s*```\s*$/, "")
-          .trim();
-        supervisorOutput = SupervisorOutput.parse(JSON.parse(raw));
-      } catch (err) {
-        console.error(fmt.fail("[supervisor] Failed to parse supervisor output:"), String(err));
-        process.exit(1);
-      }
-
-      // Validate all referenced agents exist and have required args before running
-      const paramErrors: string[] = [];
-      for (const step of supervisorOutput.steps) {
-        if (!registry.has(step.agent)) {
-          console.error(
-            fmt.fail(`[supervisor] Unknown agent '${step.agent}' in generated workflow`),
-          );
-          process.exit(1);
-        }
-        const agentDef = registry.get(step.agent);
-        if ("promptTemplate" in agentDef) {
-          const errors = validateAgentArgs(agentDef, {
-            ...flags,
-            ...step.args,
-          });
-          for (const e of errors) paramErrors.push(`step '${step.id}' (${step.agent}) ${e}`);
-        }
-      }
-      if (paramErrors.length > 0) {
-        console.error(fmt.fail("[supervisor] Workflow has missing required args:"));
-        for (const e of paramErrors) console.error(fmt.fail(`  - ${e}`));
-        process.exit(1);
-      }
-
-      // Hydrate: inject CLI flags as args for every step (plan_name etc. flow through)
-      const workflowDef = WorkflowDef.parse({
-        description: String(flags.goal ?? "Supervisor-generated workflow"),
-        required: [],
-        steps: supervisorOutput.steps.map((s) => ({
-          id: s.id,
-          agent: s.agent,
-          args: { ...flags, ...s.args },
-          dependsOn: s.dependsOn,
-        })),
-      }) as WorkflowDef;
-      (workflowDef as unknown as { name: string }).name = `supervisor-${Date.now()}`;
-      (workflowDef as unknown as { kind: "workflow" }).kind = "workflow";
-
-      console.log(
-        `\n${fmt.bold("[supervisor]")} Executing ${fmt.bold(String(workflowDef.steps.length))}-step workflow`,
-      );
-      const workflowResult = await runWorkflow(workflowDef, flags, config, config.workDir);
-
-      const wfPrintable = pickPrintableFinalOutput(workflowResult.steps, workflowDef);
-      if (wfPrintable) console.log(`\n${wfPrintable}\n`);
-
-      const wfModels = [
-        ...new Set(
-          workflowResult.steps.flatMap((s) => (s.metrics?.model ? [s.metrics.model] : [])),
-        ),
-      ].join(", ");
-      logWorkflowResult(
-        workflowResult.workflowName,
-        workflowResult.success,
-        workflowResult.totalCost,
-        workflowResult.durationMs,
-        wfModels || undefined,
-        workflowResult.haltReason,
-        workflowResult.costWasReported,
-        workflowResult.totalTokens,
-      );
-      await sendNotification(formatWorkflowNotification(workflowResult), config);
-    }
+    await sendNotification(
+      formatAgentNotification(agent.name, result.metrics, result.output),
+      config,
+    );
     return;
   }
 

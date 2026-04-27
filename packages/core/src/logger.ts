@@ -20,7 +20,6 @@ const TYPE_COLORS: Record<AgentType, (s: string) => string> = {
   worker: pc.green,
   planner: pc.blue,
   critic: pc.yellow,
-  supervisor: pc.magenta,
 };
 
 export function agentColor(type: string): (s: string) => string {
@@ -45,12 +44,6 @@ const TYPE_TAGLINES: Record<AgentType, string[]> = {
     "Nothing gets past me...",
     "Eyes on every line...",
     "Let's see how this holds up...",
-  ],
-  supervisor: [
-    "Taking the helm...",
-    "Running the show...",
-    "Assembling the crew...",
-    "Orchestrating from here...",
   ],
 };
 
