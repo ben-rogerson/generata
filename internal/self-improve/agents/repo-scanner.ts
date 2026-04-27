@@ -1,7 +1,7 @@
 import { defineAgent } from "@generata/core";
 
 export default defineAgent({
-  type: "planner",
+  type: "worker",
   description:
     "Scans the generata repo for candidate improvements across five lenses; emits a JSON object with a findings list.",
   modelTier: "heavy",
