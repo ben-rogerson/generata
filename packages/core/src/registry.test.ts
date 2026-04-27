@@ -170,4 +170,13 @@ describe("loadRegistry workflows", () => {
     ok(registry.workflows.has("standup/flow"));
     ok(!registry.agents.has("standup/flow"));
   });
+
+  it("workflow steps reference the same agent objects as the agents map", async () => {
+    const registry = await loadRegistry({ projectRoot: root, agentsDir: "agents" });
+    const wf = registry.getWorkflow("standup/flow");
+    const stepAgent = wf.steps[0].agent as { name?: string };
+    const directAgent = registry.get("echo");
+    strictEqual(stepAgent.name, "echo");
+    strictEqual(stepAgent === directAgent, true);
+  });
 });
