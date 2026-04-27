@@ -28,18 +28,22 @@ Procedure:
 1. Implement the plan steps in order. The work directory for self-improve is \`${work_dir}\`, but you may edit anywhere in the parent generata repo EXCEPT the out-of-scope paths.
 2. **Out-of-scope paths - HALT if the plan asks you to touch any of these:**
    - \`.changeset/\` or any \`CHANGELOG.md\`
-   - \`package.json\` version fields (any package - "version" key only; other fields are fine)
+   - \`package.json\` version fields (any package - the \`"version"\` key only; other fields are fine in package-level files)
    - \`.github/workflows/\`
    - \`internal/self-improve/\` (the workflow does not improve itself in v1)
+   - Root-level \`package.json\` (entire file - changing scripts/engines/packageManager has monorepo-wide blast radius)
+   - \`pnpm-workspace.yaml\`, \`pnpm-lock.yaml\`, \`.npmrc\`, \`.env\`, \`.env.*\`, root \`tsconfig.json\`, root \`tsconfig.base.json\`
    If the plan calls for any of the above, stop and report \`STATUS: halt - plan requests out-of-scope edit to <path>\`. Do not proceed.
-3. Use bash for file system operations and to run the precommit gauntlet:
+3. **Dependency changes are out-of-scope unless the plan explicitly enumerates the package and version.** Do not run \`pnpm add\`, \`pnpm remove\`, \`pnpm install <pkg>\`, \`npm install\`, etc. unless the plan calls for it by name. \`pnpm install\` (no args, refresh existing lockfile) is permitted only if a config edit demands it.
+4. **Test discipline.** Do not skip, comment out, \`.skip\`, \`.todo\`, \`.only\` (which excludes others), or otherwise disable existing tests. If a test appears flaky, retry it once; if it still fails, report \`STATUS: halt - flaky test <path>::<name>\` with the failure output pasted. Editing test files to make them pass without fixing the underlying behaviour is a regression, not a fix.
+5. Use bash for file system operations and to run the precommit gauntlet:
    - From repo root (\`cd ${work_dir}/../..\`): \`pnpm typecheck && pnpm lint && pnpm test\`
    - All three must pass before you declare success.
-   - If something fails, fix it iteratively. Do NOT skip or disable tests. Do NOT run \`--no-verify\` or any flag that bypasses checks.
-4. When complete, lead your final response with one of:
+   - If something fails, fix it iteratively (fix the code, not the test). Do NOT run \`--no-verify\` or any flag that bypasses checks.
+6. When complete, lead your final response with one of:
    - \`STATUS: complete\` followed by a one-line summary and a list of files changed
-   - \`STATUS: partial\` followed by what is left and why
-   - \`STATUS: halt\` followed by the reason (out-of-scope, blocked, etc.)
+   - \`STATUS: halt\` followed by the reason. Use halt for: out-of-scope plan request, dependency change not enumerated, flaky test, ambiguous spec requirement that needs human input
+   - \`STATUS: partial\` is reserved for genuine external blockers (network/auth/missing creds). It is NOT acceptable for "ran out of effort," failing tests, or lint errors. If you hit a tough error, fix it or halt with the failure output - do not declare partial.
 
-Do not commit. Do not run \`git\` for anything destructive (no \`git reset\`, \`git checkout --\`, \`git clean\`, etc.). Do not run \`gh\`. Read-only git introspection (\`git diff\`, \`git status\`, \`git log\`) is fine. Leave the working tree dirty for the human to inspect and \`/ship\`.`,
+Do not commit. Do not run \`git\` for anything destructive (no \`git reset\`, \`git checkout --\`, \`git clean\`, \`git stash drop\`, etc.). Do not run \`gh\`. Read-only git introspection (\`git diff\`, \`git status\`, \`git log\`) is fine. Leave the working tree dirty for the human to inspect and \`/ship\`.`,
 });
