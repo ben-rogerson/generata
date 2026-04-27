@@ -205,7 +205,11 @@ export async function runWorkflow(
                 workflowId,
                 stepId: targetStep.id,
                 stepOutputs,
-                onEvent: (event) => logStreamEvent(event),
+                // verboseOutput=false swaps inline tool events for the per-agent spinner
+                // (agent-runner starts the spinner when onEvent is undefined). Caveat:
+                // parallel runnable steps will fight over the same TTY line - acceptable
+                // for now since most workflows are sequential.
+                onEvent: config.verboseOutput ? (event) => logStreamEvent(event) : undefined,
                 promptLogFile,
                 retryPreamble,
                 workflowVariables,

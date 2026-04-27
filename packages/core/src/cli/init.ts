@@ -314,6 +314,7 @@ function writeGenerataConfig(dest: string): boolean {
     `    light: "claude-haiku-4-5",\n` +
     `  },\n` +
     `  logPrompts: true,\n` +
+    `  verboseOutput: true,\n` +
     `});\n`;
   writeFileSync(join(dest, "generata.config.ts"), content);
   return true;

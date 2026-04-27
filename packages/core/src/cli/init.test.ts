@@ -65,6 +65,7 @@ describe("runInit", () => {
       ok(body.includes("defineConfig"));
       ok(body.includes("modelTiers"));
       ok(body.includes("logPrompts: true"));
+      ok(body.includes("verboseOutput: true"));
       ok(!body.includes("workDir"));
     } finally {
       rmSync(dest, { recursive: true, force: true });
@@ -97,6 +98,7 @@ describe("runInit", () => {
       const body = readFileSync(join(dest, "generata.config.ts"), "utf8");
       ok(body.includes("defineConfig"));
       ok(body.includes("logPrompts: true"));
+      ok(body.includes("verboseOutput: true"));
       ok(!body.includes("workDir"));
     } finally {
       rmSync(dest, { recursive: true, force: true });
