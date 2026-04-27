@@ -137,7 +137,7 @@ export function precheckWorkflow(
         issues.push({
           stepId: step.id,
           agentName: agent.name,
-          message: `critic must depend on a worker or non-interactive planner - interactive planners and supervisors can't be safely re-run on rejection`,
+          message: `critic must depend on a worker or non-interactive planner - interactive planners can't be safely re-run on rejection`,
         });
       }
     }
@@ -344,9 +344,8 @@ export interface ValidateAgentArgsOptions {
 }
 
 /**
- * Per-agent arg check used by the standalone `agent` CLI path and supervisor-generated
- * workflows, where a full workflow precheck doesn't apply. Returns human-readable error
- * strings (empty = valid).
+ * Per-agent arg check used by the standalone `agent` CLI path, where a full workflow
+ * precheck doesn't apply. Returns human-readable error strings (empty = valid).
  */
 export function validateAgentArgs(
   agent: LLMAgentDef,
