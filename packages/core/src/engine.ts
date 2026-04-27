@@ -230,6 +230,7 @@ export async function runWorkflow(
             r!.verdict,
             r!.metrics.cost_was_reported,
             r!.metrics.input_tokens + r!.metrics.output_tokens,
+            config.showPricing,
           );
           return r!;
         };

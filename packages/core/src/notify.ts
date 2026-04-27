@@ -2,11 +2,15 @@ import { execSync } from "child_process";
 import { GlobalConfig, AgentMetrics } from "./schema.js";
 import type { WorkflowResult } from "./engine.js";
 
-export function formatWorkflowNotification(result: WorkflowResult): string {
+export function formatWorkflowNotification(
+  result: WorkflowResult,
+  showPricing: boolean,
+): string {
   const icon = result.success ? "✅" : "❌";
-  const usage = result.costWasReported
-    ? `$${result.totalCost.toFixed(4)}`
-    : `${Math.round(result.totalTokens / 1000)}k tok`;
+  const usage =
+    result.costWasReported && showPricing
+      ? `$${result.totalCost.toFixed(4)}`
+      : `${Math.round(result.totalTokens / 1000)}k tok`;
   const header = `${icon} ${result.workflowName} (${usage}, ${(result.durationMs / 1000).toFixed(1)}s)`;
   const steps = result.steps
     .map((s) => {
@@ -21,13 +25,15 @@ export function formatWorkflowNotification(result: WorkflowResult): string {
 export function formatAgentNotification(
   name: string,
   metrics: AgentMetrics,
-  output?: string,
+  output: string | undefined,
+  showPricing: boolean,
 ): string {
   const icon = metrics.status === "success" ? "✅" : "❌";
   const detail = metrics.status !== "success" && metrics.error ? `: ${metrics.error}` : "";
-  const usage = metrics.cost_was_reported
-    ? `$${metrics.estimated_cost_usd.toFixed(4)}`
-    : `${Math.round((metrics.input_tokens + metrics.output_tokens) / 1000)}k tok`;
+  const usage =
+    metrics.cost_was_reported && showPricing
+      ? `$${metrics.estimated_cost_usd.toFixed(4)}`
+      : `${Math.round((metrics.input_tokens + metrics.output_tokens) / 1000)}k tok`;
   const header = `${icon} ${name} (${usage}, ${(metrics.duration_ms / 1000).toFixed(1)}s)${detail}`;
   if (!output) return header;
   const snippet = output.trim().split("\n")[0].slice(0, 200);
