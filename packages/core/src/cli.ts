@@ -37,6 +37,7 @@ async function main() {
   const [command, target] = positional;
 
   if (
+    !command ||
     command === "help" ||
     command === "--help" ||
     command === "-h" ||
