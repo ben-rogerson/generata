@@ -7,15 +7,6 @@ Lenses: `quality` · `dx-api` · `docs` · `consistency` · `feature`
 
 ---
 
-### tools-array-ignored-for-full-permissions [dx-api · score 19]
-
-When permissions is 'full', agent-runner ignores the tools[] array entirely, making any tool restrictions a silent no-op. The coding template teaches this ineffective pattern with six full-permission agents that still declare narrow tool lists.
-
-- **Evidence:** packages/core/src/agent-runner.ts, packages/templates/coding/agents/code-writer.ts, packages/templates/coding/agents/end-tidier.ts
-- **Suggested change:** Enforce tools[] restrictions even under full permissions, or remove declarations from full-permission agents.
-
----
-
 ### readme-self-contradicts-workflow-path [consistency · score 18]
 
 The README states workflows live under agents/workflows/ but demonstrates with agents/hello.ts (flat). The starter template actually keeps it flat, making the prose contradictory.
