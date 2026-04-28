@@ -26,11 +26,11 @@ pnpm dlx @generata/core init @generata/coding ~/Projects/builder
 
 ## What ships here
 
-| Template | Agents | Use it for |
-| :--- | :--- | :--- |
-| [`starter`](./starter) | 1 | Smallest possible map - copy it, rename `greeter`, build out from there |
-| [`standup`](./standup) | 2 | Reads `git log`, drafts a 3-bullet standup. Replace the source agent to draft from JIRA, PRs, etc. |
-| [`coding`](./coding) | 8 | Picks an idea from `NOTES.md`, writes SPEC + PLAN, builds the project end-to-end with critic-retry loops |
+| Template               | Agents | Use it for                                                                                               |
+| :--------------------- | :----- | :------------------------------------------------------------------------------------------------------- |
+| [`starter`](./starter) | 1      | Smallest possible map - copy it, rename `greeter`, build out from there                                  |
+| [`standup`](./standup) | 2      | Reads `git log`, drafts a 3-bullet standup. Replace the source agent to draft from JIRA, PRs, etc.       |
+| [`coding`](./coding)   | 8      | Picks an idea from `NOTES.md`, writes SPEC + PLAN, builds the project end-to-end with critic-retry loops |
 
 ## Run a template you just installed
 
@@ -60,6 +60,18 @@ my-template/
 Two files do all the work:
 
 ```ts
+// agents/hello.ts
+import { defineWorkflow } from "@generata/core";
+import greeter from "./greeter.js";
+
+export default defineWorkflow({
+  description: "Greets the supplied message.",
+  required: ["message"], // Supplied via --message flag
+  steps: [{ id: "greet", agent: greeter }],
+});
+```
+
+```ts
 // agents/greeter.ts
 import { defineAgent } from "@generata/core";
 
@@ -70,18 +82,6 @@ export default defineAgent({
   permissions: "read-only",
   tools: [],
   promptTemplate: ({ message }) => `Greet "${message}" in one line.`,
-});
-```
-
-```ts
-// agents/workflows/hello.ts
-import { defineWorkflow } from "@generata/core";
-import greeter from "../greeter.js";
-
-export default defineWorkflow({
-  description: "Greets the supplied message.",
-  required: ["message"],
-  steps: [{ id: "greet", agent: greeter }],
 });
 ```
 
@@ -97,7 +97,10 @@ The filename becomes the agent or workflow name. Every `.ts` under `agents/` is 
   "description": "What this template does, one line.",
   "engineVersion": "^1.0.0",
   "requiredBins": [
-    { "name": "claude", "hint": "Install: https://docs.anthropic.com/claude-code" }
+    {
+      "name": "claude",
+      "hint": "Install: https://docs.anthropic.com/claude-code"
+    }
   ],
   "postInstall": "Run: pnpm generata workflow hello --message world"
 }
@@ -105,15 +108,15 @@ The filename becomes the agent or workflow name. Every `.ts` under `agents/` is 
 
 Full schema (all fields after `name`/`description` are optional):
 
-| Field | What it does |
-| :--- | :--- |
-| `name` | `@scope/alias` - shown during install and used to derive the `README-<alias>.md` filename |
-| `description` | One-line summary, shown during install |
-| `engineVersion` | Semver range pinned in the generated `package.json` (`@generata/core` dep) |
-| `requiredBins` | CLI tools that must be on PATH. `optional: true` to warn instead of fail |
-| `requiredEnv` | Env vars to prompt for at install. `{ description, example?, secret?, optional? }` per key |
-| `installPaths` | Override the default copy map. Keys are template paths, values are project-relative dests |
-| `postInstall` | Multi-line string printed after install completes |
+| Field           | What it does                                                                               |
+| :-------------- | :----------------------------------------------------------------------------------------- |
+| `name`          | `@scope/alias` - shown during install and used to derive the `README-<alias>.md` filename  |
+| `description`   | One-line summary, shown during install                                                     |
+| `engineVersion` | Semver range pinned in the generated `package.json` (`@generata/core` dep)                 |
+| `requiredBins`  | CLI tools that must be on PATH. `optional: true` to warn instead of fail                   |
+| `requiredEnv`   | Env vars to prompt for at install. `{ description, example?, secret?, optional? }` per key |
+| `installPaths`  | Override the default copy map. Keys are template paths, values are project-relative dests  |
+| `postInstall`   | Multi-line string printed after install completes                                          |
 
 The install spec users actually pass to `generata init` is the catalog key from [`templates.json`](../core/templates.json), a git URL, a `you/repo` short form, or a local path - not the manifest's `name`.
 
