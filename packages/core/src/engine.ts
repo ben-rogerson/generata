@@ -21,7 +21,7 @@ import {
   logStreamEvent,
 } from "./logger.js";
 import { formatPrecheckReport, precheckWorkflow } from "./precheck.js";
-import { resolveEnvProfile, EnvProfileError, type ResolvedEnv } from "./env-profile.js";
+import { resolveEnvProfile, type ResolvedEnv } from "./env-profile.js";
 
 function computeWorkflowVariables(
   workflow: WorkflowDef,
@@ -96,16 +96,7 @@ export async function runWorkflow(
 
   // Precheck confirmed env keys are resolvable; now materialise them.
   const requiredEnvKeys = [...new Set(workflow.steps.flatMap((s) => s.agent.envKeys ?? []))];
-  let resolvedEnv: ResolvedEnv = {};
-  try {
-    resolvedEnv = resolveEnvProfile(requiredEnvKeys, profile);
-  } catch (err) {
-    if (err instanceof EnvProfileError) {
-      console.error(`[workflow] ${err.message}`);
-      process.exit(1);
-    }
-    throw err;
-  }
+  const resolvedEnv: ResolvedEnv = resolveEnvProfile(requiredEnvKeys, profile);
 
   // Inject today builtin so function args (e.g. daily-plan) can use today.
   // Local-TZ date to match the prompt-context date seen by agents.

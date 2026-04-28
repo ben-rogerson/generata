@@ -16,15 +16,6 @@ The README states workflows live under agents/workflows/ but demonstrates with a
 
 ---
 
-### engine-process-exit-on-env-error [dx-api · score 14]
-
-engine.ts calls process.exit(1) on EnvProfileError, bypassing error handling in callers like the CLI, tests, and library consumers. Should throw instead and let the caller decide the exit code.
-
-- **Evidence:** packages/core/src/engine.ts
-- **Suggested change:** Throw EnvProfileError instead of calling process.exit.
-
----
-
 ### workflow-list-omits-descriptions [dx-api · score 14]
 
 `generata agent --list` prints name, type, and description; `generata workflow --list` prints only the name. Users browsing workflows lack context that `help workflows` provides.
