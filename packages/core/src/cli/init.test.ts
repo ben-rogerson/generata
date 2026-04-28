@@ -1,12 +1,21 @@
 import { ok, strictEqual, rejects } from "node:assert/strict";
 import { describe, it } from "node:test";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  readFileSync,
+  existsSync,
+  rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runInit, runBareInit, templateAlias } from "./init.js";
+import { runInit, runBareInit, detectPmPin } from "./init.js";
 
-const FIXTURE = fileURLToPath(new URL("../../test/fixtures/template-fake", import.meta.url));
+const FIXTURE = fileURLToPath(
+  new URL("../../test/fixtures/template-fake", import.meta.url),
+);
 
 describe("runInit", () => {
   it("works in a non-empty directory and preserves unrelated files", async () => {
@@ -44,7 +53,10 @@ describe("runInit", () => {
         }),
         /conflict/i,
       );
-      strictEqual(readFileSync(join(dest, "agents/echo.ts"), "utf8"), "// existing");
+      strictEqual(
+        readFileSync(join(dest, "agents/echo.ts"), "utf8"),
+        "// existing",
+      );
     } finally {
       rmSync(dest, { recursive: true, force: true });
     }
@@ -74,7 +86,8 @@ describe("runInit", () => {
 
   it("preserves an existing generata.config.ts", async () => {
     const dest = mkdtempSync(join(tmpdir(), "init-config-existing-"));
-    const existing = "// hand-edited config\nexport default { custom: true };\n";
+    const existing =
+      "// hand-edited config\nexport default { custom: true };\n";
     writeFileSync(join(dest, "generata.config.ts"), existing);
     try {
       await runInit({
@@ -84,7 +97,10 @@ describe("runInit", () => {
         skipInstall: true,
         yes: true,
       });
-      strictEqual(readFileSync(join(dest, "generata.config.ts"), "utf8"), existing);
+      strictEqual(
+        readFileSync(join(dest, "generata.config.ts"), "utf8"),
+        existing,
+      );
     } finally {
       rmSync(dest, { recursive: true, force: true });
     }
@@ -111,7 +127,10 @@ describe("runInit", () => {
     writeFileSync(join(dest, "generata.config.ts"), existing);
     try {
       await runBareInit(dest);
-      strictEqual(readFileSync(join(dest, "generata.config.ts"), "utf8"), existing);
+      strictEqual(
+        readFileSync(join(dest, "generata.config.ts"), "utf8"),
+        existing,
+      );
     } finally {
       rmSync(dest, { recursive: true, force: true });
     }
@@ -141,6 +160,60 @@ describe("runInit", () => {
     }
   });
 
+  it("pins packageManager from npm_config_user_agent in scaffolded package.json", async () => {
+    const dest = mkdtempSync(join(tmpdir(), "init-pm-pin-"));
+    const orig = process.env.npm_config_user_agent;
+    process.env.npm_config_user_agent =
+      "pnpm/9.15.0 npm/? node/v22.12.0 darwin arm64";
+    try {
+      await runInit({
+        spec: FIXTURE,
+        dest,
+        skipPreflight: true,
+        skipInstall: true,
+        yes: true,
+      });
+      const pkg = JSON.parse(readFileSync(join(dest, "package.json"), "utf8"));
+      strictEqual(pkg.packageManager, "pnpm@9.15.0");
+    } finally {
+      if (orig === undefined) delete process.env.npm_config_user_agent;
+      else process.env.npm_config_user_agent = orig;
+      rmSync(dest, { recursive: true, force: true });
+    }
+  });
+
+  it("omits packageManager when user agent is missing or unsupported", async () => {
+    const dest = mkdtempSync(join(tmpdir(), "init-pm-no-pin-"));
+    const orig = process.env.npm_config_user_agent;
+    delete process.env.npm_config_user_agent;
+    try {
+      await runInit({
+        spec: FIXTURE,
+        dest,
+        skipPreflight: true,
+        skipInstall: true,
+        yes: true,
+      });
+      const pkg = JSON.parse(readFileSync(join(dest, "package.json"), "utf8"));
+      ok(!("packageManager" in pkg));
+    } finally {
+      if (orig !== undefined) process.env.npm_config_user_agent = orig;
+      rmSync(dest, { recursive: true, force: true });
+    }
+  });
+
+  it("detectPmPin parses pnpm/yarn/npm and rejects bun and garbage", () => {
+    strictEqual(
+      detectPmPin("pnpm/9.15.0 npm/? node/v22 darwin arm64"),
+      "pnpm@9.15.0",
+    );
+    strictEqual(detectPmPin("yarn/4.5.0 npm/? node/v22"), "yarn@4.5.0");
+    strictEqual(detectPmPin("npm/10.8.0 node/v22"), "npm@10.8.0");
+    strictEqual(detectPmPin("bun/1.1.0"), null);
+    strictEqual(detectPmPin(""), null);
+    strictEqual(detectPmPin("pnpm/latest"), null);
+  });
+
   it("--force overwrites conflicting files", async () => {
     const dest = mkdtempSync(join(tmpdir(), "init-force-"));
     mkdirSync(join(dest, "agents"), { recursive: true });
@@ -154,8 +227,14 @@ describe("runInit", () => {
         yes: true,
         force: true,
       });
-      const fixtureBody = readFileSync(resolve(FIXTURE, "agents/echo.ts"), "utf8");
-      strictEqual(readFileSync(join(dest, "agents/echo.ts"), "utf8"), fixtureBody);
+      const fixtureBody = readFileSync(
+        resolve(FIXTURE, "agents/echo.ts"),
+        "utf8",
+      );
+      strictEqual(
+        readFileSync(join(dest, "agents/echo.ts"), "utf8"),
+        fixtureBody,
+      );
     } finally {
       rmSync(dest, { recursive: true, force: true });
     }

@@ -324,10 +324,12 @@ function writePackageJson(dest: string, manifest: TemplateManifest): void {
   const path = join(dest, "package.json");
   if (existsSync(path)) return;
   const engineRange = manifest.engineVersion ?? "^1.0.0";
+  const pin = detectPmPin();
   const pkg = {
     name: dirToPackageName(dest),
     private: true,
     type: "module",
+    ...(pin ? { packageManager: pin } : {}),
     scripts: {
       agent: "generata agent",
       workflow: "generata workflow",
@@ -340,6 +342,17 @@ function writePackageJson(dest: string, manifest: TemplateManifest): void {
     },
   };
   writeFileSync(path, JSON.stringify(pkg, null, 2) + "\n");
+}
+
+// Pin the same PM that invoked us so Corepack doesn't prompt for `latest`.
+// Format: `pnpm/8.14.0 npm/? node/v22 darwin arm64`. Bun isn't a Corepack target.
+export function detectPmPin(ua: string = process.env.npm_config_user_agent ?? ""): string | null {
+  const first = ua.split(/\s+/)[0] ?? "";
+  const [name, version] = first.split("/");
+  if (!name || !version) return null;
+  if (!/^\d+\.\d+\.\d+/.test(version)) return null;
+  if (name !== "pnpm" && name !== "yarn" && name !== "npm") return null;
+  return `${name}@${version}`;
 }
 
 function dirToPackageName(dir: string): string {
