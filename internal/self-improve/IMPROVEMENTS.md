@@ -7,15 +7,6 @@ Lenses: `quality` · `dx-api` · `docs` · `consistency` · `feature`
 
 ---
 
-### help-templates-prints-object-object [dx-api · score 24]
-
-helpTemplates types the catalog as Record<string, string> and prints entries directly, but every shipped entry is the object form `{url, subdir}`. This renders `[object Object]` for each template.
-
-- **Evidence:** packages/core/src/cli/help.ts, packages/core/templates.json
-- **Suggested change:** Interpolate url/subdir fields instead of printing the raw object.
-
----
-
 ### tools-array-ignored-for-full-permissions [dx-api · score 19]
 
 When permissions is 'full', agent-runner ignores the tools[] array entirely, making any tool restrictions a silent no-op. The coding template teaches this ineffective pattern with six full-permission agents that still declare narrow tool lists.
