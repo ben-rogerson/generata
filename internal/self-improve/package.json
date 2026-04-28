@@ -1,0 +1,13 @@
+{
+  "name": "@generata/self-improve",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "audit": "generata workflow audit",
+    "improve": "generata workflow improve"
+  },
+  "dependencies": {
+    "@generata/core": "workspace:*"
+  }
+}

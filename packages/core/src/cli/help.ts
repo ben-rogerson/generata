@@ -104,10 +104,10 @@ async function helpEnv(): Promise<void> {
 
 async function helpTemplates(): Promise<void> {
   const url = new URL("../../templates.json", import.meta.url);
-  const catalog = JSON.parse(readFileSync(fileURLToPath(url), "utf8")) as Record<string, string>;
+  const catalog = JSON.parse(readFileSync(fileURLToPath(url), "utf8")) as Record<string, { url: string; subdir: string }>;
   console.log(fmt.bold("Built-in template catalog:"));
-  for (const [alias, gitUrl] of Object.entries(catalog)) {
-    console.log(`  ${alias.padEnd(24)} ${gitUrl}`);
+  for (const [alias, { url, subdir }] of Object.entries(catalog)) {
+    console.log(`  ${alias.padEnd(24)} ${url}  (${subdir})`);
   }
 }
 
