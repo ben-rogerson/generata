@@ -234,6 +234,15 @@ export async function runAgent(options: RunOptions): Promise<RunResult> {
   } else {
     // permissions === "full": trust the agent with every tool, including WebSearch/WebFetch.
     // Non-interactive CLI mode otherwise denies tools that would require a permission prompt.
+    if (agent.tools.length > 0) {
+      const extraTools = agent.tools.flatMap((t) => {
+        const mapped = TOOL_NAME_MAP[t as Tool];
+        return mapped ? [mapped] : [];
+      });
+      const baseTools = ["Read", "Glob", "Grep"];
+      if (agent.type === "planner") baseTools.push("Bash");
+      claudeArgs.push("--allowedTools", [...baseTools, ...extraTools].join(","));
+    }
     claudeArgs.push("--dangerously-skip-permissions");
   }
 
