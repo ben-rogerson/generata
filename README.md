@@ -39,7 +39,7 @@ export default defineAgent({
 });
 ```
 
-And a workflow that uses it. Workflows live under `agents/workflows/`. The filename is the workflow name.
+And a workflow that uses it. Workflows live under `agents/`. The filename is the workflow name.
 
 ```ts
 // agents/hello.ts

@@ -7,15 +7,6 @@ Lenses: `quality` · `dx-api` · `docs` · `consistency` · `feature`
 
 ---
 
-### readme-self-contradicts-workflow-path [consistency · score 18]
-
-The README states workflows live under agents/workflows/ but demonstrates with agents/hello.ts (flat). The starter template actually keeps it flat, making the prose contradictory.
-
-- **Evidence:** README.md, packages/templates/starter/agents/hello.ts
-- **Suggested change:** Correct prose to match starter's flat file layout.
-
----
-
 ### workflow-list-omits-descriptions [dx-api · score 14]
 
 `generata agent --list` prints name, type, and description; `generata workflow --list` prints only the name. Users browsing workflows lack context that `help workflows` provides.
