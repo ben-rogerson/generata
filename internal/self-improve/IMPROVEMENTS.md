@@ -7,15 +7,6 @@ Lenses: `quality` · `dx-api` · `docs` · `consistency` · `feature`
 
 ---
 
-### readme-self-contradicts-workflow-path [consistency · score 18]
-
-The README states workflows live under agents/workflows/ but demonstrates with agents/hello.ts (flat). The starter template actually keeps it flat, making the prose contradictory.
-
-- **Evidence:** README.md, packages/templates/starter/agents/hello.ts
-- **Suggested change:** Correct prose to match starter's flat file layout.
-
----
-
 ### engine-process-exit-on-env-error [dx-api · score 14]
 
 engine.ts calls process.exit(1) on EnvProfileError, bypassing error handling in callers like the CLI, tests, and library consumers. Should throw instead and let the caller decide the exit code.
