@@ -10,26 +10,7 @@ import { formatPrecheckReport, precheckWorkflow, validateAgentArgs } from "./pre
 import { sendNotification, formatWorkflowNotification, formatAgentNotification } from "./notify.js";
 import { makeRunId } from "./time.js";
 import { pickPrintableFinalOutput } from "./cli/workflow-output.js";
-
-function parseArgs(argv: string[]): {
-  positional: string[];
-  flags: Record<string, string>;
-} {
-  const positional: string[] = [];
-  const flags: Record<string, string> = {};
-  let i = 0;
-  while (i < argv.length) {
-    if (argv[i].startsWith("--")) {
-      const key = argv[i].slice(2);
-      const value = argv[i + 1] && !argv[i + 1].startsWith("--") ? argv[++i] : "true";
-      flags[key] = value;
-    } else {
-      positional.push(argv[i]);
-    }
-    i++;
-  }
-  return { positional, flags };
-}
+import { parseArgs } from "./cli/parse-args.js";
 
 async function main() {
   const args = process.argv.slice(2);
