@@ -7,9 +7,7 @@ export function deriveName(agentsDir: string, filePath: string): string {
   const noExt = rel.replace(/\.(ts|js)$/, "");
   for (const segment of noExt.split("/")) {
     if (!SEGMENT.test(segment)) {
-      throw new Error(
-        `invalid path segment '${segment}' in ${rel} (must match ${SEGMENT.source})`,
-      );
+      throw new Error(`invalid path segment '${segment}' in ${rel} (must match ${SEGMENT.source})`);
     }
   }
   return noExt;

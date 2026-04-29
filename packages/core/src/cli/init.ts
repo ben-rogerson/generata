@@ -99,9 +99,7 @@ export async function runInit(opts: InitOpts): Promise<void> {
           // Identical content is a no-op, not a conflict.
           if (filesEqual(destSubAbs, srcAbs)) continue;
           if (!force) {
-            throw new Error(
-              `File conflict at ${destSubAbs}. Re-run with --force to overwrite.`,
-            );
+            throw new Error(`File conflict at ${destSubAbs}. Re-run with --force to overwrite.`);
           }
         }
         mkdirSync(join(destSubAbs, ".."), { recursive: true });
@@ -243,9 +241,7 @@ async function scanTemplate(dir: string): Promise<{
         console.log(fmt.dim(`          ${line}`));
       }
     }
-    console.log(
-      fmt.dim(`      The template may be incompatible with this engine version.`),
-    );
+    console.log(fmt.dim(`      The template may be incompatible with this engine version.`));
   }
 
   return { agentEnvKeys, workflowEnvKeys, workflows, failureCount: failures.length };

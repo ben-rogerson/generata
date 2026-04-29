@@ -98,4 +98,3 @@ function withDefaults(
   };
   return { ...defaults, ...installPaths };
 }
-

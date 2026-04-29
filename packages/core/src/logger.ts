@@ -130,8 +130,7 @@ export function logStepDone(
 ): void {
   const approved = !verdict || verdict.verdict === "approve";
   const check = approved ? pc.green(`✓ ${id}`) : pc.red(`✗ ${id}`);
-  const costStr =
-    costWasReported && showPricing ? pc.green(`$${costUsd.toFixed(4)} USD`) : "";
+  const costStr = costWasReported && showPricing ? pc.green(`$${costUsd.toFixed(4)} USD`) : "";
   const usageStr = pc.green(
     `${Math.round((totalTokens ?? 0) / 1000)}k tok${costStr ? ` (${costStr})` : ""}`,
   );

@@ -9,35 +9,66 @@ import changeSummariser from "../change-summariser.js";
 import shipper from "../shipper.js";
 
 export default defineWorkflow({
-  description: "Pick a backlog item, plan it, ship it through the full spec/plan/code/review pipeline.",
+  description:
+    "Pick a backlog item, plan it, ship it through the full spec/plan/code/review pipeline.",
   steps: [
-    { id: "pick",      agent: itemPicker },
-    { id: "spec",      agent: specCreator,    dependsOn: ["pick"],
-      args: ({ pick }) => ({ picker_output: pick }) },
-    { id: "plan",      agent: planCreator,    dependsOn: ["spec"],
-      args: ({ spec }) => ({ spec_creator_output: spec }) },
-    { id: "review-plan", agent: planReviewer, dependsOn: ["plan"], maxRetries: 2,
+    { id: "pick", agent: itemPicker },
+    {
+      id: "spec",
+      agent: specCreator,
+      dependsOn: ["pick"],
+      args: ({ pick }) => ({ picker_output: pick }),
+    },
+    {
+      id: "plan",
+      agent: planCreator,
+      dependsOn: ["spec"],
+      args: ({ spec }) => ({ spec_creator_output: spec }),
+    },
+    {
+      id: "review-plan",
+      agent: planReviewer,
+      dependsOn: ["plan"],
+      maxRetries: 2,
       args: ({ spec, plan }) => ({
         spec_creator_output: spec,
         plan_creator_output: plan,
-      }) },
-    { id: "code",      agent: codeWriter,     dependsOn: ["review-plan"],
+      }),
+    },
+    {
+      id: "code",
+      agent: codeWriter,
+      dependsOn: ["review-plan"],
       args: ({ spec, plan }) => ({
         spec_creator_output: spec,
         plan_creator_output: plan,
-      }) },
-    { id: "review-code", agent: codeReviewer, dependsOn: ["code"], maxRetries: 2,
+      }),
+    },
+    {
+      id: "review-code",
+      agent: codeReviewer,
+      dependsOn: ["code"],
+      maxRetries: 2,
       args: ({ code, spec, plan }) => ({
         code_writer_output: code,
         spec_creator_output: spec,
         plan_creator_output: plan,
-      }) },
-    { id: "summarise", agent: changeSummariser, dependsOn: ["review-code"],
+      }),
+    },
+    {
+      id: "summarise",
+      agent: changeSummariser,
+      dependsOn: ["review-code"],
       args: ({ pick, code }) => ({
         picker_output: pick,
         code_writer_output: code,
-      }) },
-    { id: "ship",     agent: shipper, dependsOn: ["summarise"],
-      args: ({ summarise }) => ({ summariser_output: summarise }) },
+      }),
+    },
+    {
+      id: "ship",
+      agent: shipper,
+      dependsOn: ["summarise"],
+      args: ({ summarise }) => ({ summariser_output: summarise }),
+    },
   ],
 });

@@ -97,10 +97,7 @@ describe("resolveAgentName", () => {
   });
 
   it("throws on an ambiguous basename", () => {
-    throws(
-      () => resolveAgentName("foo", ["a/foo", "b/foo"]),
-      /Ambiguous 'foo'.*a\/foo.*b\/foo/,
-    );
+    throws(() => resolveAgentName("foo", ["a/foo", "b/foo"]), /Ambiguous 'foo'.*a\/foo.*b\/foo/);
   });
 
   it("throws on no match", () => {

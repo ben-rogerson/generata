@@ -54,7 +54,11 @@ function parsePrioritiser(raw: string): Finding[] {
     }
     parsed = JSON.parse(raw.slice(start, end + 1));
   }
-  if (!parsed || typeof parsed !== "object" || !Array.isArray((parsed as { ranked?: unknown }).ranked)) {
+  if (
+    !parsed ||
+    typeof parsed !== "object" ||
+    !Array.isArray((parsed as { ranked?: unknown }).ranked)
+  ) {
     throw new Error("prioritiser output missing 'ranked' array");
   }
   return (parsed as { ranked: Finding[] }).ranked;

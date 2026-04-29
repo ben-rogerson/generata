@@ -141,18 +141,20 @@ export type WorkflowStep = z.infer<typeof WorkflowStep>;
 
 export type DeriveFn = (args: Record<string, string>) => Record<string, string>;
 
-export const WorkflowDef = z.object({
-  description: z.string(),
-  required: z.array(z.string()).default([]),
-  variables: z.record(z.string(), z.string()).default({}),
-  derive: z
-    .custom<DeriveFn>(
-      (val) => val === undefined || typeof val === "function",
-      "derive must be a function that returns Record<string, string>",
-    )
-    .optional(),
-  steps: z.array(WorkflowStep).min(1),
-}).strict();
+export const WorkflowDef = z
+  .object({
+    description: z.string(),
+    required: z.array(z.string()).default([]),
+    variables: z.record(z.string(), z.string()).default({}),
+    derive: z
+      .custom<DeriveFn>(
+        (val) => val === undefined || typeof val === "function",
+        "derive must be a function that returns Record<string, string>",
+      )
+      .optional(),
+    steps: z.array(WorkflowStep).min(1),
+  })
+  .strict();
 export type WorkflowDef = z.infer<typeof WorkflowDef> & { kind: "workflow"; name: string };
 
 export const GlobalConfig = z.object({

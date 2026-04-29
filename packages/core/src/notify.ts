@@ -2,10 +2,7 @@ import { execSync } from "child_process";
 import { GlobalConfig, AgentMetrics } from "./schema.js";
 import type { WorkflowResult } from "./engine.js";
 
-export function formatWorkflowNotification(
-  result: WorkflowResult,
-  showPricing: boolean,
-): string {
+export function formatWorkflowNotification(result: WorkflowResult, showPricing: boolean): string {
   const icon = result.success ? "✅" : "❌";
   const usage =
     result.costWasReported && showPricing
