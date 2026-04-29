@@ -6,7 +6,7 @@ export default defineAgent({
     "Writes last-run.md (summary + bump + commit msg draft) and removes the shipped item from IMPROVEMENTS.md.",
   modelTier: "light",
   permissions: "full",
-  tools: ["read", "write", "edit", "bash"],
+  tools: ["write", "edit", "bash"],
   timeoutSeconds: 300,
   promptTemplate: ({ picker_output, code_writer_output, work_dir }) => `
 You finalise an improve run. Inputs:

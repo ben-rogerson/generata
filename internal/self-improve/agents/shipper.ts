@@ -6,7 +6,7 @@ export default defineAgent({
     "Runs the /ship procedure (branch, commit, changeset, push, PR) using the bump and commit message from last-run.md.",
   modelTier: "light",
   permissions: "full",
-  tools: ["read", "write", "edit", "bash"],
+  tools: ["write", "edit", "bash"],
   timeoutSeconds: 900,
   promptTemplate: ({ summariser_output, work_dir }) => `
 You ship the change that the previous step just summarised.

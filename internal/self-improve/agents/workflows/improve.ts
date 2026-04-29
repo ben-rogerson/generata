@@ -16,19 +16,16 @@ export default defineWorkflow({
     {
       id: "spec",
       agent: specCreator,
-      dependsOn: ["pick"],
       args: ({ pick }) => ({ picker_output: pick }),
     },
     {
       id: "plan",
       agent: planCreator,
-      dependsOn: ["spec"],
       args: ({ spec }) => ({ spec_creator_output: spec }),
     },
     {
       id: "review-plan",
       agent: planReviewer,
-      dependsOn: ["plan"],
       maxRetries: 2,
       args: ({ spec, plan }) => ({
         spec_creator_output: spec,
@@ -38,7 +35,6 @@ export default defineWorkflow({
     {
       id: "code",
       agent: codeWriter,
-      dependsOn: ["review-plan"],
       args: ({ spec, plan }) => ({
         spec_creator_output: spec,
         plan_creator_output: plan,
@@ -47,7 +43,6 @@ export default defineWorkflow({
     {
       id: "review-code",
       agent: codeReviewer,
-      dependsOn: ["code"],
       maxRetries: 2,
       args: ({ code, spec, plan }) => ({
         code_writer_output: code,
@@ -58,7 +53,6 @@ export default defineWorkflow({
     {
       id: "summarise",
       agent: changeSummariser,
-      dependsOn: ["review-code"],
       args: ({ pick, code }) => ({
         picker_output: pick,
         code_writer_output: code,
@@ -67,7 +61,6 @@ export default defineWorkflow({
     {
       id: "ship",
       agent: shipper,
-      dependsOn: ["summarise"],
       args: ({ summarise }) => ({ summariser_output: summarise }),
     },
   ],
