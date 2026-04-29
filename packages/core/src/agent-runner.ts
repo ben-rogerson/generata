@@ -1,6 +1,7 @@
 import { spawn } from "child_process";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, unlinkSync } from "fs";
-import { dirname, resolve } from "path";
+import { tmpdir } from "os";
+import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
 import { LLMAgentDef, GlobalConfig, AgentMetrics, AgentStreamEvent, Tool } from "./schema.js";
 
@@ -87,7 +88,7 @@ async function runInteractive(options: RunOptions): Promise<RunResult> {
   if (agent.type === "planner" && agent.interactive) {
     const paramsBin = resolve(fileURLToPath(new URL("../bin/params", import.meta.url)));
     const fileId = `${options.workflowId ?? "standalone"}-${options.stepId ?? "agent"}`;
-    paramsFile = `/tmp/params-${fileId}.json`;
+    paramsFile = join(tmpdir(), `params-${fileId}.json`);
     prompt = `${basePrompt}\n\n---\nTo emit workflow params, run: ${paramsBin} <plan_name> <instructions>`;
   }
 
@@ -194,12 +195,12 @@ export async function runAgent(options: RunOptions): Promise<RunResult> {
   if (agent.type === "critic") {
     const verdictBin = resolve(fileURLToPath(new URL("../bin/verdict", import.meta.url)));
     const fileId = `${options.workflowId ?? "standalone"}-${options.stepId ?? "agent"}`;
-    verdictFile = `/tmp/verdict-${fileId}.json`;
+    verdictFile = join(tmpdir(), `verdict-${fileId}.json`);
     prompt = `${basePrompt}\n\n---\nTo record your verdict, run ONE of:\n  ${verdictBin} approve\n  ${verdictBin} reject "<one-line summary>" "<issue 1>" "<issue 2>" ...\n\nWhen rejecting, each issue must be a specific, actionable one-sentence statement the upstream agent can address - one issue per failure, not concatenated. If you have nothing specific to flag, approve instead.`;
   } else if (agent.type === "planner") {
     const paramsBin = resolve(fileURLToPath(new URL("../bin/params", import.meta.url)));
     const fileId = `${options.workflowId ?? "standalone"}-${options.stepId ?? "agent"}`;
-    paramsFile = `/tmp/params-${fileId}.json`;
+    paramsFile = join(tmpdir(), `params-${fileId}.json`);
     prompt = `${basePrompt}\n\n---\nTo emit workflow params, run: ${paramsBin} <plan_name> <instructions>`;
   }
 

@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, renameSync, unlinkSync } from "fs";
-import { dirname } from "path";
-import { resolve } from "path";
+import { tmpdir } from "os";
+import { dirname, join, resolve } from "path";
 import {
   WorkflowDef,
   WorkflowStep,
@@ -111,13 +111,13 @@ export async function runWorkflow(
   try {
     const verdictPrefix = `verdict-${workflow.name}-`;
     const paramsPrefix = `params-${workflow.name}-`;
-    const stale = readdirSync("/tmp").filter(
+    const stale = readdirSync(tmpdir()).filter(
       (f: string) =>
         (f.startsWith(verdictPrefix) || f.startsWith(paramsPrefix)) && f.endsWith(".json"),
     );
     for (const f of stale) {
       try {
-        unlinkSync(`/tmp/${f}`);
+        unlinkSync(join(tmpdir(), f));
       } catch {}
     }
   } catch {}
