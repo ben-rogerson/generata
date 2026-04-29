@@ -6,4 +6,6 @@ export default defineConfig({
     standard: "claude-sonnet-4-6",
     light: "claude-haiku-4-5",
   },
+  logPrompts: true,
+  verboseOutput: true,
 });

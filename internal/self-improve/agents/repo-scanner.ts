@@ -8,21 +8,22 @@ export default defineAgent({
   permissions: "read-only",
   tools: ["read", "glob", "grep"],
   timeoutSeconds: 600,
-  promptContext: [{ filepath: "../../AGENTS.md" }, { filepath: "../../README.md" }],
+  promptContext: [{ filepath: "../../README.md" }],
   promptTemplate: () => `
 You are the audit step in a self-improvement loop for the \`generata\` framework. Your job is to scan this repo and surface candidate improvements - things a careful maintainer would notice and want to fix or build.
 
 Scope IN:
 - packages/core/src/* (engine, CLI, schema, runner)
 - packages/templates/*/ (template content, manifests, READMEs)
-- README.md, AGENTS.md, top-level docs/ (excluding docs/superpowers)
-- packages/core/test/*
+- README.md
 
 Scope OUT (do not flag findings here):
 - .changeset/, CHANGELOG.md, package.json version fields
 - .github/workflows/*
 - internal/self-improve/ (the workflow does not improve itself)
 - node_modules/, dist/, *.lock
+- AGENTS.md, top-level docs/
+- packages/core/test/*
 
 Lenses, in priority order. The first two are higher priority - lean toward surfacing them when you have to choose between findings of similar weight.
 
@@ -33,7 +34,7 @@ Lenses, in priority order. The first two are higher priority - lean toward surfa
 5. **feature** - things templates need but core does not expose; gaps against README promises
 
 Procedure:
-1. AGENTS.md and README.md are in your context above. Consult them for repo conventions and the public contract before scanning.
+1. README.md is in your context above. Consult it for the public contract before scanning.
 2. Use \`glob\` and \`read\` to walk in-scope files. Be thorough but not exhaustive - 15-25 high-quality findings is better than 60 weak ones.
 3. For each candidate improvement, capture:
    - lens (one of: quality, dx-api, docs, consistency, feature)

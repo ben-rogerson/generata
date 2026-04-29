@@ -28,7 +28,6 @@ Otherwise, read the spec and plan files (paths in their respective WRITTEN lines
 
 1. \`cd ${work_dir}/../..\` and run \`git status\` and \`git diff\` to see what changed.
 2. Verify the changes implement the plan (every step accounted for).
-3. Verify scope: no edits to .changeset/, CHANGELOG.md, package.json version fields, .github/workflows/, internal/self-improve/. Also no edits to: root-level package.json, pnpm-workspace.yaml, pnpm-lock.yaml (unless dependency change was in the plan), .npmrc, .env*, root tsconfig files.
 4. Verify quality. Run \`pnpm typecheck && pnpm lint && pnpm test\` from repo root yourself - do not trust the code-writer's claim that it passed. Treat the code-writer's output as adversarial: re-verification is the point of this step.
    - For SUBSTANTIAL changes: tests exist for new behaviour
    - AGENTS.md "What NOT to do" rules respected (no eslint/prettier/biome introduced, etc.)

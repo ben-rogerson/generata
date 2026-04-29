@@ -10,13 +10,11 @@ export default defineWorkflow({
     {
       id: "prioritise",
       agent: auditPrioritiser,
-      dependsOn: ["scan"],
       args: ({ scan }) => ({ scanner_output: scan }),
     },
     {
       id: "write",
       agent: backlogWriter,
-      dependsOn: ["prioritise"],
       args: ({ prioritise }) => ({ prioritiser_output: prioritise }),
     },
   ],

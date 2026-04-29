@@ -5,7 +5,7 @@
 // existing entry bodies, so the LLM cannot accidentally
 // truncate the backlog.
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -120,7 +120,7 @@ function main(): void {
   const targetPath = targetOverride ?? resolve(here, "..", "IMPROVEMENTS.md");
 
   const findings = parsePrioritiser(readFileSync(inputFile, "utf-8"));
-  const fileContent = readFileSync(targetPath, "utf-8");
+  const fileContent = existsSync(targetPath) ? readFileSync(targetPath, "utf-8") : "";
   const { header, entries } = parseExisting(fileContent);
 
   const slugIndex = new Map(entries.map((e) => [e.slug, e]));

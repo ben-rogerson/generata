@@ -8,11 +8,11 @@ export default defineAgent({
   permissions: "read-only",
   tools: ["read"],
   timeoutSeconds: 300,
-  promptContext: [{ filepath: "IMPROVEMENTS.md" }],
+  promptContext: [{ filepath: "IMPROVEMENTS.md", optional: true }],
   promptTemplate: ({ scanner_output }) => `
 You receive the raw stdout of the previous \`repo-scanner\` step in the variable below. It is expected to contain a single fenced JSON block of shape \`{ "findings": [...] }\`, but may include surrounding prose - tolerate that.
 
-The current IMPROVEMENTS.md backlog is provided in your context above. Treat every entry already in that file as already-tracked: future audit runs must not re-surface the same finding under a new title.
+If a current IMPROVEMENTS.md backlog is provided in your context above, treat every entry already in that file as already-tracked: future audit runs must not re-surface the same finding under a new title. If no backlog context is provided (first run on a fresh checkout), there are no already-tracked entries and step 5 below is a no-op.
 
 SCANNER OUTPUT:
 ${scanner_output}
