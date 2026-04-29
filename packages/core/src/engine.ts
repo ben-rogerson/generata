@@ -226,6 +226,7 @@ export async function runWorkflow(
             r!.metrics.cost_was_reported,
             r!.metrics.input_tokens + r!.metrics.output_tokens,
             config.showPricing,
+            r!.metrics.status === "failure",
           );
           return r!;
         };

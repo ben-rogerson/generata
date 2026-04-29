@@ -127,9 +127,11 @@ export function logStepDone(
   costWasReported?: boolean,
   totalTokens?: number,
   showPricing?: boolean,
+  failed?: boolean,
 ): void {
   const approved = !verdict || verdict.verdict === "approve";
-  const check = approved ? pc.green(`✓ ${id}`) : pc.red(`✗ ${id}`);
+  const ok = approved && !failed;
+  const check = ok ? pc.green(`✓ ${id}`) : pc.red(`✗ ${id}`);
   const costStr = costWasReported && showPricing ? pc.green(`$${costUsd.toFixed(4)} USD`) : "";
   const usageStr = pc.green(
     `${Math.round((totalTokens ?? 0) / 1000)}k tok${costStr ? ` (${costStr})` : ""}`,
