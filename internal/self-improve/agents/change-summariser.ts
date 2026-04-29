@@ -37,5 +37,5 @@ Procedure:
 5. Edit \`${work_dir}/IMPROVEMENTS.md\` to remove the entry whose slug matches the picker's slug. Remove the entry plus exactly one adjacent \`---\` separator (the one immediately after it, or - if it is the last entry in the file - the one immediately before it). If it is the only entry, no separator exists - just remove the entry's lines. Leave the file header (everything above the first entry) intact.
 6. Lead your final response with: \`SHIPPED: <slug>\` then a one-line summary.
 
-Do not run \`git commit\`, \`git push\`, or \`gh\`. The human runs \`/ship\` after reviewing last-run.md. \`last-run.md\` is gitignored - it is local scratch, not committed.`,
+Do not run \`git commit\`, \`git push\`, or \`gh\` - the next step (\`ship\`) does that, using the bump and commit message you write here. \`last-run.md\` is gitignored - it is local scratch, not committed.`,
 });

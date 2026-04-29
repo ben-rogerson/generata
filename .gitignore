@@ -16,6 +16,7 @@ docs/superpowers/
 internal/self-improve/metrics/
 internal/self-improve/logs/
 internal/self-improve/last-run.md
+internal/self-improve/IMPROVEMENTS.md
 
 # Marker for the user-level rtk-rewrite hook to skip this project
 .no-rtk-rewrite
