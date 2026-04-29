@@ -44,6 +44,22 @@ describe("logStepDone", () => {
     ok(out.includes("5k tok"), `expected token count, got: ${out}`);
     ok(!out.includes("$"), `did not expect dollar sign, got: ${out}`);
   });
+
+  it("renders ✗ when the agent itself failed", () => {
+    const out = captureStdout(() =>
+      logStepDone("step-1", 1500, 0, "claude-haiku-4-5", undefined, false, 5000, false, true),
+    );
+    ok(out.includes("✗ step-1"), `expected fail mark, got: ${out}`);
+    ok(!out.includes("✓"), `did not expect tick, got: ${out}`);
+  });
+
+  it("renders ✓ when the agent succeeded and there is no critic verdict", () => {
+    const out = captureStdout(() =>
+      logStepDone("step-1", 1500, 0, "claude-haiku-4-5", undefined, false, 5000, false, false),
+    );
+    ok(out.includes("✓ step-1"), `expected tick, got: ${out}`);
+    ok(!out.includes("✗"), `did not expect fail mark, got: ${out}`);
+  });
 });
 
 describe("logWorkflowResult", () => {
