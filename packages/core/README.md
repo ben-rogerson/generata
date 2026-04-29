@@ -17,16 +17,16 @@ That's all you need to author agents, workflows, and a project config.
 
 ## CLI
 
-| Command                            | Purpose                                                       |
-| :--------------------------------- | :------------------------------------------------------------ |
-| `generata init <template> [dest]`  | Scaffold a new project from a template                        |
-| `generata add <template>`          | Merge a template into the current project                     |
-| `generata agent <name>`            | Run a single agent                                            |
-| `generata workflow <name>`         | Run a workflow (alias: `run`)                                 |
-| `generata validate [--all]`        | Static-check workflow definitions                             |
-| `generata metrics [today\|week]`   | Show metrics summary                                          |
-| `generata skills sync`             | Regenerate `.claude/commands/` from workflows                 |
-| `generata help [topic]`            | Show help (topics: agents, workflows, env, templates, bins)   |
+| Command                           | Purpose                                                     |
+| :-------------------------------- | :---------------------------------------------------------- |
+| `generata init <template> [dest]` | Scaffold a new project from a template                      |
+| `generata add <template>`         | Merge a template into the current project                   |
+| `generata agent <name>`           | Run a single agent                                          |
+| `generata workflow <name>`        | Run a workflow (alias: `run`)                               |
+| `generata validate [--all]`       | Static-check workflow definitions                           |
+| `generata metrics [today\|week]`  | Show metrics summary                                        |
+| `generata skills sync`            | Regenerate `.claude/commands/` from workflows               |
+| `generata help [topic]`           | Show help (topics: agents, workflows, env, templates, bins) |
 
 ## Template specifiers
 

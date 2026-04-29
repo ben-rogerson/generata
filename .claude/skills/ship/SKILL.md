@@ -32,13 +32,13 @@ git log @{u}..HEAD 2>/dev/null  # unpushed commits, if any
 
 If working tree is clean AND no unpushed commits, bail with: "Nothing to ship."
 
-### 2. Type-check + test
+### 2. Format, lint, type-check, test
 
 ```bash
-pnpm typecheck && pnpm test
+pnpm fmt && pnpm lint && pnpm typecheck && pnpm test
 ```
 
-If either fails, halt. Report the error. Do not push.
+If any step fails, halt. Report the error. Do not push.
 
 ### 3. Branch from latest main (if currently on main)
 
@@ -146,6 +146,8 @@ gh pr create --title "<conventional-commit-title>" --body "$(cat <<'EOF'
 - <bullet 2>
 
 ## Test plan
+- [x] `pnpm fmt`
+- [x] `pnpm lint`
 - [x] `pnpm typecheck`
 - [x] `pnpm test`
 - [ ] <manual verification step, if relevant>

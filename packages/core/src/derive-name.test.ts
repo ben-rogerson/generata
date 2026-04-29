@@ -26,10 +26,7 @@ describe("deriveName", () => {
   });
 
   it("rejects a segment that starts with a digit", () => {
-    throws(
-      () => deriveName("/proj/agents", "/proj/agents/1foo.ts"),
-      /invalid path segment '1foo'/,
-    );
+    throws(() => deriveName("/proj/agents", "/proj/agents/1foo.ts"), /invalid path segment '1foo'/);
   });
 
   it("rejects a segment with an underscore", () => {

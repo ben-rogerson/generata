@@ -17,25 +17,12 @@
   "bugs": {
     "url": "https://github.com/ben-rogerson/generata/issues"
   },
+  "license": "ISC",
+  "author": "Ben Rogerson <info@benrogerson.dev>",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ben-rogerson/generata.git",
     "directory": "packages/core"
-  },
-  "license": "ISC",
-  "author": "Ben Rogerson <info@benrogerson.dev>",
-  "type": "module",
-  "publishConfig": {
-    "access": "public"
-  },
-  "main": "dist/define.js",
-  "types": "dist/define.d.ts",
-  "exports": {
-    ".": {
-      "development": "./src/define.ts",
-      "types": "./dist/define.d.ts",
-      "default": "./dist/define.js"
-    }
   },
   "bin": {
     "generata": "./bin/generata"
@@ -48,6 +35,19 @@
     "README.md",
     "CHANGELOG.md"
   ],
+  "type": "module",
+  "main": "dist/define.js",
+  "types": "dist/define.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/define.ts",
+      "types": "./dist/define.d.ts",
+      "default": "./dist/define.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "dev": "tsx src/cli.ts",
     "clean": "rm -rf dist",

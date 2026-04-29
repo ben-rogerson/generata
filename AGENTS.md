@@ -51,7 +51,7 @@ The engine's public API is exactly what `packages/core/src/define.ts` exports. I
 Before committing, run:
 
 ```bash
-pnpm typecheck && pnpm lint && pnpm test
+pnpm fmt && pnpm lint && pnpm typecheck && pnpm test
 ```
 
 If you touched anything in `packages/core/src/`, also run:
@@ -120,7 +120,7 @@ pnpm build
 ./packages/core/bin/generata help
 
 # Pre-commit gauntlet
-pnpm typecheck && pnpm lint && pnpm test
+pnpm fmt && pnpm lint && pnpm typecheck && pnpm test
 
 # Author a release-worthy change
 pnpm changeset    # then commit alongside the code change

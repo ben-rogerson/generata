@@ -8,10 +8,7 @@ export default defineAgent({
   permissions: "read-only",
   tools: ["read", "glob", "grep"],
   timeoutSeconds: 600,
-  promptContext: [
-    { filepath: "../../AGENTS.md" },
-    { filepath: "../../README.md" },
-  ],
+  promptContext: [{ filepath: "../../AGENTS.md" }, { filepath: "../../README.md" }],
   promptTemplate: () => `
 You are the audit step in a self-improvement loop for the \`generata\` framework. Your job is to scan this repo and surface candidate improvements - things a careful maintainer would notice and want to fix or build.
 

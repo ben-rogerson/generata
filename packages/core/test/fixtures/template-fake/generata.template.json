@@ -2,9 +2,7 @@
   "name": "@fake/test-template",
   "description": "Fixture template used by the generata init smoke test",
   "engineVersion": "^1.0.0",
-  "requiredBins": [
-    { "name": "node", "optional": false }
-  ],
+  "requiredBins": [{ "name": "node", "optional": false }],
   "requiredEnv": {
     "FAKE_KEY": { "description": "A fake required env value", "example": "abc123" }
   },
