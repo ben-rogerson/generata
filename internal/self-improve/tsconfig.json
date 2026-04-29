@@ -1,0 +1,4 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "include": ["agents/**/*", "scripts/**/*", "generata.config.ts"]
+}

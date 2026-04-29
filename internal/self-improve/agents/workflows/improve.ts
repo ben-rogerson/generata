@@ -6,6 +6,7 @@ import planReviewer from "../plan-reviewer.js";
 import codeWriter from "../code-writer.js";
 import codeReviewer from "../code-reviewer.js";
 import changeSummariser from "../change-summariser.js";
+import shipper from "../shipper.js";
 
 export default defineWorkflow({
   description: "Pick a backlog item, plan it, ship it through the full spec/plan/code/review pipeline.",
@@ -36,5 +37,7 @@ export default defineWorkflow({
         picker_output: pick,
         code_writer_output: code,
       }) },
+    { id: "ship",     agent: shipper, dependsOn: ["summarise"],
+      args: ({ summarise }) => ({ summariser_output: summarise }) },
   ],
 });

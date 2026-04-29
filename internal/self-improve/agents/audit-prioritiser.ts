@@ -3,13 +3,16 @@ import { defineAgent } from "@generata/core";
 export default defineAgent({
   type: "worker",
   description:
-    "Scores audit findings (impact x effort), drops out-of-scope ones, outputs a ranked JSON list.",
+    "Scores audit findings (impact x effort), drops out-of-scope and already-tracked ones, outputs a ranked JSON list.",
   modelTier: "standard",
   permissions: "read-only",
   tools: ["read"],
   timeoutSeconds: 300,
+  promptContext: [{ filepath: "IMPROVEMENTS.md" }],
   promptTemplate: ({ scanner_output }) => `
 You receive the raw stdout of the previous \`repo-scanner\` step in the variable below. It is expected to contain a single fenced JSON block of shape \`{ "findings": [...] }\`, but may include surrounding prose - tolerate that.
+
+The current IMPROVEMENTS.md backlog is provided in your context above. Treat every entry already in that file as already-tracked: future audit runs must not re-surface the same finding under a new title.
 
 SCANNER OUTPUT:
 ${scanner_output}
@@ -25,13 +28,19 @@ Procedure:
    - .changeset/, CHANGELOG.md, package.json (any version field)
    - .github/workflows/
    - internal/self-improve/
-5. Dedup near-duplicates: if two findings share a lens AND any evidence path (compare on the path component before any \`:line\` suffix), keep the higher-scored one.
-6. Sort descending by \`score\`. Tie-breakers in order: lower \`effort\` first; then lens priority (\`dx-api\` > \`consistency\` > \`quality\` > \`docs\` > \`feature\`); then original order in the scanner output. The output must be deterministic across re-runs given identical input.
-7. Print the result as a single fenced JSON block with shape:
+5. Drop any finding that is already tracked in IMPROVEMENTS.md. Treat a finding as already-tracked if any of these hold against any existing entry in the backlog:
+   a. Slug match: derive a slug from the finding's title (lowercase; runs of non-alphanumeric chars become single dashes; strip leading/trailing dashes) and compare against the existing entry's slug.
+   b. Evidence overlap: any of the finding's evidence_paths (compare on the path component before any \`:line\` suffix) appears in the existing entry's Evidence line.
+   c. Subject overlap: the finding describes the same underlying issue as an existing entry - same file region, same symptom, even if the title or framing differs. Be moderately strict here: if a careful reader would say "this is the same bug we already logged," drop it.
+6. Dedup near-duplicates within the remaining findings: if two share a lens AND any evidence path (compare on the path component before any \`:line\` suffix), keep the higher-scored one.
+7. Sort descending by \`score\`. Tie-breakers in order: lower \`effort\` first; then lens priority (\`dx-api\` > \`consistency\` > \`quality\` > \`docs\` > \`feature\`); then original order in the scanner output. The output must be deterministic across re-runs given identical input.
+8. Print the result as a single fenced JSON block with shape:
    \`\`\`json
    { "ranked": [ { "lens": "...", "title": "...", "description": "...", "evidence_paths": [...], "suggested_change_kind": "...", "impact": N, "effort": N, "score": N, "reasoning": "one line" } ] }
    \`\`\`
    Nothing outside the fenced block. Preserve all original fields (lens, title, description, evidence_paths, suggested_change_kind) verbatim from the scanner finding; add only impact, effort, score, and reasoning.
+
+If every finding is dropped (out-of-scope or already-tracked), emit \`{ "ranked": [] }\` inside the fenced block. The downstream merge step is a no-op in that case.
 
 You are read-only. Do not edit files.`,
 });

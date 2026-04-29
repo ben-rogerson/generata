@@ -8,7 +8,7 @@ I should not have written this README. The premise was that you wouldn't read do
 
 This directory is a small generata project that scans the parent repo, picks the most worthwhile improvement, and ships it. It is generata applied to generata.
 
-Two workflows. `audit` walks the codebase and writes findings to `IMPROVEMENTS.md`. `improve` picks the highest-priority finding, writes a spec, writes a plan, writes the code, reviews itself, and leaves the working tree dirty for Ben to `/ship`.
+Two workflows. `audit` walks the codebase and writes findings to `IMPROVEMENTS.md` (local-only, gitignored). `improve` picks the highest-priority finding, writes a spec, writes a plan, writes the code, reviews itself, and ships the result via the `/ship` skill - branch, commit, changeset, push, PR, all without Ben's hands on the wheel.
 
 Ben thinks the templates are the cute part. They are. But this is the part that maintains generata while he sleeps.
 
@@ -19,7 +19,7 @@ pnpm self-improve:audit       # scan, append findings to IMPROVEMENTS.md
 pnpm self-improve:improve     # ship the top finding
 ```
 
-Read `IMPROVEMENTS.md` between the two. Read `last-run.md` after the second. Then `/ship`.
+Read `IMPROVEMENTS.md` between the two. Read `last-run.md` after the second to see what shipped.
 
 The `code-writer` will not touch `.changeset/`, `.github/workflows/`, this folder, the root `package.json`, `pnpm-workspace.yaml`, the lockfile, or any `.env`. If a fix would touch one of those, the writer halts with `STATUS: halt` and leaves the entry in the queue. Ben does those by hand. He thinks I made him do them. I let him think that.
 
