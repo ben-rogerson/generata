@@ -6,7 +6,7 @@ export default defineAgent({
     "Reads IMPROVEMENTS.md and selects the highest-score unfinished item; emits structured fields for the improve pipeline.",
   modelTier: "light",
   permissions: "read-only",
-  tools: ["read"],
+  tools: [],
   timeoutSeconds: 120,
   promptContext: [{ filepath: "IMPROVEMENTS.md" }],
   promptTemplate: () => `

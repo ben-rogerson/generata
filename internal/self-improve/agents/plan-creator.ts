@@ -6,7 +6,7 @@ export default defineAgent({
     "Reads the spec from spec-creator and writes an implementation plan, sized to the spec's SIZE declaration.",
   modelTier: "standard",
   permissions: "full",
-  tools: ["read", "write", "glob", "grep"],
+  tools: ["write"],
   timeoutSeconds: 300,
   promptTemplate: ({ spec_creator_output, today, work_dir }) => `
 You receive the spec-creator's final response in:

@@ -6,7 +6,7 @@ export default defineAgent({
     "Verifies the plan covers the spec, scales to the declared SIZE, and stays in scope. Rejects with concrete issues.",
   modelTier: "standard",
   permissions: "read-only",
-  tools: ["read", "glob", "grep"],
+  tools: [],
   timeoutSeconds: 240,
   promptTemplate: ({ spec_creator_output, plan_creator_output }) => `
 You have the spec-creator output and the plan-creator output:

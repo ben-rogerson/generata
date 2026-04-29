@@ -6,7 +6,7 @@ export default defineAgent({
     "Reviews the code-writer's diff for AGENTS.md compliance, test coverage, scope adherence. Rejects with concrete issues.",
   modelTier: "standard",
   permissions: "read-only",
-  tools: ["read", "glob", "grep", "bash"],
+  tools: ["bash"],
   timeoutSeconds: 480,
   promptTemplate: ({ code_writer_output, spec_creator_output, plan_creator_output, work_dir }) => `
 You have the code-writer's status, plus the spec and plan:

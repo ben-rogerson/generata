@@ -6,7 +6,7 @@ export default defineAgent({
     "Writes a spec for the picked improvement, sized to the change (trivial / small / substantial).",
   modelTier: "standard",
   permissions: "full",
-  tools: ["read", "write", "glob", "grep"],
+  tools: ["write"],
   timeoutSeconds: 300,
   promptTemplate: ({ picker_output, today, work_dir }) => `
 You receive the picked item from the picker step:

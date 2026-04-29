@@ -6,7 +6,7 @@ export default defineAgent({
     "Implements the plan: edits files, writes tests, runs typecheck/lint/test before declaring success.",
   modelTier: "heavy",
   permissions: "full",
-  tools: ["read", "write", "edit", "bash", "glob", "grep"],
+  tools: ["write", "edit", "bash"],
   timeoutSeconds: 1200,
   maxRetries: 1,
   promptTemplate: ({ spec_creator_output, plan_creator_output, work_dir }) => `

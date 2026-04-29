@@ -6,7 +6,7 @@ export default defineAgent({
     "Scores audit findings (impact x effort), drops out-of-scope and already-tracked ones, outputs a ranked JSON list.",
   modelTier: "standard",
   permissions: "read-only",
-  tools: ["read"],
+  tools: [],
   timeoutSeconds: 300,
   promptContext: [{ filepath: "IMPROVEMENTS.md", optional: true }],
   promptTemplate: ({ scanner_output }) => `

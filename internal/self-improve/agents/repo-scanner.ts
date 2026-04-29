@@ -6,7 +6,7 @@ export default defineAgent({
     "Scans the generata repo for candidate improvements across five lenses; emits a JSON object with a findings list.",
   modelTier: "heavy",
   permissions: "read-only",
-  tools: ["read", "glob", "grep"],
+  tools: [],
   timeoutSeconds: 600,
   promptContext: [{ filepath: "../../README.md" }],
   promptTemplate: () => `
