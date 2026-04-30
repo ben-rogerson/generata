@@ -5,7 +5,7 @@ export default defineAgent({
   description: "Reads SPEC.md, writes PLAN.md for the project",
   modelTier: "standard",
   permissions: "full",
-  tools: ["read", "write", "glob", "grep"],
+  tools: ["write"],
   promptContext: [{ filepath: ({ spec_filepath }) => spec_filepath }],
   timeoutSeconds: 300,
   promptTemplate: ({ plan_filepath, instructions }) => `

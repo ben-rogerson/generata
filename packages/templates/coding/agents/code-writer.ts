@@ -5,7 +5,7 @@ export default defineAgent({
   description: "Implements PLAN.md inside the project directory",
   modelTier: "heavy",
   permissions: "full",
-  tools: ["read", "write", "bash", "glob", "grep", "edit"],
+  tools: ["write", "bash", "edit"],
   timeoutSeconds: 600,
   maxRetries: 1,
   promptContext: [{ filepath: ({ plan_filepath }) => plan_filepath }],

@@ -1,4 +1,5 @@
 import { defineAgent } from "@generata/core";
+import { renderOutOfScopeList } from "./_out-of-scope.js";
 
 export default defineAgent({
   type: "worker",
@@ -27,12 +28,7 @@ Extract the paths from the \`SPEC WRITTEN: <path>\` / \`PLAN WRITTEN: <path>\` l
 Procedure:
 1. Implement the plan steps in order. The work directory for self-improve is \`${work_dir}\`, but you may edit anywhere in the parent generata repo EXCEPT the out-of-scope paths.
 2. **Out-of-scope paths - HALT if the plan asks you to touch any of these:**
-   - \`.changeset/\` or any \`CHANGELOG.md\`
-   - \`package.json\` version fields (any package - the \`"version"\` key only; other fields are fine in package-level files)
-   - \`.github/workflows/\`
-   - \`internal/self-improve/\` (the workflow does not improve itself in v1)
-   - Root-level \`package.json\` (entire file - changing scripts/engines/packageManager has monorepo-wide blast radius)
-   - \`pnpm-workspace.yaml\`, \`pnpm-lock.yaml\`, \`.npmrc\`, \`.env\`, \`.env.*\`, root \`tsconfig.json\`, root \`tsconfig.base.json\`
+${renderOutOfScopeList()}
    If the plan calls for any of the above, stop and report \`STATUS: halt - plan requests out-of-scope edit to <path>\`. Do not proceed.
 3. **Dependency changes are out-of-scope unless the plan explicitly enumerates the package and version.** Do not run \`pnpm add\`, \`pnpm remove\`, \`pnpm install <pkg>\`, \`npm install\`, etc. unless the plan calls for it by name. \`pnpm install\` (no args, refresh existing lockfile) is permitted only if a config edit demands it.
 4. **Test discipline.** Do not skip, comment out, \`.skip\`, \`.todo\`, \`.only\` (which excludes others), or otherwise disable existing tests. If a test appears flaky, retry it once; if it still fails, report \`STATUS: halt - flaky test <path>::<name>\` with the failure output pasted. Editing test files to make them pass without fixing the underlying behaviour is a regression, not a fix.

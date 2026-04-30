@@ -5,7 +5,7 @@ export default defineAgent({
   description: "Reviews code in the project dir: typecheck, tests, acceptance criteria",
   modelTier: "standard",
   permissions: "read-only",
-  tools: ["read", "glob", "grep", "bash"],
+  tools: ["bash"],
   promptContext: [
     { filepath: ({ spec_filepath }) => spec_filepath },
     { filepath: ({ plan_filepath }) => plan_filepath },

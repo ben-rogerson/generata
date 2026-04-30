@@ -6,7 +6,7 @@ export default defineAgent({
     "Reads NOTES.md, picks an idea at random, writes SPEC.md, emits plan_name + instructions",
   modelTier: "standard",
   permissions: "full",
-  tools: ["read", "write", "glob", "grep"],
+  tools: ["write"],
   promptContext: [{ filepath: "NOTES.md" }],
   timeoutSeconds: 180,
   promptTemplate: ({ output_dir, random_pick }) => `

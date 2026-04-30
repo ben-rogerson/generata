@@ -5,7 +5,7 @@ export default defineAgent({
   description: "Removes the just-built idea from NOTES.md (success path only)",
   modelTier: "light",
   permissions: "full",
-  tools: ["read", "edit"],
+  tools: ["edit"],
   timeoutSeconds: 120,
   promptContext: [{ filepath: "NOTES.md" }],
   promptTemplate: ({ instructions }) => `
