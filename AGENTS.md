@@ -100,6 +100,7 @@ If the change is not release-worthy (CI tweaks, internal docs, test fixtures), s
 - **Project root discovery:** the engine anchors on `generata.config.ts` (or `.mjs` / `.js`) via `findProjectRoot()`. Never assume `process.cwd()` or `__dirname` — always go through `findProjectRoot()`.
 - **Test fixtures** live at `packages/core/test/fixtures/`. The `template-fake` fixture is exercised by the init smoke test; don't break its shape.
 - **Templates are content, not packages.** Files under `packages/templates/<name>/` are not built, not bundled, not type-checked as part of the engine. They're copied verbatim by `init`.
+- **Agent file names are kebab-case** and the loader derives the agent/workflow name from the path under `agentsDir/` (so `agents/core/plan-dreamer.ts` becomes `core/plan-dreamer`). Segments must match `^[a-z][a-z0-9-]*$`. Files and directories prefixed with `_` (e.g. `agents/_out-of-scope.ts`) are treated as private/shared modules and skipped by the loader. Use that prefix when an agent file needs a sibling helper without registering it as its own agent.
 
 ---
 
