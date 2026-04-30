@@ -1,12 +1,6 @@
 import { z } from "zod";
 
-export const Tool = z.enum([
-  "write",
-  "bash",
-  "edit",
-  "web-search",
-  "web-fetch",
-]);
+export const Tool = z.enum(["write", "bash", "edit", "web-search", "web-fetch"]);
 export type Tool = z.infer<typeof Tool>;
 
 export const LLMTier = z.enum(["heavy", "standard", "light"]);
