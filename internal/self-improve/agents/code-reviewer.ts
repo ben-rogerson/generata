@@ -1,4 +1,5 @@
 import { defineAgent } from "@generata/core";
+import { renderOutOfScopeList, renderShipDeferredList } from "./_out-of-scope.js";
 
 export default defineAgent({
   type: "critic",
@@ -23,6 +24,11 @@ ${plan_creator_output}
 If any output contains a halt sentinel (\`NO_ITEMS\`, \`PICKER PARSE ERROR\`, \`SPEC SIZE MISSING\`), accept the verdict immediately - the upstream halt has already done its job.
 
 If the code-writer reported \`STATUS: halt\` or \`STATUS: partial\`: REJECT immediately with the reported reason as the issue. Do not run further checks.
+
+**Scope rules the writer was operating under (do not reject for paths absent from the diff that fall in these buckets):**
+${renderOutOfScopeList()}
+
+**Ship-deferred paths.** Do NOT flag missing changes under ${renderShipDeferredList()}. These are out-of-scope at the code step; the spec may legitimately call for them (e.g. a minor-version changeset), but they are added by the shipper during \`/ship\`. If your only objection to the diff is a missing entry in one of these paths, APPROVE.
 
 Otherwise, read the spec and plan files (paths in their respective WRITTEN lines), then review the dirty working tree:
 

@@ -1,11 +1,8 @@
 import { z } from "zod";
 
 export const Tool = z.enum([
-  "read",
   "write",
   "bash",
-  "glob",
-  "grep",
   "edit",
   "web-search",
   "web-fetch",

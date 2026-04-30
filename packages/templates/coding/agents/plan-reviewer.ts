@@ -5,7 +5,6 @@ export default defineAgent({
   description: "Audits PLAN.md against SPEC.md - approve or reject with concrete issues",
   modelTier: "standard",
   permissions: "read-only",
-  tools: ["read", "glob", "grep"],
   promptContext: [
     { filepath: ({ spec_filepath }) => spec_filepath },
     { filepath: ({ plan_filepath }) => plan_filepath },

@@ -5,7 +5,7 @@ export default defineAgent({
   description: "Archives a rejected project and removes the idea from NOTES.md",
   modelTier: "light",
   permissions: "full",
-  tools: ["read", "edit", "bash"],
+  tools: ["edit", "bash"],
   timeoutSeconds: 120,
   promptContext: [{ filepath: "NOTES.md" }],
   promptTemplate: ({ project_dir, output_dir, plan_name, instructions }) => `

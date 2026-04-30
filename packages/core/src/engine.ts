@@ -10,7 +10,11 @@ import {
   LLMAgentDef,
   StepParams,
 } from "./schema.js";
-import { runAgent, RunResult } from "./agent-runner.js";
+import { runAgent as defaultRunAgent, RunResult, RunOptions } from "./agent-runner.js";
+
+export interface EngineDeps {
+  runAgent: (options: RunOptions) => Promise<RunResult>;
+}
 import { buildRetryPreamble } from "./context-builder.js";
 import { getTodayAndTime } from "./time.js";
 import {
@@ -22,6 +26,13 @@ import {
 } from "./logger.js";
 import { formatPrecheckReport, precheckWorkflow } from "./precheck.js";
 import { resolveEnvProfile, type ResolvedEnv } from "./env-profile.js";
+
+// Workers signal a structural halt by leading their output with `STATUS: halt`.
+// The critic retry loop checks this to short-circuit retries that would re-hit
+// the same conflict. Exported so the regex can be regression-tested in isolation.
+export function isStructuralHalt(output: string): boolean {
+  return /^STATUS:\s*halt\b/im.test(output);
+}
 
 function computeWorkflowVariables(
   workflow: WorkflowDef,
@@ -72,6 +83,7 @@ export async function runWorkflow(
   config: GlobalConfig,
   workDir: string,
   promptLogFile?: string,
+  deps: EngineDeps = { runAgent: defaultRunAgent },
 ): Promise<WorkflowResult> {
   const workflowId = `${workflow.name}-${Date.now()}`;
   const startTime = Date.now();
@@ -188,7 +200,7 @@ export async function runWorkflow(
           let attempt = 0;
           while (true) {
             try {
-              r = await runAgent({
+              r = await deps.runAgent({
                 agent: targetAgent,
                 args: targetArgs,
                 config,
@@ -290,6 +302,11 @@ export async function runWorkflow(
                 const criticArgs = resolveArgs(step.args, params, stepOutputs);
                 result = await runAgentStep(step, criticArgs);
                 stepOutputs[step.id] = result.output;
+
+                // Structural-halt short-circuit: if the worker reports STATUS: halt
+                // the rerun won't make progress (the conflict is in the spec/plan, not
+                // the diff). Stop retrying and let the rejection propagate to haltSignal.
+                if (isStructuralHalt(execResult.output)) break;
               }
             }
 

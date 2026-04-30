@@ -5,7 +5,7 @@ export default defineAgent({
   description: "Writes README.md for the completed project",
   modelTier: "light",
   permissions: "full",
-  tools: ["read", "write", "glob", "grep"],
+  tools: ["write"],
   timeoutSeconds: 180,
   promptContext: [{ filepath: ({ spec_filepath }) => spec_filepath }],
   promptTemplate: ({ project_dir }) => `
