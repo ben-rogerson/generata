@@ -22,10 +22,14 @@ interface RegistryOpts {
   agentsDir: string;
 }
 
+// Files and directories prefixed with `_` are treated as private/shared modules
+// and skipped by the loader. Use this for utilities imported by sibling agents
+// (e.g. `_out-of-scope.ts`) without exposing them as agents themselves.
 async function collectFiles(dir: string): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
   const files: string[] = [];
   for (const entry of entries) {
+    if (entry.name.startsWith("_")) continue;
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {
       files.push(...(await collectFiles(full)));

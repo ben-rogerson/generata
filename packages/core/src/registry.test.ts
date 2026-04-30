@@ -82,6 +82,21 @@ describe("loadRegistry path validation", () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("skips files and directories prefixed with underscore", async () => {
+    const root = mkdtempSync(join(tmpdir(), "registry-skip-"));
+    try {
+      writeAgent(join(root, "agents/echo.ts"));
+      writeFileSync(join(root, "agents/_shared.ts"), "export const X = 1;\n");
+      mkdirSync(join(root, "agents/_internal"), { recursive: true });
+      writeFileSync(join(root, "agents/_internal/util.ts"), "export const Y = 2;\n");
+      const registry = await loadRegistry({ projectRoot: root, agentsDir: "agents" });
+      ok(registry.has("echo"));
+      strictEqual(registry.list().length, 1);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("resolveAgentName", () => {

@@ -57,6 +57,11 @@ async function helpAgents(): Promise<void> {
     console.log(`  ${a.name.padEnd(24)} [${a.type}] [${tier}]  ${a.description}`);
     if (a.envKeys?.length) console.log(`    envKeys: ${a.envKeys.join(", ")}`);
   }
+  console.log("");
+  console.log(
+    `Names are derived from the path under ${config.agentsDir}/ (kebab-case, segments match /^[a-z][a-z0-9-]*$/).`,
+  );
+  console.log("Files and directories prefixed with '_' are skipped (private/shared modules).");
 }
 
 async function helpWorkflows(): Promise<void> {
