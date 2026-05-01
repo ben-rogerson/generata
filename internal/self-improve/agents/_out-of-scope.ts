@@ -15,7 +15,10 @@ export const OUT_OF_SCOPE_PATHS: OutOfScopePath[] = [
       '`package.json` version fields (any package - the `"version"` key only; other fields are fine in package-level files)',
   },
   { pattern: "`.github/workflows/`" },
-  { pattern: "`internal/self-improve/` (the workflow does not improve itself in v1)" },
+  {
+    pattern:
+      "`internal/self-improve/` EXCEPT `internal/self-improve/IMPROVEMENTS.md` (the workflow may prune/edit its own backlog but not modify its agents, scripts, or workflows)",
+  },
   {
     pattern:
       "Root-level `package.json` (entire file - changing scripts/engines/packageManager has monorepo-wide blast radius)",
