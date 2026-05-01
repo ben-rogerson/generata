@@ -39,10 +39,10 @@ export default defineAgent({
 });
 ```
 
-And a workflow that uses it. Workflows live under `agents/`. The filename is the workflow name.
+And a workflow that uses it. Workflows live under `agents/` (flat) or `agents/workflows/` (nested) - the filename is the workflow name. The starter uses flat; most templates use the nested convention.
 
 ```ts
-// agents/hello.ts
+// agents/hello.ts  (or agents/workflows/hello.ts)
 import { defineWorkflow } from "@generata/core";
 import greeter from "./greeter.js";
 
