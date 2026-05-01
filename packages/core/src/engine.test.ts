@@ -160,6 +160,50 @@ describe("isStructuralHalt", () => {
   });
 });
 
+describe("runWorkflow workflowId sanitisation", () => {
+  it("strips slashes from path-derived workflow names so tmp-file paths stay flat", async () => {
+    let captured: string | null | undefined;
+
+    const stubRunAgent = async (options: RunOptions): Promise<RunResult> => {
+      captured = options.workflowId;
+      return {
+        output: "done",
+        metrics: makeMetrics({ agent: options.agent.name }),
+      };
+    };
+
+    const worker = withName(
+      defineAgent({
+        type: "worker",
+        description: "stub",
+        modelTier: "light",
+        tools: [],
+        permissions: "none",
+        timeoutSeconds: 60,
+        promptContext: [],
+        promptTemplate: () => "go",
+      }),
+      "go",
+    );
+
+    const workflow = withName(
+      defineWorkflow({
+        description: "nested",
+        steps: [{ id: "step", agent: worker }],
+      }),
+      "workflows/improve",
+    );
+
+    await runWorkflow(workflow, {}, stubConfig, "/tmp", undefined, {
+      runAgent: stubRunAgent,
+    });
+
+    equal(typeof captured, "string");
+    equal(captured!.includes("/"), false);
+    match(captured!, /^workflows-improve-\d+$/);
+  });
+});
+
 describe("runWorkflow env propagation", () => {
   it("throws EnvProfileError instead of calling process.exit when env resolution fails", async () => {
     const worker = withName(

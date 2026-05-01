@@ -85,7 +85,9 @@ export async function runWorkflow(
   promptLogFile?: string,
   deps: EngineDeps = { runAgent: defaultRunAgent },
 ): Promise<WorkflowResult> {
-  const workflowId = `${workflow.name}-${Date.now()}`;
+  // Workflow names may contain `/` (path-derived from nested agents dirs). Strip
+  // it so tmp-file paths built from this id stay flat, not nested subdirs.
+  const workflowId = `${workflow.name.replace(/\//g, "-")}-${Date.now()}`;
   const startTime = Date.now();
   const stepResults: StepResult[] = [];
   const stepOutputs: Record<string, string> = {};
@@ -121,8 +123,9 @@ export async function runWorkflow(
 
   // Purge stale verdict and params files from previous crashed runs
   try {
-    const verdictPrefix = `verdict-${workflow.name}-`;
-    const paramsPrefix = `params-${workflow.name}-`;
+    const safeName = workflow.name.replace(/\//g, "-");
+    const verdictPrefix = `verdict-${safeName}-`;
+    const paramsPrefix = `params-${safeName}-`;
     const stale = readdirSync(tmpdir()).filter(
       (f: string) =>
         (f.startsWith(verdictPrefix) || f.startsWith(paramsPrefix)) && f.endsWith(".json"),
