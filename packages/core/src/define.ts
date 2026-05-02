@@ -59,6 +59,10 @@ type WorkflowInput<
   required?: TRequired;
   variables?: TVars;
   derive?: (args: BuiltinArgs & TVars & Record<TRequired[number], string>) => TDerived;
+  isolation?: "none" | "worktree";
+  worktreeSetup?: string[];
+  sharedPaths?: string[];
+  worktreeDir?: string;
   steps: WorkflowStepInput[];
 };
 
