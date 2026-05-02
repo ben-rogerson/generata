@@ -21,6 +21,7 @@ export interface RunOptions {
   args: Record<string, unknown>;
   config: GlobalConfig;
   workDir: string;
+  cwd?: string;
   workflowId?: string | null;
   stepId?: string | null;
   stepOutputs?: Record<string, string>;
@@ -112,6 +113,7 @@ async function runInteractive(options: RunOptions): Promise<RunResult> {
       {
         env: spawnEnv,
         stdio: "inherit",
+        cwd: options.cwd,
       },
     );
 
@@ -273,7 +275,7 @@ export async function runAgent(options: RunOptions): Promise<RunResult> {
   }
 
   return new Promise((resolve_p, reject) => {
-    const proc = spawn("claude", claudeArgs, { env: spawnEnv });
+    const proc = spawn("claude", claudeArgs, { env: spawnEnv, cwd: options.cwd });
 
     // Two-stage timeout: SIGTERM at timeoutSeconds, SIGKILL 10s later if it
     // hasn't exited. Node's built-in spawn timeout only sends SIGTERM, which

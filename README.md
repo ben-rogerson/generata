@@ -70,6 +70,22 @@ export default defineConfig({
 
 That's the whole API surface for most use cases - `defineAgent`, `defineWorkflow`, `defineConfig`. No decorators, no factories, no plugin system.
 
+For workflows that mutate the repo and ship a PR, opt in to git-worktree isolation via `worktree`. The workflow runs in a fresh worktree branched from `origin/main`, while logs, metrics, and any declared `sharedPaths` symlink back to the main checkout. Pruned at run end:
+
+```ts
+import { defineWorkflow, worktree } from "@generata/core";
+
+export default defineWorkflow({
+  description: "Self-improve loop",
+  isolation: worktree({
+    sharedPaths: ["IMPROVEMENTS.md", "last-run.md"],
+  }),
+  steps: [/* ... */],
+});
+```
+
+Run-time overrides: `generata workflow <name> --worktree` forces isolation on, `--local` forces it off. `generata worktree prune` recovers orphan worktrees from crashed runs.
+
 ## What you get
 
 - **Composable agents** - planners, workers, critics. Mix and match.

@@ -1,10 +1,11 @@
 import { equal, match, rejects } from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { RunOptions, RunResult } from "./agent-runner.js";
-import { defineAgent, defineWorkflow } from "./define.js";
+import { defineAgent, defineWorkflow, worktree } from "./define.js";
 import { isStructuralHalt, runWorkflow } from "./engine.js";
 import { EnvProfileError } from "./env-profile.js";
 import type { AgentMetrics, GlobalConfig } from "./schema.js";
+import type { SetupWorktreeOptions, SetupWorktreeResult } from "./worktree.js";
 
 function withName<T>(def: T, name: string): T {
   (def as unknown as { name: string }).name = name;
@@ -349,5 +350,219 @@ describe("runWorkflow env propagation", () => {
     } finally {
       if (prior !== undefined) process.env.RUNWORKFLOW_TEST_MISSING_KEY = prior;
     }
+  });
+});
+
+describe("agent-runner cwd plumbing", () => {
+  it("threads RunOptions.cwd through to runAgent", async () => {
+    let observedCwd: string | undefined;
+    const stubRunAgent = async (options: RunOptions): Promise<RunResult> => {
+      observedCwd = options.cwd;
+      return {
+        output: "ok",
+        metrics: makeMetrics({ agent: options.agent.name }),
+      };
+    };
+    const worker = withName(
+      defineAgent({
+        type: "worker",
+        description: "stub",
+        modelTier: "light",
+        tools: [],
+        permissions: "none",
+        timeoutSeconds: 60,
+        promptContext: [],
+        promptTemplate: () => "p",
+      }),
+      "code",
+    );
+    const workflow = withName(
+      defineWorkflow({
+        description: "cwd",
+        steps: [{ id: "code", agent: worker }] as any,
+      }),
+      "cwd",
+    );
+    // For now, the engine doesn't yet pass cwd. This test exercises the
+    // RunOptions type addition and is a placeholder until Task 7 wires it.
+    const r: RunResult = await stubRunAgent({
+      agent: worker as any,
+      args: {},
+      config: stubConfig,
+      workDir: "/tmp",
+      cwd: "/tmp/worktree",
+    });
+    equal(r.output, "ok");
+    equal(observedCwd, "/tmp/worktree");
+  });
+});
+
+// Engine accepts a worktree backend via deps.
+describe("runWorkflow isolation: worktree", () => {
+  function makeStubSetup() {
+    let cleanupCalls = 0;
+    const cleanup = async () => {
+      cleanupCalls++;
+    };
+    const stubSetup = async (opts: SetupWorktreeOptions): Promise<SetupWorktreeResult> => ({
+      worktreePath: "/tmp/wt/abc",
+      executionRoot: `/tmp/wt/abc/${opts.workDir.split("/").pop() ?? ""}`,
+      cleanup,
+    });
+    return { stubSetup, getCleanupCalls: () => cleanupCalls };
+  }
+
+  it("calls setupWorktree for isolation: 'worktree' and threads executionRoot to agents", async () => {
+    const observed: string[] = [];
+    const stubRunAgent = async (options: RunOptions): Promise<RunResult> => {
+      observed.push(options.cwd ?? "");
+      return { output: "ok", metrics: makeMetrics({ agent: options.agent.name }) };
+    };
+    const worker = withName(
+      defineAgent({
+        type: "worker",
+        description: "x",
+        modelTier: "light",
+        tools: [],
+        permissions: "none",
+        timeoutSeconds: 60,
+        promptContext: [],
+        promptTemplate: () => "p",
+      }),
+      "code",
+    );
+    const workflow = withName(
+      defineWorkflow({
+        description: "wt",
+        isolation: worktree({}),
+        steps: [{ id: "code", agent: worker }] as any,
+      }),
+      "wt",
+    );
+    const { stubSetup, getCleanupCalls } = makeStubSetup();
+    const result = await runWorkflow(
+      workflow,
+      {},
+      stubConfig,
+      "/repo/internal/self-improve",
+      undefined,
+      { runAgent: stubRunAgent, setupWorktree: stubSetup, mainProjectRoot: "/repo" },
+    );
+    equal(result.success, true);
+    equal(observed[0], "/tmp/wt/abc/self-improve");
+    equal(getCleanupCalls(), 1);
+  });
+
+  it("calls cleanup even when a step fails", async () => {
+    const stubRunAgent = async (_options: RunOptions): Promise<RunResult> => {
+      throw new Error("boom");
+    };
+    const worker = withName(
+      defineAgent({
+        type: "worker",
+        description: "x",
+        modelTier: "light",
+        tools: [],
+        permissions: "none",
+        timeoutSeconds: 60,
+        promptContext: [],
+        promptTemplate: () => "p",
+      }),
+      "code",
+    );
+    const workflow = withName(
+      defineWorkflow({
+        description: "wt-fail",
+        isolation: worktree({}),
+        steps: [{ id: "code", agent: worker }] as any,
+      }),
+      "wt-fail",
+    );
+    const { stubSetup, getCleanupCalls } = makeStubSetup();
+    await rejects(() =>
+      runWorkflow(workflow, {}, stubConfig, "/repo/x", undefined, {
+        runAgent: stubRunAgent,
+        setupWorktree: stubSetup,
+        mainProjectRoot: "/repo",
+      }),
+    );
+    equal(getCleanupCalls(), 1);
+  });
+
+  it("does not call setupWorktree for isolation: 'none' (default)", async () => {
+    let setupCalls = 0;
+    const stubRunAgent = async (options: RunOptions): Promise<RunResult> => ({
+      output: "ok",
+      metrics: makeMetrics({ agent: options.agent.name }),
+    });
+    const stubSetup = async (): Promise<SetupWorktreeResult> => {
+      setupCalls++;
+      return { worktreePath: "", executionRoot: "", cleanup: async () => {} };
+    };
+    const worker = withName(
+      defineAgent({
+        type: "worker",
+        description: "x",
+        modelTier: "light",
+        tools: [],
+        permissions: "none",
+        timeoutSeconds: 60,
+        promptContext: [],
+        promptTemplate: () => "p",
+      }),
+      "code",
+    );
+    const workflow = withName(
+      defineWorkflow({
+        description: "no-wt",
+        steps: [{ id: "code", agent: worker }] as any,
+      }),
+      "no-wt",
+    );
+    await runWorkflow(workflow, {}, stubConfig, "/tmp", undefined, {
+      runAgent: stubRunAgent,
+      setupWorktree: stubSetup,
+    });
+    equal(setupCalls, 0);
+  });
+
+  it("respects an explicit isolation override passed to runWorkflow", async () => {
+    let setupCalls = 0;
+    const stubRunAgent = async (options: RunOptions): Promise<RunResult> => ({
+      output: "ok",
+      metrics: makeMetrics({ agent: options.agent.name }),
+    });
+    const stubSetup = async (): Promise<SetupWorktreeResult> => {
+      setupCalls++;
+      return { worktreePath: "", executionRoot: "/forced", cleanup: async () => {} };
+    };
+    const worker = withName(
+      defineAgent({
+        type: "worker",
+        description: "x",
+        modelTier: "light",
+        tools: [],
+        permissions: "none",
+        timeoutSeconds: 60,
+        promptContext: [],
+        promptTemplate: () => "p",
+      }),
+      "code",
+    );
+    const workflow = withName(
+      defineWorkflow({
+        description: "no-wt-overridden",
+        // declared "none" but overridden to "worktree"
+        steps: [{ id: "code", agent: worker }] as any,
+      }),
+      "no-wt-overridden",
+    );
+    await runWorkflow(workflow, {}, stubConfig, "/tmp", undefined, {
+      runAgent: stubRunAgent,
+      setupWorktree: stubSetup,
+      isolationOverride: "worktree",
+      mainProjectRoot: "/tmp",
+    });
+    equal(setupCalls, 1);
   });
 });

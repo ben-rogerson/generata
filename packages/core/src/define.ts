@@ -3,6 +3,7 @@ import {
   AgentDef,
   LLMAgentDef,
   WorkflowDef,
+  WorktreeConfig,
   GlobalConfig,
   PromptFn,
   StepParams,
@@ -50,6 +51,12 @@ type WorkflowStepInput = CriticStepInput | NonCriticStepInput;
 
 type BuiltinArgs = { work_dir: string; today: string; time: string };
 
+type WorktreeConfigInput = z.input<typeof WorktreeConfig>;
+
+export function worktree(input: WorktreeConfigInput): WorktreeConfig {
+  return WorktreeConfig.parse(input);
+}
+
 type WorkflowInput<
   TRequired extends readonly string[],
   TVars extends Record<string, string>,
@@ -59,6 +66,7 @@ type WorkflowInput<
   required?: TRequired;
   variables?: TVars;
   derive?: (args: BuiltinArgs & TVars & Record<TRequired[number], string>) => TDerived;
+  isolation?: "none" | WorktreeConfig;
   steps: WorkflowStepInput[];
 };
 
@@ -86,6 +94,7 @@ export type {
   AgentDef,
   LLMAgentDef,
   WorkflowDef,
+  WorktreeConfig,
   GlobalConfig,
   PromptFn,
   StepParams,

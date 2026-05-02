@@ -1,4 +1,4 @@
-import { defineWorkflow } from "@generata/core";
+import { defineWorkflow, worktree } from "@generata/core";
 import itemPicker from "../item-picker.js";
 import specCreator from "../spec-creator.js";
 import planCreator from "../plan-creator.js";
@@ -11,6 +11,9 @@ import shipper from "../shipper.js";
 export default defineWorkflow({
   description:
     "Pick a backlog item, plan it, ship it through the full spec/plan/code/review pipeline.",
+  isolation: worktree({
+    sharedPaths: ["IMPROVEMENTS.md", "last-run.md"],
+  }),
   steps: [
     { id: "pick", agent: itemPicker },
     {
