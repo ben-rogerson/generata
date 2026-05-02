@@ -315,9 +315,15 @@ export async function runWorkflow(
           if (planName) {
             // Move plan into project folder once the executor has created the code dir.
             // Fires once: when code/ exists but the plan hasn't been moved yet.
-            const projectDir = resolve(workDir, workflow.variables.output_dir ?? "", planName);
+            // Anchored on executionRoot so worktree-isolated workflows see files agents
+            // wrote inside the worktree (executionRoot === resolve(workDir) when not isolated).
+            const projectDir = resolve(
+              executionRoot,
+              workflow.variables.output_dir ?? "",
+              planName,
+            );
             const plansDir = workflow.variables.plans_dir ?? "plans";
-            const planSrc = resolve(workDir, plansDir, `${planName}.md`);
+            const planSrc = resolve(executionRoot, plansDir, `${planName}.md`);
             const planDst = resolve(projectDir, plansDir, `${planName}.md`);
             if (existsSync(planSrc) && existsSync(resolve(projectDir, "code"))) {
               mkdirSync(dirname(planDst), { recursive: true });
@@ -415,7 +421,9 @@ export async function runWorkflow(
             } else {
               params = { ...params, ...result.params };
               planName = result.params.plan_name;
-              const projDir = resolve(workDir, workflow.variables.output_dir ?? "", planName);
+              // Anchored on executionRoot so worktree-isolated workflows create the
+              // project dir inside the worktree (executionRoot === resolve(workDir) when not isolated).
+              const projDir = resolve(executionRoot, workflow.variables.output_dir ?? "", planName);
               mkdirSync(projDir, { recursive: true });
             }
           }
@@ -427,7 +435,17 @@ export async function runWorkflow(
   } finally {
     if (sigintHandler) process.off("SIGINT", sigintHandler);
     if (sigtermHandler) process.off("SIGTERM", sigtermHandler);
-    if (teardown) await teardown();
+    if (teardown) {
+      try {
+        await teardown();
+      } catch (err) {
+        // Spec: teardown failure must not change the workflow's exit. The user
+        // can recover via `generata worktree prune`.
+        console.warn(
+          `[worktree] teardown failed (run 'generata worktree prune' to recover): ${String(err)}`,
+        );
+      }
+    }
   }
 
   const totalCost = stepResults.reduce((sum, r) => sum + (r.metrics?.estimated_cost_usd ?? 0), 0);
