@@ -3,11 +3,18 @@ import {
   AgentDef,
   LLMAgentDef,
   WorkflowDef,
-  WorktreeConfig,
+  WorktreeConfig as WorktreeConfigSchema,
   GlobalConfig,
   PromptFn,
   StepParams,
 } from "./schema.js";
+
+// Branded so only `worktree()` produces an assignable value. Without this brand,
+// users could pass a raw object literal to `isolation`, bypassing the helper.
+declare const _worktreeBrand: unique symbol;
+export type WorktreeConfig = z.infer<typeof WorktreeConfigSchema> & {
+  readonly [_worktreeBrand]: true;
+};
 
 // z.custom<PromptFn> breaks contextual typing through discriminated union inference,
 // so we override just that field. Everything else derives from the Zod schema.
@@ -51,10 +58,10 @@ type WorkflowStepInput = CriticStepInput | NonCriticStepInput;
 
 type BuiltinArgs = { work_dir: string; today: string; time: string };
 
-type WorktreeConfigInput = z.input<typeof WorktreeConfig>;
+type WorktreeConfigInput = z.input<typeof WorktreeConfigSchema>;
 
 export function worktree(input: WorktreeConfigInput): WorktreeConfig {
-  return WorktreeConfig.parse(input);
+  return WorktreeConfigSchema.parse(input) as WorktreeConfig;
 }
 
 type WorkflowInput<
@@ -80,7 +87,9 @@ export function defineWorkflow<
   return parsed as WorkflowDef;
 }
 
-type DefineConfigInput = Omit<z.input<typeof GlobalConfig>, "workDir"> & { workDir?: string };
+type DefineConfigInput = Omit<z.input<typeof GlobalConfig>, "workDir"> & {
+  workDir?: string;
+};
 
 export function defineConfig(config: DefineConfigInput): GlobalConfig {
   // workDir is optional here - loadConfig back-fills it with the directory
@@ -94,7 +103,6 @@ export type {
   AgentDef,
   LLMAgentDef,
   WorkflowDef,
-  WorktreeConfig,
   GlobalConfig,
   PromptFn,
   StepParams,
