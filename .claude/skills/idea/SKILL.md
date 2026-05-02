@@ -40,7 +40,7 @@ Examples of good shaping questions (do NOT use this exact list - generate your o
 - "Should it warn-and-continue or hard-fail when X?"
 - "Apply to existing rows on first run, or only new ones?"
 
-Format multiple-choice questions as A/B/C with optional D = "something else".
+Ask choice questions via the `AskUserQuestion` tool with 2-3 options - never as A/B/C text. "Other" is auto-added, so don't include "something else" yourself. Give each question a short header chip (max 12 chars, e.g. "Scope", "Behaviour", "Default"). If you have a recommendation, put it first and suffix the label with "(Recommended)".
 
 ## Stopping rule
 
@@ -64,13 +64,11 @@ Get today's date from the environment context (it's surfaced as `currentDate`) -
 
 ### 3. Handle slug collision
 
-If the target path already exists, ask the user:
+If the target path already exists, ask via `AskUserQuestion` (header: "Collision"). Mention the existing filename in the question text. Options:
 
-> "`internal/ideas/<filename>` already exists. (a) save as `-2`, (b) overwrite, (c) cancel?"
-
-- (a) → try `<slug>-2.md`, then `-3`, etc., until a free name is found
-- (b) → overwrite
-- (c) → abort, no file written, no further messages beyond confirming cancel
+- **Save as -2** → try `<slug>-2.md`, then `-3`, etc., until a free name is found
+- **Overwrite** → overwrite the existing file
+- **Cancel** → abort, no file written, no further messages beyond confirming cancel
 
 ### 4. Ensure the directory exists
 
@@ -112,7 +110,8 @@ No summary of the contents. The user just answered the questions; they don't nee
 
 - **Asking metadata questions.** Don't ask for size, priority, or type. Ask shaping questions that affect the idea itself.
 - **Asking too many questions.** 5 is the hard cap. 3-4 is usually enough.
-- **Combining multiple questions in one turn.** One question per turn, always.
+- **Combining multiple questions in one turn.** One question per turn, always - even though `AskUserQuestion` supports batching, each shaping answer informs the next.
+- **Using A/B/C text for choice questions.** Always use `AskUserQuestion`. Don't include an explicit "something else" option - "Other" is auto-added.
 - **Reading the contents back at the end.** Just give the path and the title.
 - **Committing the file.** Never. It's gitignored on purpose.
 - **Using `date` to get today's date.** Use `currentDate` from the environment context.
