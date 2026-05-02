@@ -168,7 +168,10 @@ export async function setupWorktree(opts: SetupWorktreeOptions): Promise<SetupWo
     );
   }
 
+  let cleaned = false;
   const cleanup = async () => {
+    if (cleaned) return;
+    cleaned = true;
     await backend.exec(["git", "worktree", "remove", "--force", worktreePath], {
       cwd: opts.mainProjectRoot,
     });

@@ -221,4 +221,24 @@ describe("setupWorktree", () => {
     equal(teardown[0], `git worktree remove --force ${result.worktreePath}`);
     equal(teardown[1], "git branch -D generata/wt-abc");
   });
+
+  it("cleanup is idempotent - second call does nothing", async () => {
+    const backend = makeStubBackend();
+    const result = await setupWorktree({
+      workflow: makeWorkflow({ worktreeSetup: ["pnpm", "install"] }),
+      mainProjectRoot: "/repo",
+      workDir: "/repo",
+      runId: "abc",
+      backend,
+      logsDir: "logs",
+      metricsDir: "metrics",
+    });
+    const callsBeforeCleanup = backend.calls.length;
+    await result.cleanup();
+    const callsAfterFirst = backend.calls.length - callsBeforeCleanup;
+    await result.cleanup();
+    const callsAfterSecond = backend.calls.length - callsBeforeCleanup;
+    equal(callsAfterFirst, 2);   // worktree remove + branch -D
+    equal(callsAfterSecond, 2);  // second cleanup is a no-op
+  });
 });
