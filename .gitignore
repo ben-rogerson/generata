@@ -21,5 +21,11 @@ internal/self-improve/IMPROVEMENTS.md
 # Idea capture - local only, written by the /idea skill
 internal/ideas/
 
+# Default location for git worktrees created by `isolation: "worktree"` workflows.
+# The default worktreeDir is a sibling of the repo and won't appear here, but a
+# misconfigured worktreeDir pointing inside the repo would - keep ignored as
+# defence in depth.
+generata-worktrees/
+
 # Marker for the user-level rtk-rewrite hook to skip this project
 .no-rtk-rewrite
