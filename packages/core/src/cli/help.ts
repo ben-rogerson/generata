@@ -12,6 +12,7 @@ const exec = promisify(execFile);
 const TOP_LEVEL = `generata <command> [args]
 
 Commands:
+  <name> [args]               Run a workflow (shorthand for 'workflow <name>')
   init <template> [dest]      Scaffold a new project from a template
   add <template>              Merge a template into the current project
   agent <name> [args]         Run a single agent
