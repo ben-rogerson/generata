@@ -257,9 +257,25 @@ export async function runAgent(options: RunOptions): Promise<RunResult> {
   }
 
   return new Promise((resolve_p, reject) => {
-    const proc = spawn("claude", claudeArgs, {
-      env: spawnEnv,
-      timeout: agent.timeoutSeconds * 1000,
+    const proc = spawn("claude", claudeArgs, { env: spawnEnv });
+
+    // Two-stage timeout: SIGTERM at timeoutSeconds, SIGKILL 10s later if it
+    // hasn't exited. Node's built-in spawn timeout only sends SIGTERM, which
+    // the Claude CLI has been observed to ignore - leaving the parent waiting.
+    let exited = false;
+    const sigtermTimer = setTimeout(() => {
+      if (!exited) proc.kill("SIGTERM");
+    }, agent.timeoutSeconds * 1000);
+    const sigkillTimer = setTimeout(
+      () => {
+        if (!exited) proc.kill("SIGKILL");
+      },
+      agent.timeoutSeconds * 1000 + 10_000,
+    );
+    proc.once("exit", () => {
+      exited = true;
+      clearTimeout(sigtermTimer);
+      clearTimeout(sigkillTimer);
     });
 
     let stdoutBuffer = "";

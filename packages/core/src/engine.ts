@@ -274,6 +274,23 @@ export async function runWorkflow(
         // config.maxCriticRetries (global default). The upstream step must be
         // a worker or non-interactive planner; validate.ts enforces this.
         if (step.agent.type === "critic") {
+          // No-verdict retry loop: when the critic's CLI invocation produces no
+          // verdict file (transient hang, empty stream, killed mid-call), re-run
+          // just the critic - the worker output is fine. Burns up to maxRetries.
+          if (!result.verdict) {
+            const maxAttempts =
+              "maxRetries" in step
+                ? (step.maxRetries ?? config.maxCriticRetries)
+                : config.maxCriticRetries;
+            let retryAttempt = 0;
+            while (retryAttempt < maxAttempts && !result.verdict) {
+              retryAttempt++;
+              logStepRetry(step.id, retryAttempt);
+              const criticArgs = resolveArgs(step.args, params, stepOutputs);
+              result = await runAgentStep(step, criticArgs);
+              stepOutputs[step.id] = result.output;
+            }
+          }
           if (!result.verdict) {
             haltSignal = `Step '${step.id}' (${step.agent.name}): critic produced no verdict`;
           } else if (result.verdict.verdict !== "approve") {

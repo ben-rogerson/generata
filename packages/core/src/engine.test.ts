@@ -127,6 +127,107 @@ describe("runWorkflow critic retry short-circuit", () => {
   });
 });
 
+describe("runWorkflow critic no-verdict retry", () => {
+  function buildWorkflow(maxRetries: number) {
+    const worker = withName(
+      defineAgent({
+        type: "worker",
+        description: "stub worker",
+        modelTier: "light",
+        tools: [],
+        permissions: "none",
+        timeoutSeconds: 60,
+        promptContext: [],
+        promptTemplate: () => "do the thing",
+      }),
+      "code",
+    );
+    const critic = withName(
+      defineAgent({
+        type: "critic",
+        description: "stub critic",
+        modelTier: "light",
+        tools: [],
+        permissions: "read-only",
+        timeoutSeconds: 60,
+        promptContext: [],
+        promptTemplate: () => "review the thing",
+      }),
+      "review-code",
+    );
+    return withName(
+      defineWorkflow({
+        description: "no-verdict",
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        steps: [
+          { id: "code", agent: worker },
+          { id: "review-code", agent: critic, maxRetries },
+        ] as any,
+      }),
+      "no-verdict",
+    );
+  }
+
+  it("re-runs only the critic when verdict is missing, then approves", async () => {
+    const callsByStep: Record<string, number> = {};
+    const stubRunAgent = async (options: RunOptions): Promise<RunResult> => {
+      const stepId = options.stepId ?? options.agent.name;
+      callsByStep[stepId] = (callsByStep[stepId] ?? 0) + 1;
+      if (options.agent.type === "worker") {
+        return {
+          output: "STATUS: complete",
+          metrics: makeMetrics({ agent: options.agent.name }),
+        };
+      }
+      // Critic: first 2 calls return no verdict (transient hang), 3rd approves.
+      const attempt = callsByStep[stepId];
+      if (attempt < 3) {
+        return { output: "", metrics: makeMetrics({ agent: options.agent.name }) };
+      }
+      return {
+        output: "ok",
+        metrics: makeMetrics({ agent: options.agent.name }),
+        verdict: { verdict: "approve", summary: "", issues: [] },
+      };
+    };
+
+    const result = await runWorkflow(buildWorkflow(3), {}, stubConfig, "/tmp", undefined, {
+      runAgent: stubRunAgent,
+    });
+
+    equal(callsByStep.code, 1);
+    equal(callsByStep["review-code"], 3);
+    equal(result.success, true);
+    equal(result.halted, undefined);
+  });
+
+  it("halts after maxRetries critic re-runs when verdict never arrives", async () => {
+    const callsByStep: Record<string, number> = {};
+    const stubRunAgent = async (options: RunOptions): Promise<RunResult> => {
+      const stepId = options.stepId ?? options.agent.name;
+      callsByStep[stepId] = (callsByStep[stepId] ?? 0) + 1;
+      if (options.agent.type === "worker") {
+        return {
+          output: "STATUS: complete",
+          metrics: makeMetrics({ agent: options.agent.name }),
+        };
+      }
+      return { output: "", metrics: makeMetrics({ agent: options.agent.name }) };
+    };
+
+    const result = await runWorkflow(buildWorkflow(2), {}, stubConfig, "/tmp", undefined, {
+      runAgent: stubRunAgent,
+    });
+
+    // Worker once, critic 1 + 2 retries = 3 total.
+    equal(callsByStep.code, 1);
+    equal(callsByStep["review-code"], 3);
+    equal(result.success, false);
+    equal(result.halted, true);
+    match(result.haltReason ?? "", /critic produced no verdict/);
+  });
+});
+
 describe("isStructuralHalt", () => {
   it("matches the canonical STATUS: halt prefix", () => {
     equal(isStructuralHalt("STATUS: halt - plan requests out-of-scope edit"), true);
