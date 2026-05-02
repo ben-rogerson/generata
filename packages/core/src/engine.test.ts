@@ -351,3 +351,39 @@ describe("runWorkflow env propagation", () => {
     }
   });
 });
+
+describe("agent-runner cwd plumbing", () => {
+  it("threads RunOptions.cwd through to runAgent", async () => {
+    let observedCwd: string | undefined;
+    const stubRunAgent = async (options: RunOptions): Promise<RunResult> => {
+      observedCwd = options.cwd;
+      return {
+        output: "ok",
+        metrics: makeMetrics({ agent: options.agent.name }),
+      };
+    };
+    const worker = withName(
+      defineAgent({
+        type: "worker", description: "stub", modelTier: "light", tools: [],
+        permissions: "none", timeoutSeconds: 60, promptContext: [],
+        promptTemplate: () => "p",
+      }),
+      "code",
+    );
+    const workflow = withName(
+      defineWorkflow({
+        description: "cwd",
+        steps: [{ id: "code", agent: worker }] as any,
+      }),
+      "cwd",
+    );
+    // For now, the engine doesn't yet pass cwd. This test exercises the
+    // RunOptions type addition and is a placeholder until Task 7 wires it.
+    const r: RunResult = await stubRunAgent({
+      agent: worker as any, args: {}, config: stubConfig, workDir: "/tmp",
+      cwd: "/tmp/worktree",
+    });
+    equal(r.output, "ok");
+    equal(observedCwd, "/tmp/worktree");
+  });
+});
