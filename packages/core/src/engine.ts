@@ -9,6 +9,7 @@ import {
   AgentMetrics,
   LLMAgentDef,
   StepParams,
+  WorktreeConfig,
 } from "./schema.js";
 import { runAgent as defaultRunAgent, RunResult, RunOptions } from "./agent-runner.js";
 import { formatWeeklyMetricsLine } from "./metrics.js";
@@ -83,6 +84,17 @@ function resolveArgs(
   );
   if (typeof args === "function") return { ...stringParams, ...args(stringParams) };
   return { ...stringParams, ...args };
+}
+
+function resolveIsolation(
+  override: "none" | "worktree" | undefined,
+  declared: "none" | WorktreeConfig,
+): "none" | WorktreeConfig {
+  if (override === "none") return "none";
+  if (override === "worktree") {
+    return declared === "none" ? WorktreeConfig.parse({}) : declared;
+  }
+  return declared;
 }
 
 function findGitRoot(start: string): string {
@@ -160,16 +172,17 @@ export async function runWorkflow(
     }
   } catch {}
 
-  const isolation = deps.isolationOverride ?? workflow.isolation ?? "none";
+  const isolationConfig = resolveIsolation(deps.isolationOverride, workflow.isolation ?? "none");
   let executionRoot = resolve(workDir);
   let teardown: (() => Promise<void>) | undefined;
   let sigintHandler: (() => void) | undefined;
   let sigtermHandler: (() => void) | undefined;
-  if (isolation === "worktree") {
+  if (isolationConfig !== "none") {
     const mainProjectRoot = deps.mainProjectRoot ?? findGitRoot(workDir);
     const setup = deps.setupWorktree ?? defaultSetupWorktree;
     const setupResult = await setup({
       workflow,
+      config: isolationConfig,
       mainProjectRoot,
       workDir,
       runId: workflowId,

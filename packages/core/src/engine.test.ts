@@ -1,7 +1,7 @@
 import { equal, match, rejects } from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { RunOptions, RunResult } from "./agent-runner.js";
-import { defineAgent, defineWorkflow } from "./define.js";
+import { defineAgent, defineWorkflow, defineWorktree } from "./define.js";
 import { isStructuralHalt, runWorkflow } from "./engine.js";
 import { EnvProfileError } from "./env-profile.js";
 import type { AgentMetrics, GlobalConfig } from "./schema.js";
@@ -434,7 +434,7 @@ describe("runWorkflow isolation: worktree", () => {
     const workflow = withName(
       defineWorkflow({
         description: "wt",
-        isolation: "worktree",
+        isolation: defineWorktree({}),
         steps: [{ id: "code", agent: worker }] as any,
       }),
       "wt",
@@ -473,7 +473,7 @@ describe("runWorkflow isolation: worktree", () => {
     const workflow = withName(
       defineWorkflow({
         description: "wt-fail",
-        isolation: "worktree",
+        isolation: defineWorktree({}),
         steps: [{ id: "code", agent: worker }] as any,
       }),
       "wt-fail",

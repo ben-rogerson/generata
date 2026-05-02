@@ -21,37 +21,35 @@ const baseStep = {
 };
 
 describe("WorkflowDef worktree fields", () => {
-  it("defaults isolation to 'none' and other worktree fields to empty/undefined", () => {
+  it("defaults isolation to 'none'", () => {
     const parsed = WorkflowDef.parse({ description: "d", steps: [baseStep] });
     equal(parsed.isolation, "none");
-    deepEqual(parsed.sharedPaths, []);
-    equal(parsed.worktreeSetup, undefined);
-    equal(parsed.worktreeDir, undefined);
   });
 
-  it("accepts isolation 'worktree' with all related fields", () => {
+  it("accepts isolation as a WorktreeConfig", () => {
     const parsed = WorkflowDef.parse({
       description: "d",
-      isolation: "worktree",
-      worktreeSetup: ["pnpm", "install"],
-      sharedPaths: ["IMPROVEMENTS.md", "logs/"],
-      worktreeDir: "../wt",
+      isolation: {
+        worktreeSetup: ["pnpm", "install"],
+        sharedPaths: ["IMPROVEMENTS.md", "logs/"],
+        worktreeDir: "../wt",
+      },
       steps: [baseStep],
     });
-    equal(parsed.isolation, "worktree");
-    deepEqual(parsed.worktreeSetup, ["pnpm", "install"]);
-    deepEqual(parsed.sharedPaths, ["IMPROVEMENTS.md", "logs/"]);
-    equal(parsed.worktreeDir, "../wt");
+    equal(typeof parsed.isolation, "object");
+    if (parsed.isolation === "none") throw new Error("expected config");
+    deepEqual(parsed.isolation.worktreeSetup, ["pnpm", "install"]);
+    deepEqual(parsed.isolation.sharedPaths, ["IMPROVEMENTS.md", "logs/"]);
+    equal(parsed.isolation.worktreeDir, "../wt");
   });
 
-  it("rejects sharedPaths containing traversal, absolute, or .git", () => {
+  it("rejects sharedPaths containing traversal, absolute, or .git inside isolation", () => {
     for (const bad of ["../escape", "/abs", ".git", ".git/config", "subdir/../up"]) {
       throws(
         () =>
           WorkflowDef.parse({
             description: "d",
-            isolation: "worktree",
-            sharedPaths: [bad],
+            isolation: { sharedPaths: [bad] },
             steps: [baseStep],
           }),
         /sharedPaths/,
@@ -59,20 +57,19 @@ describe("WorkflowDef worktree fields", () => {
     }
   });
 
-  it("rejects empty worktreeSetup array", () => {
+  it("rejects empty worktreeSetup array inside isolation", () => {
     throws(
       () =>
         WorkflowDef.parse({
           description: "d",
-          isolation: "worktree",
-          worktreeSetup: [],
+          isolation: { worktreeSetup: [] },
           steps: [baseStep],
         }),
       /worktreeSetup/,
     );
   });
 
-  it("rejects unknown isolation values", () => {
+  it("rejects unknown isolation primitive values", () => {
     throws(() =>
       WorkflowDef.parse({
         description: "d",

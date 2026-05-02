@@ -147,6 +147,18 @@ const SharedPathEntry = z.string().refine(
   },
 );
 
+export const WorktreeConfig = z
+  .object({
+    worktreeSetup: z
+      .array(z.string())
+      .min(1, "worktreeSetup must be a non-empty argv array")
+      .optional(),
+    sharedPaths: z.array(SharedPathEntry).default([]),
+    worktreeDir: z.string().min(1).optional(),
+  })
+  .strict();
+export type WorktreeConfig = z.infer<typeof WorktreeConfig>;
+
 export const WorkflowDef = z
   .object({
     description: z.string(),
@@ -158,13 +170,7 @@ export const WorkflowDef = z
         "derive must be a function that returns Record<string, string>",
       )
       .optional(),
-    isolation: z.enum(["none", "worktree"]).default("none"),
-    worktreeSetup: z
-      .array(z.string())
-      .min(1, "worktreeSetup must be a non-empty argv array")
-      .optional(),
-    sharedPaths: z.array(SharedPathEntry).default([]),
-    worktreeDir: z.string().min(1).optional(),
+    isolation: z.union([z.literal("none"), WorktreeConfig]).default("none"),
     steps: z.array(WorkflowStep).min(1),
   })
   .strict();

@@ -88,9 +88,9 @@ async function helpWorkflows(): Promise<void> {
     console.log(`    required: ${required}`);
     console.log(`    variables: ${vars}`);
     if (wf.isolation && wf.isolation !== "none") {
+      const sp = wf.isolation.sharedPaths;
       console.log(
-        `    isolation: ${wf.isolation}` +
-          (wf.sharedPaths?.length ? ` (sharedPaths: ${wf.sharedPaths.join(", ")})` : ""),
+        `    isolation: worktree` + (sp?.length ? ` (sharedPaths: ${sp.join(", ")})` : ""),
       );
     }
   }

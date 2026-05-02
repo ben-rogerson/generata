@@ -68,15 +68,13 @@ describe("makeStubBackend", () => {
   });
 });
 
-function makeWorkflow(overrides: Partial<WorkflowDef> = {}): WorkflowDef {
+function makeWorkflow(): WorkflowDef {
   // Cast - these tests don't care about steps; the engine doesn't run them here.
   return {
     name: "wf",
     description: "d",
-    isolation: "worktree",
-    sharedPaths: [],
+    isolation: "none",
     steps: [],
-    ...overrides,
   } as unknown as WorkflowDef;
 }
 
@@ -84,7 +82,8 @@ describe("setupWorktree", () => {
   it("fetches origin/main, creates worktree, runs install, returns paths", async () => {
     const backend = makeStubBackend();
     const result = await setupWorktree({
-      workflow: makeWorkflow({ worktreeSetup: ["pnpm", "install", "--frozen-lockfile"] }),
+      workflow: makeWorkflow(),
+      config: { worktreeSetup: ["pnpm", "install", "--frozen-lockfile"], sharedPaths: [] },
       mainProjectRoot: "/repo",
       workDir: "/repo/internal/self-improve",
       runId: "abc123",
@@ -114,6 +113,7 @@ describe("setupWorktree", () => {
     try {
       await setupWorktree({
         workflow: makeWorkflow(),
+        config: { sharedPaths: [] },
         mainProjectRoot: "/repo",
         workDir: "/repo/internal/self-improve",
         runId: "x",
@@ -136,7 +136,8 @@ describe("setupWorktree", () => {
     let err: Error | null = null;
     try {
       await setupWorktree({
-        workflow: makeWorkflow({ worktreeSetup: ["pnpm", "install", "--frozen-lockfile"] }),
+        workflow: makeWorkflow(),
+        config: { worktreeSetup: ["pnpm", "install", "--frozen-lockfile"], sharedPaths: [] },
         mainProjectRoot: "/repo",
         workDir: "/repo/internal/self-improve",
         runId: "x",
@@ -170,7 +171,8 @@ describe("setupWorktree", () => {
     // an explicit worktreeSetup — auto-detect path is exercised by the
     // detectPackageManager unit test plus the integration test in Task 11.
     await setupWorktree({
-      workflow: makeWorkflow({ worktreeSetup: ["pnpm", "install"] }),
+      workflow: makeWorkflow(),
+      config: { worktreeSetup: ["pnpm", "install"], sharedPaths: [] },
       mainProjectRoot: "/repo",
       workDir: "/repo",
       runId: "x",
@@ -184,7 +186,8 @@ describe("setupWorktree", () => {
   it("creates symlinks for sharedPaths plus logsDir and metricsDir", async () => {
     const backend = makeStubBackend();
     const result = await setupWorktree({
-      workflow: makeWorkflow({ sharedPaths: ["IMPROVEMENTS.md", "subdir/state/"] }),
+      workflow: makeWorkflow(),
+      config: { sharedPaths: ["IMPROVEMENTS.md", "subdir/state/"] },
       mainProjectRoot: "/repo",
       workDir: "/repo/internal/self-improve",
       runId: "abc",
@@ -220,7 +223,8 @@ describe("setupWorktree", () => {
   it("cleanup removes the worktree and deletes the throwaway branch", async () => {
     const backend = makeStubBackend();
     const result = await setupWorktree({
-      workflow: makeWorkflow({ worktreeSetup: ["pnpm", "install"] }),
+      workflow: makeWorkflow(),
+      config: { worktreeSetup: ["pnpm", "install"], sharedPaths: [] },
       mainProjectRoot: "/repo",
       workDir: "/repo",
       runId: "abc",
@@ -239,7 +243,8 @@ describe("setupWorktree", () => {
   it("cleanup is idempotent - second call does nothing", async () => {
     const backend = makeStubBackend();
     const result = await setupWorktree({
-      workflow: makeWorkflow({ worktreeSetup: ["pnpm", "install"] }),
+      workflow: makeWorkflow(),
+      config: { worktreeSetup: ["pnpm", "install"], sharedPaths: [] },
       mainProjectRoot: "/repo",
       workDir: "/repo",
       runId: "abc",

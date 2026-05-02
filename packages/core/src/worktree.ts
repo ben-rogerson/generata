@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve as resolvePath } from "node:path";
-import type { WorkflowDef } from "./schema.js";
+import type { WorkflowDef, WorktreeConfig } from "./schema.js";
 
 const LOCKFILE_TO_INSTALL: Array<[string, string[]]> = [
   ["pnpm-lock.yaml", ["pnpm", "install", "--frozen-lockfile"]],
@@ -121,6 +121,7 @@ export function makeStubBackend(): StubBackend {
 
 export interface SetupWorktreeOptions {
   workflow: WorkflowDef;
+  config: WorktreeConfig;
   mainProjectRoot: string;
   workDir: string;
   runId: string;
@@ -182,7 +183,7 @@ export async function setupWorktree(opts: SetupWorktreeOptions): Promise<SetupWo
     const allEntries: Array<{ entry: string; asDir: boolean }> = [
       { entry: opts.logsDir, asDir: true },
       { entry: opts.metricsDir, asDir: true },
-      ...(opts.workflow.sharedPaths ?? []).map((p) => ({
+      ...(opts.config.sharedPaths ?? []).map((p) => ({
         entry: p.endsWith("/") ? p.slice(0, -1) : p,
         asDir: p.endsWith("/"),
       })),
@@ -198,7 +199,7 @@ export async function setupWorktree(opts: SetupWorktreeOptions): Promise<SetupWo
     }
 
     // 5. Run worktreeSetup (or detected install)
-    const installCmd = opts.workflow.worktreeSetup ?? detectPackageManager(worktreePath);
+    const installCmd = opts.config.worktreeSetup ?? detectPackageManager(worktreePath);
     if (installCmd) {
       const installed = await backend.exec(installCmd, { cwd: worktreePath });
       if (installed.exitCode !== 0) {
@@ -206,7 +207,7 @@ export async function setupWorktree(opts: SetupWorktreeOptions): Promise<SetupWo
           `worktreeSetup '${installCmd.join(" ")}' failed (exit ${installed.exitCode}): ${installed.stderr.trim()}`,
         );
       }
-    } else if (!opts.workflow.worktreeSetup) {
+    } else if (!opts.config.worktreeSetup) {
       console.warn(
         `[worktree] no worktreeSetup configured and no recognised lockfile in ${worktreePath} - skipping install. ` +
           `Agents will run with whatever node_modules exists (likely none).`,
@@ -221,7 +222,7 @@ export async function setupWorktree(opts: SetupWorktreeOptions): Promise<SetupWo
 }
 
 function resolveWorktreePath(opts: SetupWorktreeOptions): string {
-  const declared = opts.workflow.worktreeDir;
+  const declared = opts.config.worktreeDir;
   const baseDir = declared
     ? isAbsolute(declared)
       ? declared
