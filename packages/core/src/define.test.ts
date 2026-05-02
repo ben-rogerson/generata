@@ -1,8 +1,8 @@
 import { describe, it } from "node:test";
-import { defineAgent, defineWorkflow, defineWorktree } from "./define.js";
+import { defineAgent, defineWorkflow, worktree } from "./define.js";
 
 describe("defineWorkflow worktree input type", () => {
-  it("compiles with isolation: defineWorktree({...})", () => {
+  it("compiles with isolation: worktree({...})", () => {
     const stub = defineAgent({
       type: "worker",
       description: "x",
@@ -18,7 +18,7 @@ describe("defineWorkflow worktree input type", () => {
     // Smoke test: this must compile.
     defineWorkflow({
       description: "d",
-      isolation: defineWorktree({
+      isolation: worktree({
         worktreeSetup: ["pnpm", "install"],
         sharedPaths: ["IMPROVEMENTS.md"],
         worktreeDir: "../wt",

@@ -15,13 +15,13 @@ import { defineAgent, defineWorkflow, defineConfig } from "@generata/core";
 
 That's all you need to author agents, workflows, and a project config.
 
-For workflows that need git-worktree isolation, also import `defineWorktree`:
+For workflows that need git-worktree isolation, also import `worktree`:
 
 ```ts
-import { defineWorkflow, defineWorktree } from "@generata/core";
+import { defineWorkflow, worktree } from "@generata/core";
 
 defineWorkflow({
-  isolation: defineWorktree({ sharedPaths: ["state.md"] }),
+  isolation: worktree({ sharedPaths: ["state.md"] }),
   // ...
 });
 ```

@@ -53,7 +53,7 @@ type BuiltinArgs = { work_dir: string; today: string; time: string };
 
 type WorktreeConfigInput = z.input<typeof WorktreeConfig>;
 
-export function defineWorktree(input: WorktreeConfigInput): WorktreeConfig {
+export function worktree(input: WorktreeConfigInput): WorktreeConfig {
   return WorktreeConfig.parse(input);
 }
 
