@@ -61,7 +61,7 @@ cd ~/Projects/my-pipeline
 `NOTES.md` ships pre-populated with starter ideas, so you can run the workflow immediately:
 
 ```bash
-pnpm generata workflow build-project
+pnpm generata build-project
 ```
 
 Edit `NOTES.md` to add your own ideas, replace the starters, or remove anything you don't want built.

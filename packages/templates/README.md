@@ -36,7 +36,7 @@ pnpm dlx @generata/core init @generata/coding ~/Projects/builder
 
 ```bash
 cd <dest>
-pnpm generata workflow <name>          # run a workflow
+pnpm generata <name>                   # run a workflow
 pnpm generata help workflows           # list installed workflows + their args
 pnpm generata help agents              # list installed agents
 ```
@@ -102,7 +102,7 @@ The filename becomes the agent or workflow name. Every `.ts` under `agents/` is 
       "hint": "Install: https://docs.anthropic.com/claude-code"
     }
   ],
-  "postInstall": "Run: pnpm generata workflow hello --message world"
+  "postInstall": "Run: pnpm generata hello --message world"
 }
 ```
 

@@ -21,13 +21,13 @@ Reads yesterday's git activity, then drafts a standup in three sections:
 
 ```bash
 # Use the cwd as the repo
-pnpm generata workflow standup
+pnpm generata standup
 
 # Or point at a different repo
-pnpm generata workflow standup --repo /path/to/other-repo
+pnpm generata standup --repo /path/to/other-repo
 
 # Or seed today's focus
-pnpm generata workflow standup --today_focus "Land the auth migration"
+pnpm generata standup --today_focus "Land the auth migration"
 ```
 
 ## What you get
