@@ -22,11 +22,11 @@ export function readMetrics(metricsDir: string, date?: string): AgentMetrics[] {
     .map((line) => JSON.parse(line) as AgentMetrics);
 }
 
-export function readMetricsRange(metricsDir: string, days: number): AgentMetrics[] {
+export function readMetricsRange(metricsDir: string, days: number, offsetDays = 0): AgentMetrics[] {
   const results: AgentMetrics[] = [];
   for (let i = 0; i < days; i++) {
     const d = new Date();
-    d.setDate(d.getDate() - i);
+    d.setDate(d.getDate() - i - offsetDays);
     const date = d.toISOString().slice(0, 10);
     results.push(...readMetrics(metricsDir, date));
   }
@@ -46,4 +46,37 @@ export function summariseMetrics(records: AgentMetrics[]) {
     { calls: 0, cost: 0, input_tokens: 0, output_tokens: 0, cache_read_tokens: 0, duration_ms: 0 },
   );
   return total;
+}
+
+function formatDelta(current: number, previous: number): string {
+  if (previous <= 0) return "";
+  const pct = Math.round(((current - previous) / previous) * 100);
+  if (Math.abs(pct) < 5) return "";
+  const sign = pct > 0 ? "+" : "";
+  return ` ${sign}${pct}%`;
+}
+
+export function formatWeeklySummary(
+  summary: ReturnType<typeof summariseMetrics>,
+  showPricing: boolean,
+  previous?: ReturnType<typeof summariseMetrics>,
+): string | undefined {
+  if (summary.calls === 0) return undefined;
+  const totalTokens = summary.input_tokens + summary.output_tokens;
+  const prevTokens = previous ? previous.input_tokens + previous.output_tokens : 0;
+  const callsSegment = `${summary.calls} calls${previous ? formatDelta(summary.calls, previous.calls) : ""}`;
+  const tokSegment = `${Math.round(totalTokens / 1000)}k tok${previous ? formatDelta(totalTokens, prevTokens) : ""}`;
+  const parts = ["7d", callsSegment];
+  if (showPricing && summary.cost > 0) parts.push(`$${summary.cost.toFixed(2)}`);
+  parts.push(tokSegment);
+  return parts.join(" · ");
+}
+
+export function formatWeeklyMetricsLine(
+  metricsDir: string,
+  showPricing: boolean,
+): string | undefined {
+  const current = summariseMetrics(readMetricsRange(metricsDir, 7));
+  const previous = summariseMetrics(readMetricsRange(metricsDir, 7, 7));
+  return formatWeeklySummary(current, showPricing, previous);
 }

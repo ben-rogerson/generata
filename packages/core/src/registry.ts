@@ -71,6 +71,12 @@ function makeRegistry(
   };
 }
 
+export async function listAllNames(opts: RegistryOpts): Promise<string[]> {
+  const agentsAbs = resolve(opts.projectRoot, opts.agentsDir);
+  const filePaths = existsSync(agentsAbs) ? await collectFiles(agentsAbs) : [];
+  return filePaths.map((fp) => deriveName(agentsAbs, fp));
+}
+
 export function resolveAgentName(input: string, candidates: string[]): string {
   if (candidates.includes(input)) return input;
   const matches = candidates.filter((c) => basename(c) === input);
