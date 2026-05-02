@@ -21,6 +21,7 @@ export interface EngineDeps {
   // Tests can pre-resolve the git root rather than walking up from workDir.
   // Production CLI leaves this undefined and lets findGitRoot do the walk.
   mainProjectRoot?: string;
+  isolationOverride?: "none" | "worktree";
 }
 import { buildRetryPreamble } from "./context-builder.js";
 import { getTodayAndTime } from "./time.js";
@@ -157,7 +158,7 @@ export async function runWorkflow(
     }
   } catch {}
 
-  const isolation = workflow.isolation ?? "none";
+  const isolation = deps.isolationOverride ?? workflow.isolation ?? "none";
   let executionRoot = resolve(workDir);
   let teardown: (() => Promise<void>) | undefined;
   let sigintHandler: (() => void) | undefined;

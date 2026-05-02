@@ -478,4 +478,31 @@ describe("runWorkflow isolation: worktree", () => {
       { runAgent: stubRunAgent, setupWorktree: stubSetup });
     equal(setupCalls, 0);
   });
+
+  it("respects an explicit isolation override passed to runWorkflow", async () => {
+    let setupCalls = 0;
+    const stubRunAgent = async (options: RunOptions): Promise<RunResult> =>
+      ({ output: "ok", metrics: makeMetrics({ agent: options.agent.name }) });
+    const stubSetup = async (): Promise<SetupWorktreeResult> => {
+      setupCalls++;
+      return { worktreePath: "", executionRoot: "/forced", cleanup: async () => {} };
+    };
+    const worker = withName(
+      defineAgent({ type: "worker", description: "x", modelTier: "light", tools: [],
+        permissions: "none", timeoutSeconds: 60, promptContext: [], promptTemplate: () => "p" }),
+      "code",
+    );
+    const workflow = withName(
+      defineWorkflow({
+        description: "no-wt-overridden",
+        // declared "none" but overridden to "worktree"
+        steps: [{ id: "code", agent: worker }] as any,
+      }),
+      "no-wt-overridden",
+    );
+    await runWorkflow(workflow, {}, stubConfig, "/tmp", undefined,
+      { runAgent: stubRunAgent, setupWorktree: stubSetup, isolationOverride: "worktree",
+        mainProjectRoot: "/tmp" });
+    equal(setupCalls, 1);
+  });
 });

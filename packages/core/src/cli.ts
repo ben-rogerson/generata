@@ -194,7 +194,22 @@ async function main() {
         ])
       : undefined;
     logBanner(pickWorkflowTagline());
-    const result = await runWorkflow(workflow, flags, config, config.workDir, promptLogFile);
+    const wantsWorktree = flags.worktree === "true";
+    const wantsLocal = flags.local === "true";
+    if (wantsWorktree && wantsLocal) {
+      console.error(fmt.fail("--worktree and --local are mutually exclusive"));
+      process.exit(1);
+    }
+    const isolationOverride: "none" | "worktree" | undefined = wantsWorktree
+      ? "worktree"
+      : wantsLocal
+        ? "none"
+        : undefined;
+    delete flags.worktree;
+    delete flags.local;
+    const result = await runWorkflow(workflow, flags, config, config.workDir, promptLogFile, {
+      isolationOverride,
+    });
 
     const printable = pickPrintableFinalOutput(result.steps, workflow);
     if (printable) console.log(`\n${printable}\n`);
