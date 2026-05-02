@@ -42,9 +42,12 @@ export type PromptFn = (args: PromptArgs) => string;
 const LLMAgentBase = AgentBase.extend({
   modelTier: LLMTier,
   modelOverride: z.string().optional(),
-  promptTemplate: z.custom<PromptFn>(
-    (val) => typeof val === "function",
-    "promptTemplate must be a function",
+  // string is allowed for the factory-form `defineAgent(({inputs}) => ({...}))`
+  // pattern, where the template is built per-invocation via closure interpolation
+  // and reaches the engine as a fully-resolved string.
+  promptTemplate: z.custom<PromptFn | string>(
+    (val) => typeof val === "function" || typeof val === "string",
+    "promptTemplate must be a function or string",
   ),
   promptContext: z.array(ContextSource).default([]),
   tools: z.array(Tool).default([]),
@@ -79,6 +82,36 @@ export type LLMAgentDef = AgentDef;
 export type AgentType = AgentDef["type"];
 
 export type StepParams = Record<string, string>;
+
+// Returned by an AgentCallable (factory-form agent) when invoked from a stepFn.
+// Engine consumes it directly: agent + resolved args.
+export type StepInvocation = {
+  kind: "step-invocation";
+  agent: AgentDef;
+  args: Record<string, unknown>;
+};
+
+// Function-step shape: chain builder's `.step(id, (params) => agent(...))` form.
+// The fn receives prior step outputs + builtins/vars and returns a StepInvocation.
+const FnWorkflowStep = z.object({
+  id: z.string(),
+  stepFn: z.custom<(params: StepParams) => StepInvocation>(
+    (val) => typeof val === "function",
+    "stepFn must be a function returning a StepInvocation",
+  ),
+  dependsOn: z.array(z.string()).optional(),
+  maxRetries: z.number().optional(),
+  onReject: z
+    .custom<LLMAgentDef>(
+      (val) =>
+        typeof val === "object" &&
+        val !== null &&
+        "type" in val &&
+        ["worker", "planner", "critic"].includes((val as { type: unknown }).type as string),
+      "onReject must be an LLM agent definition",
+    )
+    .optional(),
+});
 
 const CriticWorkflowStep = z.object({
   id: z.string(),
@@ -126,8 +159,9 @@ const NonCriticWorkflowStep = z.object({
 });
 
 export type CriticWorkflowStep = z.infer<typeof CriticWorkflowStep>;
+export type FnWorkflowStep = z.infer<typeof FnWorkflowStep>;
 
-export const WorkflowStep = z.union([CriticWorkflowStep, NonCriticWorkflowStep]);
+export const WorkflowStep = z.union([CriticWorkflowStep, NonCriticWorkflowStep, FnWorkflowStep]);
 export type WorkflowStep = z.infer<typeof WorkflowStep>;
 
 export type DeriveFn = (args: Record<string, string>) => Record<string, string>;

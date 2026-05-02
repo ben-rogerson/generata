@@ -1,14 +1,15 @@
 import { defineAgent } from "@generata/core";
 
-export default defineAgent({
-  type: "worker",
-  description:
-    "Reads the spec from spec-creator and writes an implementation plan, sized to the spec's SIZE declaration.",
-  modelTier: "standard",
-  permissions: "full",
-  tools: ["write"],
-  timeoutSeconds: 300,
-  promptTemplate: ({ spec_creator_output, today, work_dir }) => `
+export default defineAgent<{ spec_creator_output: string }>(
+  ({ spec_creator_output, today, work_dir }) => ({
+    type: "worker",
+    description:
+      "Reads the spec from spec-creator and writes an implementation plan, sized to the spec's SIZE declaration.",
+    modelTier: "standard",
+    permissions: "full",
+    tools: ["write"],
+    timeoutSeconds: 300,
+    promptTemplate: `
 You receive the spec-creator's final response in:
 
 SPEC CREATOR OUTPUT:
@@ -33,4 +34,5 @@ Procedure:
 5. Lead your final response with: \`PLAN WRITTEN: <absolute path>\` then a one-line objective summary.
 
 Constraints: the only file you may create is the plan at the path in step 4. Do not write outside docs/superpowers/plans/. Do not run bash. Do not edit existing source files.`,
-});
+  }),
+);

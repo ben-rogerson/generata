@@ -1,6 +1,6 @@
 import { defineAgent } from "@generata/core";
 
-export default defineAgent({
+export default defineAgent<{ scanner_output: string }>(({ scanner_output }) => ({
   type: "worker",
   description:
     "Scores audit findings (impact x effort), drops out-of-scope and already-tracked ones, outputs a ranked JSON list.",
@@ -9,7 +9,7 @@ export default defineAgent({
   tools: [],
   timeoutSeconds: 300,
   promptContext: [{ filepath: "IMPROVEMENTS.md", optional: true }],
-  promptTemplate: ({ scanner_output }) => `
+  promptTemplate: `
 You receive the raw stdout of the previous \`repo-scanner\` step in the variable below. It is expected to contain a single fenced JSON block of shape \`{ "findings": [...] }\`, but may include surrounding prose - tolerate that.
 
 If a current IMPROVEMENTS.md backlog is provided in your context above, treat every entry already in that file as already-tracked: future audit runs must not re-surface the same finding under a new title. If no backlog context is provided (first run on a fresh checkout), there are no already-tracked entries and step 5 below is a no-op.
@@ -43,4 +43,4 @@ Procedure:
 If every finding is dropped (out-of-scope or already-tracked), emit \`{ "ranked": [] }\` inside the fenced block. The downstream merge step is a no-op in that case.
 
 You are read-only. Do not edit files.`,
-});
+}));

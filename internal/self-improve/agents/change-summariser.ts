@@ -1,14 +1,15 @@
 import { defineAgent } from "@generata/core";
 
-export default defineAgent({
-  type: "worker",
-  description:
-    "Writes last-run.md (summary + bump + commit msg draft) and removes the shipped item from IMPROVEMENTS.md.",
-  modelTier: "light",
-  permissions: "full",
-  tools: ["write", "edit", "bash"],
-  timeoutSeconds: 300,
-  promptTemplate: ({ picker_output, code_writer_output, work_dir }) => `
+export default defineAgent<{ picker_output: string; code_writer_output: string }>(
+  ({ picker_output, code_writer_output, work_dir }) => ({
+    type: "worker",
+    description:
+      "Writes last-run.md (summary + bump + commit msg draft) and removes the shipped item from IMPROVEMENTS.md.",
+    modelTier: "light",
+    permissions: "full",
+    tools: ["write", "edit", "bash"],
+    timeoutSeconds: 300,
+    promptTemplate: `
 You finalise an improve run. Inputs:
 
 PICKER OUTPUT:
@@ -38,4 +39,5 @@ Procedure:
 6. Lead your final response with: \`SHIPPED: <slug>\` then a one-line summary.
 
 Do not run \`git commit\`, \`git push\`, or \`gh\` - the next step (\`ship\`) does that, using the bump and commit message you write here. \`last-run.md\` is gitignored - it is local scratch, not committed.`,
-});
+  }),
+);

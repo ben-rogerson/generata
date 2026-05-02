@@ -1,6 +1,6 @@
 import { defineAgent } from "@generata/core";
 
-export default defineAgent({
+export default defineAgent<{ picker_output: string }>(({ picker_output, today, work_dir }) => ({
   type: "worker",
   description:
     "Writes a spec for the picked improvement, sized to the change (trivial / small / substantial).",
@@ -8,7 +8,7 @@ export default defineAgent({
   permissions: "full",
   tools: ["write"],
   timeoutSeconds: 300,
-  promptTemplate: ({ picker_output, today, work_dir }) => `
+  promptTemplate: `
 You receive the picked item from the picker step:
 
 PICKER OUTPUT:
@@ -34,4 +34,4 @@ Procedure:
 6. Lead your final response with: \`SPEC WRITTEN: <absolute path>\` then a one-line summary.
 
 Constraints: the only file you may create is the spec at the path in step 4. If the spec would benefit from a companion file (fixture, snippet, etc.), describe it inline in the spec instead of creating it. Do not write outside docs/superpowers/specs/. Do not run bash. Do not edit existing source files.`,
-});
+}));

@@ -29,7 +29,10 @@ export function buildRetryPreamble(verdict: { summary: string; issues: string[] 
 
 const BUILTIN_ARGS_SET = new Set<string>(BUILTIN_ARGS);
 
-export function extractPromptParams(fn: PromptFn): string[] {
+export function extractPromptParams(fn: PromptFn | string): string[] {
+  // String templates are pre-resolved (built in the factory closure) - the
+  // factory itself declares its inputs, so nothing to introspect from the string.
+  if (typeof fn === "string") return [];
   const accessed = new Set<string>();
   const proxy = new Proxy({} as PromptArgs, {
     get(_, key) {
@@ -130,8 +133,11 @@ export function buildPrompt(options: BuildPromptOptions): string {
     .filter(Boolean)
     .join("\n\n");
 
-  // 3. Task instructions from template function
-  const taskBody = agent.promptTemplate(strictFnArgs);
+  // 3. Task instructions from template function (or pre-resolved string)
+  const taskBody =
+    typeof agent.promptTemplate === "string"
+      ? agent.promptTemplate
+      : agent.promptTemplate(strictFnArgs);
 
   return [rolePrefix, contextSections, options.retryPreamble, taskBody]
     .filter(Boolean)

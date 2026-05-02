@@ -5,17 +5,8 @@ import backlogWriter from "../backlog-writer.js";
 
 export default defineWorkflow({
   description: "Scan the generata repo for improvements and append findings to IMPROVEMENTS.md.",
-  steps: [
-    { id: "scan", agent: repoScanner },
-    {
-      id: "prioritise",
-      agent: auditPrioritiser,
-      args: ({ scan }) => ({ scanner_output: scan }),
-    },
-    {
-      id: "write",
-      agent: backlogWriter,
-      args: ({ prioritise }) => ({ prioritiser_output: prioritise }),
-    },
-  ],
-});
+})
+  .step("scan", repoScanner)
+  .step("prioritise", ({ scan }) => auditPrioritiser({ scanner_output: scan }))
+  .step("write", ({ prioritise }) => backlogWriter({ prioritiser_output: prioritise }))
+  .build();

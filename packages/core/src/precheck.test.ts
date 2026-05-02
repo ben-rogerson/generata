@@ -61,11 +61,10 @@ describe("precheckWorkflow", () => {
           description: "d",
           required: ["project"] as const,
           variables: { plans_dir: "plans" },
-          steps: [
-            { id: "plan", agent: planner },
-            { id: "build", agent: worker("builder", ["plans_dir", "project"]) },
-          ],
-        }),
+        })
+          .step("plan", planner)
+          .step("build", worker("builder", ["plans_dir", "project"]))
+          .build(),
         "clean",
       ),
       { project: "foo" },
@@ -76,13 +75,10 @@ describe("precheckWorkflow", () => {
   it("flags a template reading a missing var", () => {
     const issues = precheckWorkflow(
       withName(
-        defineWorkflow({
-          description: "d",
-          steps: [
-            { id: "plan", agent: planner },
-            { id: "build", agent: worker("builder", ["nonexistent"]) },
-          ],
-        }),
+        defineWorkflow({ description: "d" })
+          .step("plan", planner)
+          .step("build", worker("builder", ["nonexistent"]))
+          .build(),
         "missing-var",
       ),
       {},
@@ -98,11 +94,10 @@ describe("precheckWorkflow", () => {
         defineWorkflow({
           description: "d",
           variables: { plan_filepath: "plans/x.md" },
-          steps: [
-            { id: "plan", agent: planner },
-            { id: "build", agent: worker("builder", ["plan_filepat"]) },
-          ],
-        }),
+        })
+          .step("plan", planner)
+          .step("build", worker("builder", ["plan_filepat"]))
+          .build(),
         "typo",
       ),
       {},
@@ -123,8 +118,9 @@ describe("precheckWorkflow", () => {
           derive: ({ missing_input }: Record<string, string>) => ({
             derived: String(missing_input),
           }),
-          steps: [{ id: "plan", agent: planner }],
-        }),
+        })
+          .step("plan", planner)
+          .build(),
         "bad-derive",
       ),
       {},
@@ -133,19 +129,27 @@ describe("precheckWorkflow", () => {
   });
 
   it("catches a step args fn reading an unavailable var", () => {
+    // Note: with chain builder, stepFn is the equivalent of the old args fn.
+    // Here we use a factory agent that destructures `nonexistent` to trigger
+    // the precheck warning the old test was exercising.
+    const consumer = defineAgent<{ out: string }>(({ out }) => ({
+      type: "worker",
+      description: "stub",
+      modelTier: "light",
+      tools: [],
+      permissions: "none",
+      timeoutSeconds: 60,
+      promptContext: [],
+      promptTemplate: `out=${out}`,
+    }));
+    (consumer as any).name = "consumer";
+
     const issues = precheckWorkflow(
       withName(
-        defineWorkflow({
-          description: "d",
-          steps: [
-            { id: "plan", agent: planner },
-            {
-              id: "build",
-              agent: worker("builder"),
-              args: (p: Record<string, string>) => ({ out: p.nonexistent }),
-            },
-          ],
-        }),
+        defineWorkflow({ description: "d" })
+          .step("plan", planner)
+          .step("build", (p: Record<string, string>) => consumer({ out: p.nonexistent }))
+          .build(),
         "bad-args-fn",
       ),
       {},
@@ -169,13 +173,10 @@ describe("precheckWorkflow", () => {
     );
     const issues = precheckWorkflow(
       withName(
-        defineWorkflow({
-          description: "d",
-          steps: [
-            { id: "plan", agent: planner },
-            { id: "read", agent: agentWithCtx },
-          ],
-        }),
+        defineWorkflow({ description: "d" })
+          .step("plan", planner)
+          .step("read", agentWithCtx)
+          .build(),
         "ctx-miss",
       ),
       {},
@@ -193,13 +194,10 @@ describe("precheckWorkflow", () => {
   it("catches an unknown dependsOn target", () => {
     const issues = precheckWorkflow(
       withName(
-        defineWorkflow({
-          description: "d",
-          steps: [
-            { id: "plan", agent: planner },
-            { id: "build", agent: worker("builder"), dependsOn: ["ghost"] },
-          ],
-        }),
+        defineWorkflow({ description: "d" })
+          .step("plan", planner)
+          .step("build", worker("builder"), { dependsOn: ["ghost"] })
+          .build(),
         "bad-dep",
       ),
       {},
@@ -213,8 +211,9 @@ describe("precheckWorkflow", () => {
         defineWorkflow({
           description: "d",
           required: ["ticket_key"] as const,
-          steps: [{ id: "plan", agent: planner }],
-        }),
+        })
+          .step("plan", planner)
+          .build(),
         "needs-param",
       ),
       {},
@@ -225,10 +224,7 @@ describe("precheckWorkflow", () => {
   it("allows a worker as the first step when variables are otherwise satisfied", () => {
     const issues = precheckWorkflow(
       withName(
-        defineWorkflow({
-          description: "d",
-          steps: [{ id: "go", agent: worker("builder") }],
-        }),
+        defineWorkflow({ description: "d" }).step("go", worker("builder")).build(),
         "worker-first",
       ),
       {},
@@ -237,8 +233,6 @@ describe("precheckWorkflow", () => {
   });
 
   it("allows a worker-first workflow that supplies plan_name via derive", () => {
-    // Mirrors ship-ticket / ship-from-slack: external-data fetch opens the workflow,
-    // plan_name is derived from a required param rather than emitted by an initiator planner.
     const issues = precheckWorkflow(
       withName(
         defineWorkflow({
@@ -246,11 +240,10 @@ describe("precheckWorkflow", () => {
           required: ["ticket_key"] as const,
           variables: { plans_dir: "plans" },
           derive: ({ ticket_key }) => ({ plan_name: ticket_key }),
-          steps: [
-            { id: "fetch", agent: worker("fetcher", ["ticket_key", "plans_dir"]) },
-            { id: "plan", agent: worker("planner-ish", ["plan_name", "plans_dir"]) },
-          ],
-        }),
+        })
+          .step("fetch", worker("fetcher", ["ticket_key", "plans_dir"]))
+          .step("plan", worker("planner-ish", ["plan_name", "plans_dir"]))
+          .build(),
         "fetch-then-plan",
       ),
       { ticket_key: "ABC-123" },
@@ -259,17 +252,12 @@ describe("precheckWorkflow", () => {
   });
 
   it("still flags a workflow whose non-planner first step leaves plan_name unsupplied", () => {
-    // Dropping the structural rule doesn't weaken safety: if plan_name is actually missing,
-    // the variable-wiring check still catches it at the consuming step.
     const issues = precheckWorkflow(
       withName(
-        defineWorkflow({
-          description: "d",
-          steps: [
-            { id: "fetch", agent: worker("fetcher") },
-            { id: "use", agent: worker("consumer", ["plan_name"]) },
-          ],
-        }),
+        defineWorkflow({ description: "d" })
+          .step("fetch", worker("fetcher"))
+          .step("use", worker("consumer", ["plan_name"]))
+          .build(),
         "worker-first-missing",
       ),
       {},
@@ -283,18 +271,14 @@ describe("precheckWorkflow", () => {
   it("rejects a critic depending on a non-retryable upstream", () => {
     const issues = precheckWorkflow(
       withName(
-        defineWorkflow({
-          description: "d",
-          steps: [
-            { id: "plan", agent: planner },
-            { id: "review", agent: critic("reviewer") },
-          ],
-        }),
+        defineWorkflow({ description: "d" })
+          .step("plan", planner)
+          .step("review", critic("reviewer"))
+          .build(),
         "bad-critic-dep",
       ),
       {},
     );
-    // The implicit dep is the planner, which IS retryable (non-interactive), so this should pass.
     deepStrictEqual(issues, []);
   });
 
@@ -318,13 +302,10 @@ describe("precheckWorkflow", () => {
     try {
       const issues = precheckWorkflow(
         withName(
-          defineWorkflow({
-            description: "d",
-            steps: [
-              { id: "plan", agent: planner },
-              { id: "use", agent: vaultAgent },
-            ],
-          }),
+          defineWorkflow({ description: "d" })
+            .step("plan", planner)
+            .step("use", vaultAgent)
+            .build(),
           "env-miss",
         ),
         {},
@@ -342,13 +323,10 @@ describe("precheckWorkflow", () => {
   it("treats initiator planner as supplying plan_name and instructions", () => {
     const issues = precheckWorkflow(
       withName(
-        defineWorkflow({
-          description: "d",
-          steps: [
-            { id: "init", agent: planner },
-            { id: "use", agent: worker("builder", ["plan_name", "instructions"]) },
-          ],
-        }),
+        defineWorkflow({ description: "d" })
+          .step("init", planner)
+          .step("use", worker("builder", ["plan_name", "instructions"]))
+          .build(),
         "initiator",
       ),
       {},
@@ -368,7 +346,7 @@ describe("formatPrecheckReport", () => {
     strictEqual(lines[0], "[precheck] wf");
     ok(lines.some((l) => l.includes("step 's1' (a1): boom")));
     ok(lines.some((l) => l.includes("agent 'a2': env")));
-    ok(lines.some((l) => l === "\u2717 generic"));
+    ok(lines.some((l) => l === "✗ generic"));
     ok(lines[lines.length - 1].includes("3 problems"));
   });
 });

@@ -8,6 +8,7 @@ import { runPreflight, formatPreflight } from "./preflight.js";
 import { generateEnvExample } from "./env-example.js";
 import { promptForEnv, writeDotEnv, PromptItem } from "./env-prompt.js";
 import { copyTree, filesEqual } from "./copy.js";
+import { resolveStepShape } from "../step-shape.js";
 import { generateSlashCommands } from "./slash-commands.js";
 import { loadTs } from "../ts-loader.js";
 import type { AgentDef, WorkflowDef } from "../define.js";
@@ -226,7 +227,8 @@ async function scanTemplate(dir: string): Promise<{
       (def as unknown as { name: string }).name = name;
       workflows.push(def);
       for (const step of def.steps ?? []) {
-        for (const key of step.agent?.envKeys ?? []) {
+        const { agent } = resolveStepShape(step);
+        for (const key of agent?.envKeys ?? []) {
           (workflowEnvKeys[key] ??= []).push(name);
         }
       }

@@ -1,7 +1,11 @@
 import { defineAgent } from "@generata/core";
 import { renderOutOfScopeList, renderShipDeferredList } from "./_out-of-scope.js";
 
-export default defineAgent({
+export default defineAgent<{
+  code_writer_output: string;
+  spec_creator_output: string;
+  plan_creator_output: string;
+}>(({ code_writer_output, spec_creator_output, plan_creator_output, work_dir }) => ({
   type: "critic",
   description:
     "Reviews the code-writer's diff for AGENTS.md compliance, test coverage, scope adherence. Rejects with concrete issues.",
@@ -9,7 +13,7 @@ export default defineAgent({
   permissions: "read-only",
   tools: ["bash"],
   timeoutSeconds: 480,
-  promptTemplate: ({ code_writer_output, spec_creator_output, plan_creator_output, work_dir }) => `
+  promptTemplate: `
 You have the code-writer's status, plus the spec and plan:
 
 CODE WRITER OUTPUT:
@@ -41,4 +45,4 @@ Otherwise, read the spec and plan files (paths in their respective WRITTEN lines
 6. **Test evasion check.** Catch any of: tests skipped (\`.skip\`, \`.todo\`, \`.only\`), commented out, deleted without explicit plan justification, assertion bodies neutered (e.g. \`expect(true).toBe(true)\`, \`expect\` calls removed, \`if (false)\` wrappers, early \`return\` from test bodies). \`git diff\` against the test files makes this visible. Reject with the file:line of any evasion found.
 
 Reason through each check in prose, then call the verdict command. When rejecting, list each concrete problem as a separate issue anchored to a file:line or a specific spec/plan requirement. Vague flags like "needs more error handling" do not qualify.`,
-});
+}));

@@ -1,13 +1,14 @@
 import { defineAgent } from "@generata/core";
 
-export default defineAgent({
+export default defineAgent<{ git_summary: string; today_focus: string }>(
+  ({ git_summary, today_focus }) => ({
   type: "worker",
   description: "Turns a git activity summary into a 3-section standup (yesterday / today / blockers)",
   modelTier: "standard",
   tools: [],
   permissions: "read-only",
   timeoutSeconds: 60,
-  promptTemplate: ({ git_summary, today_focus }) => `
+  promptTemplate: `
 You are drafting a daily standup for an engineer.
 
 Yesterday's git activity:
@@ -34,4 +35,5 @@ Rules:
 - Don't invent commits that weren't in the summary
 - If yesterday is empty, write "- (no commits)"
 `,
-});
+  }),
+);
