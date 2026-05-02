@@ -1,9 +1,13 @@
-import { existsSync } from "node:fs";
-import { join } from "node:path";
 import { spawn } from "node:child_process";
-import { mkdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
-import { isAbsolute, relative, resolve as resolvePath, basename } from "node:path";
+import {
+  existsSync,
+  mkdirSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
+import { basename, dirname, isAbsolute, join, relative, resolve as resolvePath } from "node:path";
 import type { WorkflowDef } from "./schema.js";
 
 const LOCKFILE_TO_INSTALL: Array<[string, string[]]> = [
@@ -206,6 +210,11 @@ export async function setupWorktree(opts: SetupWorktreeOptions): Promise<SetupWo
           `worktreeSetup '${installCmd.join(" ")}' failed (exit ${installed.exitCode}): ${installed.stderr.trim()}`,
         );
       }
+    } else if (!opts.workflow.worktreeSetup) {
+      console.warn(
+        `[worktree] no worktreeSetup configured and no recognised lockfile in ${worktreePath} - skipping install. ` +
+          `Agents will run with whatever node_modules exists (likely none).`,
+      );
     }
 
     return { worktreePath, executionRoot, cleanup };
