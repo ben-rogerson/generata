@@ -19,6 +19,7 @@ That's all you need to author agents, workflows, and a project config.
 
 | Command                           | Purpose                                                     |
 | :-------------------------------- | :---------------------------------------------------------- |
+| `generata <name>`                 | Run a workflow (shorthand for `workflow <name>`)            |
 | `generata init <template> [dest]` | Scaffold a new project from a template                      |
 | `generata add <template>`         | Merge a template into the current project                   |
 | `generata agent <name>`           | Run a single agent                                          |

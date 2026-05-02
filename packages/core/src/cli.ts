@@ -11,11 +11,13 @@ import { sendNotification, formatWorkflowNotification, formatAgentNotification }
 import { makeRunId } from "./time.js";
 import { pickPrintableFinalOutput } from "./cli/workflow-output.js";
 import { parseArgs } from "./cli/parse-args.js";
+import { resolveCommand } from "./cli/resolve-command.js";
 
 async function main() {
   const args = process.argv.slice(2);
   const { positional, flags } = parseArgs(args);
-  const [command, target] = positional;
+  const { command, rest } = resolveCommand(positional);
+  const target = rest[0];
 
   if (
     !command ||
@@ -161,7 +163,7 @@ async function main() {
       return;
     }
     if (!target) {
-      console.error("Usage: generata workflow <name> [--key value ...]");
+      console.error("Usage: generata <name> [--key value ...]  (or: generata workflow <name>)");
       process.exit(1);
     }
     const registry = await loadRegistry({ projectRoot, agentsDir: config.agentsDir });
@@ -335,7 +337,7 @@ async function main() {
   }
 
   console.error(fmt.fail(`Unknown command: ${command}`));
-  console.error(fmt.dim("Usage: generata <agent|workflow|validate|metrics> [args]"));
+  console.error(fmt.dim("Usage: generata <workflow-name|agent|workflow|validate|metrics> [args]"));
   process.exit(1);
 }
 
