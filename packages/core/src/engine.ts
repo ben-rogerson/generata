@@ -12,9 +12,15 @@ import {
 } from "./schema.js";
 import { runAgent as defaultRunAgent, RunResult, RunOptions } from "./agent-runner.js";
 import { formatWeeklyMetricsLine } from "./metrics.js";
+import { setupWorktree as defaultSetupWorktree } from "./worktree.js";
+import type { SetupWorktreeOptions, SetupWorktreeResult } from "./worktree.js";
 
 export interface EngineDeps {
-  runAgent: (options: RunOptions) => Promise<RunResult>;
+  runAgent?: (options: RunOptions) => Promise<RunResult>;
+  setupWorktree?: (opts: SetupWorktreeOptions) => Promise<SetupWorktreeResult>;
+  // Tests can pre-resolve the git root rather than walking up from workDir.
+  // Production CLI leaves this undefined and lets findGitRoot do the walk.
+  mainProjectRoot?: string;
 }
 import { buildRetryPreamble } from "./context-builder.js";
 import { getTodayAndTime } from "./time.js";
@@ -78,14 +84,27 @@ function resolveArgs(
   return { ...stringParams, ...args };
 }
 
+function findGitRoot(start: string): string {
+  let current = resolve(start);
+  while (true) {
+    if (existsSync(`${current}/.git`)) return current;
+    const parent = dirname(current);
+    if (parent === current) {
+      throw new Error(`isolation: "worktree" requires a git repository (no .git found above ${start})`);
+    }
+    current = parent;
+  }
+}
+
 export async function runWorkflow(
   workflow: WorkflowDef,
   params: Record<string, unknown>,
   config: GlobalConfig,
   workDir: string,
   promptLogFile?: string,
-  deps: EngineDeps = { runAgent: defaultRunAgent },
+  deps: EngineDeps = {},
 ): Promise<WorkflowResult> {
+  const runAgent = deps.runAgent ?? defaultRunAgent;
   // Workflow names may contain `/` (path-derived from nested agents dirs). Strip
   // it so tmp-file paths built from this id stay flat, not nested subdirs.
   const workflowId = `${workflow.name.replace(/\//g, "-")}-${Date.now()}`;
@@ -138,6 +157,35 @@ export async function runWorkflow(
     }
   } catch {}
 
+  const isolation = workflow.isolation ?? "none";
+  let executionRoot = resolve(workDir);
+  let teardown: (() => Promise<void>) | undefined;
+  let sigintHandler: (() => void) | undefined;
+  let sigtermHandler: (() => void) | undefined;
+  if (isolation === "worktree") {
+    const mainProjectRoot = deps.mainProjectRoot ?? findGitRoot(workDir);
+    const setup = deps.setupWorktree ?? defaultSetupWorktree;
+    const setupResult = await setup({
+      workflow,
+      mainProjectRoot,
+      workDir,
+      runId: workflowId,
+      logsDir: config.logsDir,
+      metricsDir: config.metricsDir,
+    });
+    executionRoot = setupResult.executionRoot;
+    teardown = setupResult.cleanup;
+
+    sigintHandler = () => {
+      void (teardown?.() ?? Promise.resolve()).finally(() => process.kill(process.pid, "SIGINT"));
+    };
+    sigtermHandler = () => {
+      void (teardown?.() ?? Promise.resolve()).finally(() => process.kill(process.pid, "SIGTERM"));
+    };
+    process.once("SIGINT", sigintHandler);
+    process.once("SIGTERM", sigtermHandler);
+  }
+
   const weeklyMetrics = config.showWeeklyMetrics
     ? formatWeeklyMetricsLine(resolve(workDir, config.metricsDir), config.showPricing)
     : undefined;
@@ -158,6 +206,7 @@ export async function runWorkflow(
     );
   }
 
+  try {
   while (pending.size > 0) {
     if (haltSignal) break;
     // Find steps whose dependencies are all satisfied
@@ -187,7 +236,7 @@ export async function runWorkflow(
         // Builtins and resolved step args are merged as input to derive().
         const { today: _stepToday, time: _stepTime } = getTodayAndTime();
         const workflowVariables = computeWorkflowVariables(workflow, {
-          work_dir: resolve(workDir),
+          work_dir: executionRoot,
           today: _stepToday,
           time: _stepTime,
           ...Object.fromEntries(Object.entries(resolvedArgs).map(([k, v]) => [k, String(v)])),
@@ -207,11 +256,12 @@ export async function runWorkflow(
           let attempt = 0;
           while (true) {
             try {
-              r = await deps.runAgent({
+              r = await runAgent({
                 agent: targetAgent,
                 args: targetArgs,
                 config,
                 workDir,
+                cwd: executionRoot,
                 workflowId,
                 stepId: targetStep.id,
                 stepOutputs,
@@ -370,6 +420,11 @@ export async function runWorkflow(
         completed.add(step.id);
       }),
     );
+  }
+  } finally {
+    if (sigintHandler) process.off("SIGINT", sigintHandler);
+    if (sigtermHandler) process.off("SIGTERM", sigtermHandler);
+    if (teardown) await teardown();
   }
 
   const totalCost = stepResults.reduce((sum, r) => sum + (r.metrics?.estimated_cost_usd ?? 0), 0);
