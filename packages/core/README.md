@@ -15,6 +15,17 @@ import { defineAgent, defineWorkflow, defineConfig } from "@generata/core";
 
 That's all you need to author agents, workflows, and a project config.
 
+For workflows that need git-worktree isolation, also import `defineWorktree`:
+
+```ts
+import { defineWorkflow, defineWorktree } from "@generata/core";
+
+defineWorkflow({
+  isolation: defineWorktree({ sharedPaths: ["state.md"] }),
+  // ...
+});
+```
+
 ## CLI
 
 | Command                           | Purpose                                                     |
@@ -27,7 +38,10 @@ That's all you need to author agents, workflows, and a project config.
 | `generata validate [--all]`       | Static-check workflow definitions                           |
 | `generata metrics [today\|week]`  | Show metrics summary                                        |
 | `generata skills sync`            | Regenerate `.claude/commands/` from workflows               |
+| `generata worktree prune`         | Remove orphan `generata/wt-*` worktrees and branches        |
 | `generata help [topic]`           | Show help (topics: agents, workflows, env, templates, bins) |
+
+Workflow flags: `--worktree` forces git-worktree isolation for the run; `--local` forces it off (mutually exclusive).
 
 ## Template specifiers
 
