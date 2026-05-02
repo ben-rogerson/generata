@@ -161,6 +161,7 @@ export const GlobalConfig = z.object({
   notifications: z.boolean().default(true),
   logPrompts: z.boolean().default(false),
   showPricing: z.boolean().default(false),
+  showWeeklyMetrics: z.boolean().default(true),
   verboseOutput: z.boolean().default(false),
   maxCriticRetries: z.number().default(3),
   telegram: z

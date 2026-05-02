@@ -1,6 +1,6 @@
 import { ok } from "node:assert/strict";
 import { describe, it } from "node:test";
-import { logStepDone, logWorkflowResult } from "./logger.js";
+import { logAgentWelcome, logStepDone, logWorkflowResult, logWorkflowStart } from "./logger.js";
 
 function captureStdout(fn: () => void): string {
   const original = process.stdout.write.bind(process.stdout);
@@ -85,5 +85,65 @@ describe("logWorkflowResult", () => {
     );
     ok(out.includes("tokens: 12k"), `expected tokens line, got: ${out}`);
     ok(!out.includes("$"), `did not expect dollar sign, got: ${out}`);
+  });
+});
+
+describe("logWorkflowStart", () => {
+  it("renders weekly metrics line when provided", () => {
+    const out = captureStdout(() =>
+      logWorkflowStart("flow-1", 3, undefined, "7d · 12 calls · 250k tok"),
+    );
+    ok(out.includes("7d · 12 calls · 250k tok"), `expected weekly line, got: ${out}`);
+    ok(out.includes("(3 steps queued)"), `expected step count in parens, got: ${out}`);
+  });
+
+  it("shows the 'workflow' label when the folder doesn't contain 'workflow'", () => {
+    const out = captureStdout(() => logWorkflowStart("special/improve", 3));
+    ok(out.includes("workflow special/improve"), `expected label prefix, got: ${out}`);
+    ok(out.includes("(3 steps queued)"), `expected step count, got: ${out}`);
+  });
+
+  it("shows the 'workflow' label when there is no folder", () => {
+    const out = captureStdout(() => logWorkflowStart("improve", 3));
+    ok(out.includes("workflow improve"), `expected label prefix, got: ${out}`);
+  });
+
+  it("hides the 'workflow' label when the folder already contains 'workflow'", () => {
+    const out = captureStdout(() => logWorkflowStart("workflows/improve", 3));
+    ok(!out.includes("workflow workflows/improve"), `did not expect label prefix, got: ${out}`);
+    ok(out.includes("workflows/improve"), `expected name, got: ${out}`);
+    ok(out.includes("(3 steps queued)"), `expected step count, got: ${out}`);
+  });
+
+  it("renders prompt log path when provided", () => {
+    const out = captureStdout(() =>
+      logWorkflowStart("flow-1", 3, "/tmp/abs/prompts.log", undefined),
+    );
+    ok(out.includes("prompts.log"), `expected prompt path, got: ${out}`);
+    ok(!out.includes("7d ·"), `did not expect weekly line, got: ${out}`);
+  });
+
+  it("omits both lines when neither is provided", () => {
+    const out = captureStdout(() => logWorkflowStart("flow-1", 3));
+    ok(!out.includes("7d ·"), `did not expect weekly line, got: ${out}`);
+    ok(!out.includes("prompts"), `did not expect prompt path, got: ${out}`);
+  });
+});
+
+describe("logAgentWelcome", () => {
+  it("renders weekly metrics and prompt log lines together", () => {
+    const out = captureStdout(() =>
+      logAgentWelcome(
+        "writer",
+        "worker",
+        "writes things",
+        "claude-x",
+        undefined,
+        "/tmp/abs/prompts.log",
+        "7d · 5 calls · 10k tok",
+      ),
+    );
+    ok(out.includes("7d · 5 calls · 10k tok"), `expected weekly line, got: ${out}`);
+    ok(out.includes("prompts.log"), `expected prompt path, got: ${out}`);
   });
 });

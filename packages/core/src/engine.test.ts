@@ -20,6 +20,7 @@ const stubConfig: GlobalConfig = {
   notifications: false,
   logPrompts: false,
   showPricing: false,
+  showWeeklyMetrics: false,
   verboseOutput: false,
   maxCriticRetries: 3,
 };

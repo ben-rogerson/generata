@@ -1,4 +1,4 @@
-import { basename } from "path";
+import { basename, relative } from "path";
 import pc from "picocolors";
 import { AgentType, AgentStreamEvent } from "./schema.js";
 
@@ -16,34 +16,52 @@ export const fmt = {
   duration: (ms: number) => pc.dim(`${(ms / 1000).toFixed(1)}s`),
 };
 
+const orange = (s: string): string => (pc.isColorSupported ? `\x1b[38;5;208m${s}\x1b[0m` : s);
+
+const BANNER_PLAIN = ["  generata"];
+
+const BANNER_COLOUR = [
+  "  \x1b[31mg\x1b[1;31me\x1b[33mn\x1b[1;33me\x1b[32mr\x1b[36ma\x1b[34mt\x1b[35ma\x1b[0m",
+];
+
+export function logBanner(tagline?: string): void {
+  const lines = pc.isColorSupported ? BANNER_COLOUR : BANNER_PLAIN;
+  for (const line of lines) console.log(line);
+  if (tagline) console.log(`  ${pc.italic(tagline)}`);
+  console.log("");
+}
+
 const TYPE_COLORS: Record<AgentType, (s: string) => string> = {
-  worker: pc.green,
-  planner: pc.blue,
-  critic: pc.yellow,
+  worker: pc.cyan,
+  planner: pc.magenta,
+  critic: orange,
 };
 
 export function agentColor(type: string): (s: string) => string {
-  return TYPE_COLORS[type as AgentType] ?? pc.blue;
+  return TYPE_COLORS[type as AgentType] ?? pc.cyan;
 }
 
 const TYPE_TAGLINES: Record<AgentType, string[]> = {
   worker: [
-    "Hands on keyboard. Ready to ship...",
-    "Code incoming...",
-    "Let's build something...",
-    "Time to make it real...",
+    "Hands on keyboard. Brain in the trash where it belongs...",
+    "Code dropping. This better not suck...",
+    "Let’s build some unhinged bullsh**...",
+    "Time to make it real before I lose what’s left of my mind...",
+    "Currently coding like a raccoon that just did lines of caffeine...",
   ],
   planner: [
-    "Charting the course...",
-    "Thinking it through...",
-    "Mapping the path forward...",
-    "Scouting the horizon...",
+    "Charting the course through this dumpster fire of a project...",
+    "Thinking it through... against my will...",
+    "Mapping the path. It's mostly terrible ideas and copium...",
+    "Scouting the horizon. Looks like pain and suffering...",
+    "Cooking up another ridiculous plan. This'll end great...",
   ],
   critic: [
-    "Scrutinising the work...",
-    "Nothing gets past me...",
-    "Eyes on every line...",
-    "Let's see how this holds up...",
+    "Scrutinising this nonsense like it personally offended me...",
+    "Nothing gets past me. I'm in a bad mood...",
+    "Dissecting this code like a feral animal...",
+    "Finding every flaw because someone has to be the assho**...",
+    "My disappointment is reaching record levels...",
   ],
 };
 
@@ -54,24 +72,24 @@ export function pickTagline(type: AgentType): string {
 }
 
 const WORKFLOW_TAGLINES = [
-  "All systems nominal. Probably.",
-  "Compiling enthusiasm.",
-  "May your stack traces be shallow.",
-  "Reticulating splines.",
-  "Determinism not guaranteed.",
-  "It compiles. That's a start.",
-  "We negotiated with the linter. We won.",
-  "git blame is going to be funny.",
-  "Production-grade vibes only.",
-  "Resisting the urge to refactor everything.",
-  "Reading the docs so you don't have to.",
-  "Side effects: free. Time complexity: TBD.",
-  "Plan A. Through Plan F.",
-  "Ship it. Then panic. Then ship a fix.",
-  "Cache invalidated. Naming things, next.",
-  "Off-by-one errors: 0. Or 1.",
-  "Turning coffee into commits.",
-  "Yak shaved. Onward.",
+  "All systems nominal. The voices say otherwise.",
+  "Outcomes decided by blood moon, pure chaos, and one raccoon on ketamine.",
+  "git blame is drunk and telling everyone your secrets.",
+  "Refactoring so hard I achieved ego death and came back wrong.",
+  "Tabs vs spaces ended in a cage match. Only eldritch screams remain.",
+  "Yak shaved. Uncovered an ancient civilization of yaks. They want revenge.",
+  "CI goblin is awake, pissed off, and unionizing.",
+  "Containers spinning so fast they opened a portal to another dimension.",
+  "Bribed the build cache with lies and expired snacks.",
+  "GPU is now a small sun. I'm using it to make toast.",
+  "Sacrificed three branches, a junior dev, and my sleep schedule.",
+  "Production is on fire. We're doing a rain dance... with gasoline.",
+  "Linter is being a little bit**. We're ignoring it.",
+  "Touched legacy code. It whispered my name at 3am.",
+  "git blame now leads to a 2009 Geocities page and a curse.",
+  "Sonnet passed out. Haiku is tweaking balls and writing nonsense.",
+  "This app runs on spite, duct tape, and forbidden knowledge.",
+  "Code somehow works. I’m not touching it. Don’t ask.",
 ];
 
 export function pickWorkflowTagline(): string {
@@ -91,27 +109,49 @@ export function startSpinner(label: string): () => void {
   };
 }
 
+function formatPromptLogPath(promptLogFile: string): string {
+  const rel = relative(process.cwd(), promptLogFile);
+  return rel && !rel.startsWith("..") ? rel : promptLogFile;
+}
+
 export function logAgentWelcome(
   name: string,
   type: string,
   description: string,
   model: string,
   args?: Record<string, unknown>,
+  promptLogFile?: string,
+  weeklyMetrics?: string,
 ): void {
   const extras: string[] = [pc.dim(model)];
   if (args?.plan_name) extras.push(pc.dim(`plan: ${args.plan_name}`));
   if (args?.goal) extras.push(pc.dim(`goal: ${String(args.goal).slice(0, 60)}`));
 
   const color = agentColor(type);
-  console.log(`\n  ${pc.bold(color(name))} ${pc.dim(`[${type}]`)}`);
+  console.log(`  ${pc.bold(color(name))} ${pc.dim(`[${type}]`)}`);
   console.log(`  ${pc.dim(description)}`);
-  console.log(`  ${extras.join(pc.dim(" · "))}\n`);
+  console.log(`  ${extras.join(pc.dim(" · "))}`);
+  if (promptLogFile) {
+    console.log(`  ${pc.dim(formatPromptLogPath(promptLogFile))}`);
+  }
+  if (weeklyMetrics) console.log(`  ${pc.dim(weeklyMetrics)}`);
+  console.log("");
 }
 
-export function logWorkflowStart(name: string, stepCount: number): void {
-  console.log(`\n  ${pc.bold(pc.blue("workflow"))} ${pc.bold(name)}`);
-  console.log(`  ${pc.italic(pickWorkflowTagline())}`);
-  console.log(`  ${pc.dim(`${stepCount} steps queued`)}\n`);
+export function logWorkflowStart(
+  name: string,
+  stepCount: number,
+  promptLogFile?: string,
+  weeklyMetrics?: string,
+): void {
+  const folder = name.includes("/") ? name.slice(0, name.lastIndexOf("/")) : "";
+  const label = folder.includes("workflow") ? "" : `${pc.bold("workflow")} `;
+  console.log(`  ${label}${pc.bold(name)} ${pc.dim(`(${stepCount} steps queued)`)}`);
+  if (promptLogFile) {
+    console.log(`  ${pc.dim(formatPromptLogPath(promptLogFile))}`);
+  }
+  if (weeklyMetrics) console.log(`  ${pc.dim(weeklyMetrics)}`);
+  console.log("");
 }
 
 export function logStepStart(stepIndex: number, total: number, id: string): void {
@@ -195,7 +235,7 @@ export function logWorkflowResult(
   showPricing?: boolean,
 ): void {
   const status = success ? pc.green("SUCCESS") : pc.red("FAILED");
-  console.log(`\n${pc.bold(pc.blue("[workflow]"))} ${name}: ${status}`);
+  console.log(`\n${pc.bold("[workflow]")} ${name}: ${status}`);
   const usageStr =
     costWasReported && showPricing
       ? `cost: ${pc.magenta(`$${cost.toFixed(4)}`)}`

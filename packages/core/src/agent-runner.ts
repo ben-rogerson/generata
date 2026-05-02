@@ -13,7 +13,7 @@ const TOOL_NAME_MAP: Partial<Record<Tool, string>> = {
   "web-fetch": "WebFetch",
 };
 import { buildPrompt } from "./context-builder.js";
-import { writeMetrics } from "./metrics.js";
+import { writeMetrics, formatWeeklyMetricsLine } from "./metrics.js";
 import { logAgentModel, logAgentWelcome, startSpinner, pickTagline } from "./logger.js";
 
 export interface RunOptions {
@@ -74,12 +74,17 @@ async function runInteractive(options: RunOptions): Promise<RunResult> {
   const startTime = Date.now();
 
   const interactiveModel = resolveModel(agent, args, config);
+  const weeklyMetrics = config.showWeeklyMetrics
+    ? formatWeeklyMetricsLine(resolve(workDir, config.metricsDir), config.showPricing)
+    : undefined;
   logAgentWelcome(
     agent.name,
     agent.type,
     agent.description,
     `${interactiveModel} (interactive)`,
     args,
+    options.promptLogFile,
+    weeklyMetrics,
   );
 
   // Set up params file for interactive planners - same mechanism as non-interactive
@@ -178,7 +183,18 @@ export async function runAgent(options: RunOptions): Promise<RunResult> {
   const startTime = Date.now();
 
   if (!options.workflowId) {
-    logAgentWelcome(agent.name, agent.type, agent.description, model, args);
+    const weeklyMetrics = config.showWeeklyMetrics
+      ? formatWeeklyMetricsLine(resolve(workDir, config.metricsDir), config.showPricing)
+      : undefined;
+    logAgentWelcome(
+      agent.name,
+      agent.type,
+      agent.description,
+      model,
+      args,
+      options.promptLogFile,
+      weeklyMetrics,
+    );
   } else {
     logAgentModel(agent.name, agent.type, model);
   }

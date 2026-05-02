@@ -11,6 +11,7 @@ import {
   StepParams,
 } from "./schema.js";
 import { runAgent as defaultRunAgent, RunResult, RunOptions } from "./agent-runner.js";
+import { formatWeeklyMetricsLine } from "./metrics.js";
 
 export interface EngineDeps {
   runAgent: (options: RunOptions) => Promise<RunResult>;
@@ -137,7 +138,10 @@ export async function runWorkflow(
     }
   } catch {}
 
-  logWorkflowStart(workflow.name, workflow.steps.length);
+  const weeklyMetrics = config.showWeeklyMetrics
+    ? formatWeeklyMetricsLine(resolve(workDir, config.metricsDir), config.showPricing)
+    : undefined;
+  logWorkflowStart(workflow.name, workflow.steps.length, promptLogFile, weeklyMetrics);
 
   // Execute DAG
   const pending = new Map(workflow.steps.map((s) => [s.id, s]));

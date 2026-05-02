@@ -1,17 +1,30 @@
 import { resolve } from "node:path";
 import { findProjectRoot } from "./find-project-root.js";
-import { loadRegistry, loadSingleAgentRegistry, resolveAgentName } from "./registry.js";
+import {
+  listAllNames,
+  loadRegistry,
+  loadSingleAgentRegistry,
+  resolveAgentName,
+} from "./registry.js";
 import { loadConfig } from "./config.js";
 import { runAgent } from "./agent-runner.js";
 import { runWorkflow } from "./engine.js";
 import { readMetrics, readMetricsRange, summariseMetrics } from "./metrics.js";
-import { fmt, logWorkflowResult, logStreamEvent } from "./logger.js";
+import {
+  fmt,
+  logBanner,
+  logWorkflowResult,
+  logStreamEvent,
+  pickTagline,
+  pickWorkflowTagline,
+} from "./logger.js";
 import { formatPrecheckReport, precheckWorkflow, validateAgentArgs } from "./precheck.js";
 import { sendNotification, formatWorkflowNotification, formatAgentNotification } from "./notify.js";
 import { makeRunId } from "./time.js";
 import { pickPrintableFinalOutput } from "./cli/workflow-output.js";
 import { parseArgs } from "./cli/parse-args.js";
 import { resolveCommand } from "./cli/resolve-command.js";
+import { buildPromptLogPath } from "./cli/prompt-log-path.js";
 
 async function main() {
   const args = process.argv.slice(2);
@@ -117,10 +130,12 @@ async function main() {
     const runId = makeRunId();
     const logPromptsAgent = flags["log-prompts"] === "true" || config.logPrompts;
     delete flags["log-prompts"];
+    const siblings = logPromptsAgent ? await listAllNames(registryOpts) : undefined;
     const promptLogFile = logPromptsAgent
-      ? resolve(config.workDir, config.logsDir, `prompts-agent-${agent.name}-${runId}.log`)
+      ? buildPromptLogPath(config.workDir, config.logsDir, "agent", agent.name, runId, siblings)
       : undefined;
 
+    logBanner(pickTagline(agent.type));
     let result: Awaited<ReturnType<typeof runAgent>>;
     try {
       result = await runAgent({
@@ -174,8 +189,11 @@ async function main() {
     const logPrompts = flags["log-prompts"] === "true" || config.logPrompts;
     delete flags["log-prompts"];
     const promptLogFile = logPrompts
-      ? resolve(config.workDir, config.logsDir, `prompts-workflow-${workflow.name}-${runId}.log`)
+      ? buildPromptLogPath(config.workDir, config.logsDir, "workflow", workflow.name, runId, [
+          ...registry.workflows.keys(),
+        ])
       : undefined;
+    logBanner(pickWorkflowTagline());
     const result = await runWorkflow(workflow, flags, config, config.workDir, promptLogFile);
 
     const printable = pickPrintableFinalOutput(result.steps, workflow);
