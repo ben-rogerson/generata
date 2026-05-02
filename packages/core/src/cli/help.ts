@@ -20,7 +20,13 @@ Commands:
   validate [<workflow>|--all] Static-check workflow definitions
   metrics [today|week|...]    Show metrics summary
   skills sync                 Regenerate .claude/commands/ from workflows
+  worktree prune              Remove orphaned 'generata/wt-*' worktrees and branches
   help [topic]                Show help (topics: agents, workflows, env, templates, bins)
+
+Workflow flags:
+  --worktree                  Force this run to use git-worktree isolation
+  --local                     Force this run to skip worktree isolation
+                              (--worktree and --local are mutually exclusive)
 `;
 
 export async function runHelp(topic?: string): Promise<void> {
@@ -81,6 +87,10 @@ async function helpWorkflows(): Promise<void> {
     console.log(`  ${wf.name.padEnd(20)}  ${wf.description}`);
     console.log(`    required: ${required}`);
     console.log(`    variables: ${vars}`);
+    if (wf.isolation && wf.isolation !== "none") {
+      console.log(`    isolation: ${wf.isolation}` +
+        (wf.sharedPaths?.length ? ` (sharedPaths: ${wf.sharedPaths.join(", ")})` : ""));
+    }
   }
 }
 
