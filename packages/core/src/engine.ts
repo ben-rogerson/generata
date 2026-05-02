@@ -91,7 +91,9 @@ function findGitRoot(start: string): string {
     if (existsSync(`${current}/.git`)) return current;
     const parent = dirname(current);
     if (parent === current) {
-      throw new Error(`isolation: "worktree" requires a git repository (no .git found above ${start})`);
+      throw new Error(
+        `isolation: "worktree" requires a git repository (no .git found above ${start})`,
+      );
     }
     current = parent;
   }
@@ -208,220 +210,220 @@ export async function runWorkflow(
   }
 
   try {
-  while (pending.size > 0) {
-    if (haltSignal) break;
-    // Find steps whose dependencies are all satisfied
-    const runnable: WorkflowStep[] = [];
-    for (const [, step] of pending) {
-      if (effectiveDeps.get(step.id)!.every((dep) => completed.has(dep))) {
-        runnable.push(step);
-      }
-    }
-
-    if (runnable.length === 0) {
-      throw new Error(
-        `Workflow deadlock in '${workflow.name}' - no runnable steps. Pending: ${[...pending.keys()].join(", ")}`,
-      );
-    }
-
-    // Run all runnable steps in parallel
-    await Promise.all(
-      runnable.map(async (step) => {
-        pending.delete(step.id);
-
-        const stepIndex = workflow.steps.findIndex((s) => s.id === step.id) + 1;
-
-        const resolvedArgs = resolveArgs(step.args, params, stepOutputs);
-
-        // Compute workflow variables (static vars + derive) for this step.
-        // Builtins and resolved step args are merged as input to derive().
-        const { today: _stepToday, time: _stepTime } = getTodayAndTime();
-        const workflowVariables = computeWorkflowVariables(workflow, {
-          work_dir: executionRoot,
-          today: _stepToday,
-          time: _stepTime,
-          ...Object.fromEntries(Object.entries(resolvedArgs).map(([k, v]) => [k, String(v)])),
-        });
-
-        logStepStart(stepIndex, totalSteps, step.id);
-
-        // Helper: run an agent step with error-retry, log metrics, update stepOutputs.
-        // Used for both the initial run and critic-triggered retries.
-        const runAgentStep = async (
-          targetStep: WorkflowStep,
-          targetArgs: Record<string, unknown>,
-          retryPreamble?: string,
-        ): Promise<RunResult> => {
-          const targetAgent = targetStep.agent as LLMAgentDef;
-          let r: RunResult | undefined;
-          let attempt = 0;
-          while (true) {
-            try {
-              r = await runAgent({
-                agent: targetAgent,
-                args: targetArgs,
-                config,
-                workDir,
-                cwd: executionRoot,
-                workflowId,
-                stepId: targetStep.id,
-                stepOutputs,
-                // verboseOutput=false swaps inline tool events for the per-agent spinner
-                // (agent-runner starts the spinner when onEvent is undefined). Caveat:
-                // parallel runnable steps will fight over the same TTY line - acceptable
-                // for now since most workflows are sequential.
-                onEvent: config.verboseOutput ? (event) => logStreamEvent(event) : undefined,
-                promptLogFile,
-                retryPreamble,
-                workflowVariables,
-                resolvedEnv,
-              });
-              break;
-            } catch (err) {
-              attempt++;
-              if (attempt >= targetAgent.maxRetries) {
-                throw new Error(
-                  `Step '${targetStep.id}' failed after ${attempt} attempts: ${String(err)}`,
-                );
-              }
-              logStepRetry(targetStep.id, attempt);
-            }
-          }
-          logStepDone(
-            targetStep.id,
-            r!.metrics.duration_ms,
-            r!.metrics.estimated_cost_usd,
-            r!.metrics.model,
-            r!.verdict,
-            r!.metrics.cost_was_reported,
-            r!.metrics.input_tokens + r!.metrics.output_tokens,
-            config.showPricing,
-            r!.metrics.status === "failure",
-          );
-          return r!;
-        };
-
-        let result = await runAgentStep(step, resolvedArgs);
-
-        stepOutputs[step.id] = result.output;
-        stepResults.push({
-          stepId: step.id,
-          output: result.output,
-          metrics: result.metrics,
-        });
-
-        if (planName) {
-          // Move plan into project folder once the executor has created the code dir.
-          // Fires once: when code/ exists but the plan hasn't been moved yet.
-          const projectDir = resolve(workDir, workflow.variables.output_dir ?? "", planName);
-          const plansDir = workflow.variables.plans_dir ?? "plans";
-          const planSrc = resolve(workDir, plansDir, `${planName}.md`);
-          const planDst = resolve(projectDir, plansDir, `${planName}.md`);
-          if (existsSync(planSrc) && existsSync(resolve(projectDir, "code"))) {
-            mkdirSync(dirname(planDst), { recursive: true });
-            renameSync(planSrc, planDst);
-          }
+    while (pending.size > 0) {
+      if (haltSignal) break;
+      // Find steps whose dependencies are all satisfied
+      const runnable: WorkflowStep[] = [];
+      for (const [, step] of pending) {
+        if (effectiveDeps.get(step.id)!.every((dep) => completed.has(dep))) {
+          runnable.push(step);
         }
+      }
 
-        // Retry loop: when a critic rejects, re-run the upstream step with an
-        // engine-built preamble listing the critic's issues, then re-run the
-        // critic. Repeats up to maxRetries (step override) or
-        // config.maxCriticRetries (global default). The upstream step must be
-        // a worker or non-interactive planner; validate.ts enforces this.
-        if (step.agent.type === "critic") {
-          // No-verdict retry loop: when the critic's CLI invocation produces no
-          // verdict file (transient hang, empty stream, killed mid-call), re-run
-          // just the critic - the worker output is fine. Burns up to maxRetries.
-          if (!result.verdict) {
-            const maxAttempts =
-              "maxRetries" in step
-                ? (step.maxRetries ?? config.maxCriticRetries)
-                : config.maxCriticRetries;
-            let retryAttempt = 0;
-            while (retryAttempt < maxAttempts && !result.verdict) {
-              retryAttempt++;
-              logStepRetry(step.id, retryAttempt);
-              const criticArgs = resolveArgs(step.args, params, stepOutputs);
-              result = await runAgentStep(step, criticArgs);
-              stepOutputs[step.id] = result.output;
+      if (runnable.length === 0) {
+        throw new Error(
+          `Workflow deadlock in '${workflow.name}' - no runnable steps. Pending: ${[...pending.keys()].join(", ")}`,
+        );
+      }
+
+      // Run all runnable steps in parallel
+      await Promise.all(
+        runnable.map(async (step) => {
+          pending.delete(step.id);
+
+          const stepIndex = workflow.steps.findIndex((s) => s.id === step.id) + 1;
+
+          const resolvedArgs = resolveArgs(step.args, params, stepOutputs);
+
+          // Compute workflow variables (static vars + derive) for this step.
+          // Builtins and resolved step args are merged as input to derive().
+          const { today: _stepToday, time: _stepTime } = getTodayAndTime();
+          const workflowVariables = computeWorkflowVariables(workflow, {
+            work_dir: executionRoot,
+            today: _stepToday,
+            time: _stepTime,
+            ...Object.fromEntries(Object.entries(resolvedArgs).map(([k, v]) => [k, String(v)])),
+          });
+
+          logStepStart(stepIndex, totalSteps, step.id);
+
+          // Helper: run an agent step with error-retry, log metrics, update stepOutputs.
+          // Used for both the initial run and critic-triggered retries.
+          const runAgentStep = async (
+            targetStep: WorkflowStep,
+            targetArgs: Record<string, unknown>,
+            retryPreamble?: string,
+          ): Promise<RunResult> => {
+            const targetAgent = targetStep.agent as LLMAgentDef;
+            let r: RunResult | undefined;
+            let attempt = 0;
+            while (true) {
+              try {
+                r = await runAgent({
+                  agent: targetAgent,
+                  args: targetArgs,
+                  config,
+                  workDir,
+                  cwd: executionRoot,
+                  workflowId,
+                  stepId: targetStep.id,
+                  stepOutputs,
+                  // verboseOutput=false swaps inline tool events for the per-agent spinner
+                  // (agent-runner starts the spinner when onEvent is undefined). Caveat:
+                  // parallel runnable steps will fight over the same TTY line - acceptable
+                  // for now since most workflows are sequential.
+                  onEvent: config.verboseOutput ? (event) => logStreamEvent(event) : undefined,
+                  promptLogFile,
+                  retryPreamble,
+                  workflowVariables,
+                  resolvedEnv,
+                });
+                break;
+              } catch (err) {
+                attempt++;
+                if (attempt >= targetAgent.maxRetries) {
+                  throw new Error(
+                    `Step '${targetStep.id}' failed after ${attempt} attempts: ${String(err)}`,
+                  );
+                }
+                logStepRetry(targetStep.id, attempt);
+              }
+            }
+            logStepDone(
+              targetStep.id,
+              r!.metrics.duration_ms,
+              r!.metrics.estimated_cost_usd,
+              r!.metrics.model,
+              r!.verdict,
+              r!.metrics.cost_was_reported,
+              r!.metrics.input_tokens + r!.metrics.output_tokens,
+              config.showPricing,
+              r!.metrics.status === "failure",
+            );
+            return r!;
+          };
+
+          let result = await runAgentStep(step, resolvedArgs);
+
+          stepOutputs[step.id] = result.output;
+          stepResults.push({
+            stepId: step.id,
+            output: result.output,
+            metrics: result.metrics,
+          });
+
+          if (planName) {
+            // Move plan into project folder once the executor has created the code dir.
+            // Fires once: when code/ exists but the plan hasn't been moved yet.
+            const projectDir = resolve(workDir, workflow.variables.output_dir ?? "", planName);
+            const plansDir = workflow.variables.plans_dir ?? "plans";
+            const planSrc = resolve(workDir, plansDir, `${planName}.md`);
+            const planDst = resolve(projectDir, plansDir, `${planName}.md`);
+            if (existsSync(planSrc) && existsSync(resolve(projectDir, "code"))) {
+              mkdirSync(dirname(planDst), { recursive: true });
+              renameSync(planSrc, planDst);
             }
           }
-          if (!result.verdict) {
-            haltSignal = `Step '${step.id}' (${step.agent.name}): critic produced no verdict`;
-          } else if (result.verdict.verdict !== "approve") {
-            const deps = effectiveDeps.get(step.id) ?? [];
-            const executorStepId = deps[0];
-            const executorStep = executorStepId
-              ? workflow.steps.find((s) => s.id === executorStepId)
-              : undefined;
 
-            if (executorStep) {
+          // Retry loop: when a critic rejects, re-run the upstream step with an
+          // engine-built preamble listing the critic's issues, then re-run the
+          // critic. Repeats up to maxRetries (step override) or
+          // config.maxCriticRetries (global default). The upstream step must be
+          // a worker or non-interactive planner; validate.ts enforces this.
+          if (step.agent.type === "critic") {
+            // No-verdict retry loop: when the critic's CLI invocation produces no
+            // verdict file (transient hang, empty stream, killed mid-call), re-run
+            // just the critic - the worker output is fine. Burns up to maxRetries.
+            if (!result.verdict) {
               const maxAttempts =
                 "maxRetries" in step
                   ? (step.maxRetries ?? config.maxCriticRetries)
                   : config.maxCriticRetries;
               let retryAttempt = 0;
-
-              while (retryAttempt < maxAttempts && result.verdict?.verdict !== "approve") {
+              while (retryAttempt < maxAttempts && !result.verdict) {
                 retryAttempt++;
-                logStepRetry(executorStep.id, retryAttempt);
-
-                const preamble = buildRetryPreamble({
-                  summary: result.verdict?.summary ?? "",
-                  issues: result.verdict?.issues ?? [],
-                });
-                const execArgs = resolveArgs(executorStep.args, params, stepOutputs);
-                const execResult = await runAgentStep(executorStep, execArgs, preamble);
-                stepOutputs[executorStep.id] = execResult.output;
-
+                logStepRetry(step.id, retryAttempt);
                 const criticArgs = resolveArgs(step.args, params, stepOutputs);
                 result = await runAgentStep(step, criticArgs);
                 stepOutputs[step.id] = result.output;
-
-                // Structural-halt short-circuit: if the worker reports STATUS: halt
-                // the rerun won't make progress (the conflict is in the spec/plan, not
-                // the diff). Stop retrying and let the rejection propagate to haltSignal.
-                if (isStructuralHalt(execResult.output)) break;
               }
             }
+            if (!result.verdict) {
+              haltSignal = `Step '${step.id}' (${step.agent.name}): critic produced no verdict`;
+            } else if (result.verdict.verdict !== "approve") {
+              const deps = effectiveDeps.get(step.id) ?? [];
+              const executorStepId = deps[0];
+              const executorStep = executorStepId
+                ? workflow.steps.find((s) => s.id === executorStepId)
+                : undefined;
 
-            if (result.verdict?.verdict !== "approve") {
-              const onRejectAgent = (step as CriticWorkflowStep).onReject;
-              if (onRejectAgent) {
-                await runAgentStep(
-                  {
-                    id: `${step.id}-cleanup`,
-                    agent: onRejectAgent as any,
-                    args: {},
-                  } as WorkflowStep,
-                  resolveArgs({}, params, stepOutputs),
-                );
+              if (executorStep) {
+                const maxAttempts =
+                  "maxRetries" in step
+                    ? (step.maxRetries ?? config.maxCriticRetries)
+                    : config.maxCriticRetries;
+                let retryAttempt = 0;
+
+                while (retryAttempt < maxAttempts && result.verdict?.verdict !== "approve") {
+                  retryAttempt++;
+                  logStepRetry(executorStep.id, retryAttempt);
+
+                  const preamble = buildRetryPreamble({
+                    summary: result.verdict?.summary ?? "",
+                    issues: result.verdict?.issues ?? [],
+                  });
+                  const execArgs = resolveArgs(executorStep.args, params, stepOutputs);
+                  const execResult = await runAgentStep(executorStep, execArgs, preamble);
+                  stepOutputs[executorStep.id] = execResult.output;
+
+                  const criticArgs = resolveArgs(step.args, params, stepOutputs);
+                  result = await runAgentStep(step, criticArgs);
+                  stepOutputs[step.id] = result.output;
+
+                  // Structural-halt short-circuit: if the worker reports STATUS: halt
+                  // the rerun won't make progress (the conflict is in the spec/plan, not
+                  // the diff). Stop retrying and let the rejection propagate to haltSignal.
+                  if (isStructuralHalt(execResult.output)) break;
+                }
               }
-              haltSignal = result.verdict?.summary
-                ? `${step.id} rejected: ${result.verdict.summary}`
-                : `${step.id} rejected (no summary given)`;
+
+              if (result.verdict?.verdict !== "approve") {
+                const onRejectAgent = (step as CriticWorkflowStep).onReject;
+                if (onRejectAgent) {
+                  await runAgentStep(
+                    {
+                      id: `${step.id}-cleanup`,
+                      agent: onRejectAgent as any,
+                      args: {},
+                    } as WorkflowStep,
+                    resolveArgs({}, params, stepOutputs),
+                  );
+                }
+                haltSignal = result.verdict?.summary
+                  ? `${step.id} rejected: ${result.verdict.summary}`
+                  : `${step.id} rejected (no summary given)`;
+              }
             }
           }
-        }
 
-        // Merge planner params into runtime params and create project directory.
-        // Only the initiator planner (no effective deps) emits params; non-initiator
-        // planners like plan-creator just produce artifacts and don't call the params bin.
-        if (step.agent.type === "planner" && (effectiveDeps.get(step.id)?.length ?? 0) === 0) {
-          if (!result.params) {
-            haltSignal = "planner produced no params";
-          } else {
-            params = { ...params, ...result.params };
-            planName = result.params.plan_name;
-            const projDir = resolve(workDir, workflow.variables.output_dir ?? "", planName);
-            mkdirSync(projDir, { recursive: true });
+          // Merge planner params into runtime params and create project directory.
+          // Only the initiator planner (no effective deps) emits params; non-initiator
+          // planners like plan-creator just produce artifacts and don't call the params bin.
+          if (step.agent.type === "planner" && (effectiveDeps.get(step.id)?.length ?? 0) === 0) {
+            if (!result.params) {
+              haltSignal = "planner produced no params";
+            } else {
+              params = { ...params, ...result.params };
+              planName = result.params.plan_name;
+              const projDir = resolve(workDir, workflow.variables.output_dir ?? "", planName);
+              mkdirSync(projDir, { recursive: true });
+            }
           }
-        }
 
-        completed.add(step.id);
-      }),
-    );
-  }
+          completed.add(step.id);
+        }),
+      );
+    }
   } finally {
     if (sigintHandler) process.off("SIGINT", sigintHandler);
     if (sigtermHandler) process.off("SIGTERM", sigtermHandler);

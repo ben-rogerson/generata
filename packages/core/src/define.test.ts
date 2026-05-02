@@ -4,8 +4,13 @@ import { defineAgent, defineWorkflow } from "./define.js";
 describe("defineWorkflow worktree input type", () => {
   it("compiles with all worktree fields and rejects unknown isolation values at the type level", () => {
     const stub = defineAgent({
-      type: "worker", description: "x", modelTier: "light", tools: [],
-      permissions: "full", timeoutSeconds: 60, promptContext: [],
+      type: "worker",
+      description: "x",
+      modelTier: "light",
+      tools: [],
+      permissions: "full",
+      timeoutSeconds: 60,
+      promptContext: [],
       promptTemplate: () => "p",
     });
     (stub as any).name = "stub";

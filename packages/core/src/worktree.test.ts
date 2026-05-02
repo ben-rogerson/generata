@@ -9,7 +9,9 @@ import type { WorkflowDef } from "./schema.js";
 
 describe("detectPackageManager", () => {
   let dir: string;
-  afterEach(() => { if (dir) rmSync(dir, { recursive: true, force: true }); });
+  afterEach(() => {
+    if (dir) rmSync(dir, { recursive: true, force: true });
+  });
 
   it("returns pnpm install --frozen-lockfile for pnpm-lock.yaml", () => {
     dir = mkdtempSync(join(tmpdir(), "wt-"));
@@ -150,8 +152,14 @@ describe("setupWorktree", () => {
     match(String(err), /boom/);
     // Cleanup should have removed the worktree and deleted the throwaway branch
     const teardownCmds = backend.calls.slice(3).map((c) => c.cmd.join(" "));
-    equal(teardownCmds.some((c) => c.startsWith("git worktree remove")), true);
-    equal(teardownCmds.some((c) => c.startsWith("git branch -D generata/wt-")), true);
+    equal(
+      teardownCmds.some((c) => c.startsWith("git worktree remove")),
+      true,
+    );
+    equal(
+      teardownCmds.some((c) => c.startsWith("git branch -D generata/wt-")),
+      true,
+    );
   });
 
   it("auto-detects pnpm install when worktreeSetup is unset", async () => {
@@ -170,10 +178,7 @@ describe("setupWorktree", () => {
       logsDir: "logs",
       metricsDir: "metrics",
     });
-    deepEqual(
-      backend.calls.find((c) => c.cmd[0] === "pnpm")?.cmd,
-      ["pnpm", "install"],
-    );
+    deepEqual(backend.calls.find((c) => c.cmd[0] === "pnpm")?.cmd, ["pnpm", "install"]);
   });
 
   it("creates symlinks for sharedPaths plus logsDir and metricsDir", async () => {
@@ -194,12 +199,21 @@ describe("setupWorktree", () => {
     const byTarget = Object.fromEntries(links.map((l) => [l.target, l.linkPath]));
     equal(byTarget["/repo/internal/self-improve/logs"], `${result.executionRoot}/logs`);
     equal(byTarget["/repo/internal/self-improve/metrics"], `${result.executionRoot}/metrics`);
-    equal(byTarget["/repo/internal/self-improve/IMPROVEMENTS.md"], `${result.executionRoot}/IMPROVEMENTS.md`);
-    equal(byTarget["/repo/internal/self-improve/subdir/state"], `${result.executionRoot}/subdir/state`);
+    equal(
+      byTarget["/repo/internal/self-improve/IMPROVEMENTS.md"],
+      `${result.executionRoot}/IMPROVEMENTS.md`,
+    );
+    equal(
+      byTarget["/repo/internal/self-improve/subdir/state"],
+      `${result.executionRoot}/subdir/state`,
+    );
 
     // Trailing slash convention: subdir/state/ ensured as a directory; IMPROVEMENTS.md as a file
     const ensures = backend.fsOps.flatMap((op) => (op.kind === "ensure" ? [op] : []));
-    equal(ensures.find((e) => e.path === "/repo/internal/self-improve/IMPROVEMENTS.md")?.asDir, false);
+    equal(
+      ensures.find((e) => e.path === "/repo/internal/self-improve/IMPROVEMENTS.md")?.asDir,
+      false,
+    );
     equal(ensures.find((e) => e.path === "/repo/internal/self-improve/subdir/state")?.asDir, true);
   });
 
@@ -238,7 +252,7 @@ describe("setupWorktree", () => {
     const callsAfterFirst = backend.calls.length - callsBeforeCleanup;
     await result.cleanup();
     const callsAfterSecond = backend.calls.length - callsBeforeCleanup;
-    equal(callsAfterFirst, 2);   // worktree remove + branch -D
-    equal(callsAfterSecond, 2);  // second cleanup is a no-op
+    equal(callsAfterFirst, 2); // worktree remove + branch -D
+    equal(callsAfterSecond, 2); // second cleanup is a no-op
   });
 });

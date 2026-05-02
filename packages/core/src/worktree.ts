@@ -1,12 +1,5 @@
 import { spawn } from "node:child_process";
-import {
-  existsSync,
-  mkdirSync,
-  rmSync,
-  statSync,
-  symlinkSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve as resolvePath } from "node:path";
 import type { WorkflowDef } from "./schema.js";
 
@@ -148,7 +141,9 @@ export async function setupWorktree(opts: SetupWorktreeOptions): Promise<SetupWo
   const worktreePath = resolveWorktreePath(opts);
 
   // 1. Fetch origin/main
-  const fetched = await backend.exec(["git", "fetch", "origin", "main"], { cwd: opts.mainProjectRoot });
+  const fetched = await backend.exec(["git", "fetch", "origin", "main"], {
+    cwd: opts.mainProjectRoot,
+  });
   if (fetched.exitCode !== 0) {
     throw new Error(
       `isolation: "worktree" requires an 'origin' remote with a 'main' branch. ` +
@@ -181,9 +176,7 @@ export async function setupWorktree(opts: SetupWorktreeOptions): Promise<SetupWo
   try {
     // 3. Compute executionRoot
     const workDirRelToRepo = relative(opts.mainProjectRoot, opts.workDir);
-    const executionRoot = workDirRelToRepo
-      ? `${worktreePath}/${workDirRelToRepo}`
-      : worktreePath;
+    const executionRoot = workDirRelToRepo ? `${worktreePath}/${workDirRelToRepo}` : worktreePath;
 
     // 4. Materialise symlinks for logsDir, metricsDir, and sharedPaths
     const allEntries: Array<{ entry: string; asDir: boolean }> = [

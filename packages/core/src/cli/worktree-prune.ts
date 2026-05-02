@@ -12,12 +12,14 @@ export function parseWorktreeListPorcelain(input: string): WorktreeEntry[] {
   let current: { path?: string; branch?: string } = {};
   for (const line of input.split("\n")) {
     if (line === "") {
-      if (current.path && current.branch) entries.push({ path: current.path, branch: current.branch });
+      if (current.path && current.branch)
+        entries.push({ path: current.path, branch: current.branch });
       current = {};
       continue;
     }
     if (line.startsWith("worktree ")) current.path = line.slice("worktree ".length);
-    else if (line.startsWith("branch refs/heads/")) current.branch = line.slice("branch refs/heads/".length);
+    else if (line.startsWith("branch refs/heads/"))
+      current.branch = line.slice("branch refs/heads/".length);
   }
   if (current.path && current.branch) entries.push({ path: current.path, branch: current.branch });
   return entries;
@@ -42,7 +44,10 @@ export async function runWorktreePrune(): Promise<void> {
   // there - the working dir for the spawned commands just needs to be inside
   // the repo.
   const project = findProjectRoot();
-  const { stdout: listOut, exitCode } = await run(["git", "worktree", "list", "--porcelain"], project);
+  const { stdout: listOut, exitCode } = await run(
+    ["git", "worktree", "list", "--porcelain"],
+    project,
+  );
   if (exitCode !== 0) {
     console.error(fmt.fail("git worktree list failed - is this a git repo?"));
     process.exit(1);

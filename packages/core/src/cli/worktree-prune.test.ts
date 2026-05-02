@@ -27,6 +27,9 @@ describe("selectGenerataWorktrees", () => {
   it("filters to entries whose branch matches generata/wt-*", () => {
     const entries = parseWorktreeListPorcelain(SAMPLE);
     const selected = selectGenerataWorktrees(entries);
-    deepEqual(selected.map((e) => e.branch), ["generata/wt-run1"]);
+    deepEqual(
+      selected.map((e) => e.branch),
+      ["generata/wt-run1"],
+    );
   });
 });

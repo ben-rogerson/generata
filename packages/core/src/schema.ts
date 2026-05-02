@@ -141,7 +141,10 @@ const SharedPathEntry = z.string().refine(
     if (s.split("/").some((seg) => seg === "..")) return false;
     return true;
   },
-  { message: "sharedPaths entries must be relative, must not contain '..', and must not target .git" },
+  {
+    message:
+      "sharedPaths entries must be relative, must not contain '..', and must not target .git",
+  },
 );
 
 export const WorkflowDef = z
@@ -156,7 +159,10 @@ export const WorkflowDef = z
       )
       .optional(),
     isolation: z.enum(["none", "worktree"]).default("none"),
-    worktreeSetup: z.array(z.string()).min(1, "worktreeSetup must be a non-empty argv array").optional(),
+    worktreeSetup: z
+      .array(z.string())
+      .min(1, "worktreeSetup must be a non-empty argv array")
+      .optional(),
     sharedPaths: z.array(SharedPathEntry).default([]),
     worktreeDir: z.string().min(1).optional(),
     steps: z.array(WorkflowStep).min(1),

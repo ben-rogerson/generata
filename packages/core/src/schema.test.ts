@@ -4,9 +4,19 @@ import { WorkflowDef } from "./schema.js";
 
 const baseStep = {
   id: "s1",
-  agent: { type: "worker", name: "stub", description: "x", modelTier: "light",
-           timeoutSeconds: 60, envKeys: [], promptContext: [], promptTemplate: () => "p",
-           tools: [], permissions: "full", maxRetries: 1 },
+  agent: {
+    type: "worker",
+    name: "stub",
+    description: "x",
+    modelTier: "light",
+    timeoutSeconds: 60,
+    envKeys: [],
+    promptContext: [],
+    promptTemplate: () => "p",
+    tools: [],
+    permissions: "full",
+    maxRetries: 1,
+  },
   args: {},
 };
 
@@ -36,21 +46,39 @@ describe("WorkflowDef worktree fields", () => {
 
   it("rejects sharedPaths containing traversal, absolute, or .git", () => {
     for (const bad of ["../escape", "/abs", ".git", ".git/config", "subdir/../up"]) {
-      throws(() => WorkflowDef.parse({
-        description: "d", isolation: "worktree", sharedPaths: [bad], steps: [baseStep],
-      }), /sharedPaths/);
+      throws(
+        () =>
+          WorkflowDef.parse({
+            description: "d",
+            isolation: "worktree",
+            sharedPaths: [bad],
+            steps: [baseStep],
+          }),
+        /sharedPaths/,
+      );
     }
   });
 
   it("rejects empty worktreeSetup array", () => {
-    throws(() => WorkflowDef.parse({
-      description: "d", isolation: "worktree", worktreeSetup: [], steps: [baseStep],
-    }), /worktreeSetup/);
+    throws(
+      () =>
+        WorkflowDef.parse({
+          description: "d",
+          isolation: "worktree",
+          worktreeSetup: [],
+          steps: [baseStep],
+        }),
+      /worktreeSetup/,
+    );
   });
 
   it("rejects unknown isolation values", () => {
-    throws(() => WorkflowDef.parse({
-      description: "d", isolation: "container" as any, steps: [baseStep],
-    }));
+    throws(() =>
+      WorkflowDef.parse({
+        description: "d",
+        isolation: "container" as any,
+        steps: [baseStep],
+      }),
+    );
   });
 });
