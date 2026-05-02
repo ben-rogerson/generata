@@ -12,7 +12,7 @@ Bare-minimum starter template. One worker agent, one workflow. Designed to be ed
 ## Quick start
 
 ```bash
-pnpm generata workflow hello --message "world"
+pnpm generata hello --message "world"
 ```
 
 If you didn't `cd` into the project, prefix with `pnpm dlx` or `npx`.

@@ -15,7 +15,7 @@ For a "one-agent, one-workflow starter", run:
 pnpm dlx @generata/core init @generata/starter ~/Projects/hello-generata
 # or: npx @generata/core init @generata/starter ~/Projects/hello-generata
 cd ~/Projects/hello-generata
-pnpm generata workflow hello --message "world"
+pnpm generata hello --message "world"
 ```
 
 The `init` command above scaffolds the project, asks for any env values, and writes Claude Code slash commands for every workflow it finds.

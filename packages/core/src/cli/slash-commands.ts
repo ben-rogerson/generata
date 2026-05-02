@@ -36,6 +36,6 @@ Variables: ${variables.join(", ") || "(none)"}
 
 Use the Bash tool to execute:
 
-\`pnpm generata workflow ${wf.name} $ARGUMENTS\`
+\`pnpm generata ${wf.name} $ARGUMENTS\`
 `;
 }

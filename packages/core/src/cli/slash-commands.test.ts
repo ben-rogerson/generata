@@ -23,7 +23,7 @@ describe("generateSlashCommands", () => {
       match(out, /^---/m);
       match(out, /description: Execute a plan with post-validation/);
       match(out, /argument-hint: --plan_name/);
-      match(out, /pnpm generata workflow execute-plan \$ARGUMENTS/);
+      match(out, /pnpm generata execute-plan \$ARGUMENTS/);
       match(out, /Variables: plans_dir, output_dir/);
     } finally {
       rmSync(dest, { recursive: true, force: true });
