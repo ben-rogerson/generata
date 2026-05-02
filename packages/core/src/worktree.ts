@@ -3,6 +3,8 @@ import { join } from "node:path";
 import { spawn } from "node:child_process";
 import { mkdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import { isAbsolute, relative, resolve as resolvePath, basename } from "node:path";
+import type { WorkflowDef } from "./schema.js";
 
 const LOCKFILE_TO_INSTALL: Array<[string, string[]]> = [
   ["pnpm-lock.yaml", ["pnpm", "install", "--frozen-lockfile"]],
@@ -118,4 +120,107 @@ export function makeStubBackend(): StubBackend {
       existsMap.set(path, value);
     },
   };
+}
+
+export interface SetupWorktreeOptions {
+  workflow: WorkflowDef;
+  mainProjectRoot: string;
+  workDir: string;
+  runId: string;
+  logsDir: string;
+  metricsDir: string;
+  backend?: WorktreeBackend;
+}
+
+export interface SetupWorktreeResult {
+  worktreePath: string;
+  executionRoot: string;
+  cleanup: () => Promise<void>;
+}
+
+export async function setupWorktree(opts: SetupWorktreeOptions): Promise<SetupWorktreeResult> {
+  const backend = opts.backend ?? realBackend;
+  const branchName = `generata/wt-${opts.runId}`;
+  const worktreePath = resolveWorktreePath(opts);
+
+  // 1. Fetch origin/main
+  const fetched = await backend.exec(["git", "fetch", "origin", "main"], { cwd: opts.mainProjectRoot });
+  if (fetched.exitCode !== 0) {
+    throw new Error(
+      `isolation: "worktree" requires an 'origin' remote with a 'main' branch. ` +
+        `'git fetch origin main' failed: ${fetched.stderr.trim() || "(no stderr)"}`,
+    );
+  }
+
+  // 2. git worktree add -b <branch> <path> origin/main
+  const added = await backend.exec(
+    ["git", "worktree", "add", "-b", branchName, worktreePath, "origin/main"],
+    { cwd: opts.mainProjectRoot },
+  );
+  if (added.exitCode !== 0) {
+    throw new Error(
+      `git worktree add failed: ${added.stderr.trim()}. ` +
+        `If a stale worktree at ${worktreePath} exists, run 'generata worktree prune'.`,
+    );
+  }
+
+  const cleanup = async () => {
+    await backend.exec(["git", "worktree", "remove", "--force", worktreePath], {
+      cwd: opts.mainProjectRoot,
+    });
+    await backend.exec(["git", "branch", "-D", branchName], { cwd: opts.mainProjectRoot });
+  };
+
+  try {
+    // 3. Compute executionRoot
+    const workDirRelToRepo = relative(opts.mainProjectRoot, opts.workDir);
+    const executionRoot = workDirRelToRepo
+      ? `${worktreePath}/${workDirRelToRepo}`
+      : worktreePath;
+
+    // 4. Materialise symlinks for logsDir, metricsDir, and sharedPaths
+    const allEntries: Array<{ entry: string; asDir: boolean }> = [
+      { entry: opts.logsDir, asDir: true },
+      { entry: opts.metricsDir, asDir: true },
+      ...(opts.workflow.sharedPaths ?? []).map((p) => ({
+        entry: p.endsWith("/") ? p.slice(0, -1) : p,
+        asDir: p.endsWith("/"),
+      })),
+    ];
+    for (const { entry, asDir: defaultAsDir } of allEntries) {
+      const mainSide = `${opts.workDir}/${entry}`;
+      const worktreeSide = `${executionRoot}/${entry}`;
+      const existing = backend.pathExistsAsDir(mainSide);
+      const asDir = existing === null ? defaultAsDir : existing;
+      backend.ensurePathExists(mainSide, asDir);
+      backend.removePath(worktreeSide);
+      backend.symlink(mainSide, worktreeSide);
+    }
+
+    // 5. Run worktreeSetup (or detected install)
+    const installCmd = opts.workflow.worktreeSetup ?? detectPackageManager(worktreePath);
+    if (installCmd) {
+      const installed = await backend.exec(installCmd, { cwd: worktreePath });
+      if (installed.exitCode !== 0) {
+        throw new Error(
+          `worktreeSetup '${installCmd.join(" ")}' failed (exit ${installed.exitCode}): ${installed.stderr.trim()}`,
+        );
+      }
+    }
+
+    return { worktreePath, executionRoot, cleanup };
+  } catch (err) {
+    await cleanup();
+    throw err;
+  }
+}
+
+function resolveWorktreePath(opts: SetupWorktreeOptions): string {
+  const declared = opts.workflow.worktreeDir;
+  const baseDir = declared
+    ? isAbsolute(declared)
+      ? declared
+      : resolvePath(opts.mainProjectRoot, declared)
+    : resolvePath(opts.mainProjectRoot, "..", `${basename(opts.mainProjectRoot)}-worktrees`);
+  return `${baseDir}/${opts.runId}`;
 }
