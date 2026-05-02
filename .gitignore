@@ -18,5 +18,8 @@ internal/self-improve/logs/
 internal/self-improve/last-run.md
 internal/self-improve/IMPROVEMENTS.md
 
+# Idea capture - local only, written by the /idea skill
+internal/ideas/
+
 # Marker for the user-level rtk-rewrite hook to skip this project
 .no-rtk-rewrite
