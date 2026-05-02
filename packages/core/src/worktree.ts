@@ -156,7 +156,9 @@ export async function setupWorktree(opts: SetupWorktreeOptions): Promise<SetupWo
   }
 
   // 2. git worktree add -b <branch> <path> origin/main
-  const stopAdd = startSpinner(`worktree: creating ${relative(opts.mainProjectRoot, worktreePath)}`);
+  const stopAdd = startSpinner(
+    `worktree: creating ${relative(opts.mainProjectRoot, worktreePath)}`,
+  );
   const added = await backend.exec(
     ["git", "worktree", "add", "-b", branchName, worktreePath, "origin/main"],
     { cwd: opts.mainProjectRoot },

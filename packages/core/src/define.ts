@@ -66,7 +66,10 @@ function makeSentinelArgs(): Record<string, string> {
 // Object form: existing API. Factory form: declares typed inputs, called per
 // invocation by the engine via the returned callable.
 export function defineAgent<T extends AgentInput>(def: T): Extract<AgentDef, { type: T["type"] }>;
-export function defineAgent<TInputs extends Record<string, string>>(
+// Default TInputs to an empty record so omitting the generic narrows `args` to
+// just BuiltinPromptArgs - destructuring an unknown key then errors at the call
+// site, instead of silently typing every key as string.
+export function defineAgent<TInputs extends Record<string, string> = Record<never, string>>(
   factory: (args: TInputs & BuiltinPromptArgs) => AgentInput,
 ): AgentCallable<TInputs>;
 export function defineAgent(
@@ -102,9 +105,16 @@ export function defineAgent(
           ? resolved.promptTemplate
           : (resolved.promptTemplate as PromptFn)(fullArgs as never);
       };
+      // Read callable.name at invocation time: the registry stamps it on the
+      // callable AFTER definition, so closure-captured `parsed` doesn't have it.
+      // Without this, agent.name is undefined at runtime for factory-form steps.
       return {
         kind: "step-invocation",
-        agent: { ...(parsed as object), promptTemplate } as unknown as AgentDef,
+        agent: {
+          ...(parsed as object),
+          promptTemplate,
+          name: callable.name,
+        } as unknown as AgentDef,
         args: inputs,
       };
     }) as AgentCallable<Record<string, string>>;
@@ -193,7 +203,10 @@ export function defineWorkflow<
 >(
   config: WorkflowConfigInput<TRequired, TVars, TDerived>,
 ): WorkflowBuilder<
-  BuiltinArgs & TVars & Record<TRequired[number], string> & { [K in keyof TDerived]: string },
+  // Builtins (work_dir/today/time) are intentionally NOT exposed to step fn
+  // params - they're already available inside agent factories via
+  // BuiltinPromptArgs, so step fns shouldn't need to thread them through.
+  TVars & Record<TRequired[number], string> & { [K in keyof TDerived]: string },
   never
 > {
   const steps: InternalStep[] = [];
@@ -238,7 +251,7 @@ export function defineWorkflow<
   };
 
   return builder as unknown as WorkflowBuilder<
-    BuiltinArgs & TVars & Record<TRequired[number], string> & { [K in keyof TDerived]: string },
+    TVars & Record<TRequired[number], string> & { [K in keyof TDerived]: string },
     never
   >;
 }

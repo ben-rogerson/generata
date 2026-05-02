@@ -28,8 +28,8 @@ describe("defineWorkflow chain builder", () => {
       .build();
   });
 
-  it("step args see prior step ids, builtins, and declared variables", () => {
-    const factoryAgent = defineAgent<{ a: string; b: string; c: string; d: string }>(() => ({
+  it("step args see prior step ids and declared variables (builtins are not exposed)", () => {
+    const factoryAgent = defineAgent<{ a: string; b: string; c: string }>(() => ({
       type: "worker",
       description: "f",
       modelTier: "light",
@@ -47,9 +47,9 @@ describe("defineWorkflow chain builder", () => {
       required: ["topic"] as const,
     })
       .step("first", stub)
-      .step("second", ({ first, focus, topic, work_dir }) =>
-        factoryAgent({ a: first, b: focus, c: topic, d: work_dir }),
-      )
+      .step("second", ({ first, focus, topic }) => factoryAgent({ a: first, b: focus, c: topic }))
+      // @ts-expect-error - builtins (work_dir/today/time) are not in step fn params
+      .step("third", ({ work_dir }) => factoryAgent({ a: work_dir, b: "", c: "" }))
       .build();
   });
 
@@ -170,7 +170,7 @@ describe("defineWorkflow chain builder", () => {
 
     defineWorkflow({ description: "d" })
       .step("first", stub)
-      // @ts-expect-error - 'nope' is not in prior ids, vars, required, or builtins
+      // @ts-expect-error - 'nope' is not in prior ids, vars, required, or derived
       .step("second", ({ nope }) => consumer({ x: nope }))
       // @ts-expect-error - 'fourth' has not run before this step
       .step("third", ({ fourth }) => consumer({ x: fourth }))
@@ -193,6 +193,23 @@ describe("defineWorkflow chain builder", () => {
       ok(String(e).includes("duplicate step id 'a'"));
     }
     ok(threw, "expected duplicate id to throw");
+  });
+
+  it("factory-form StepInvocation carries the callable's stamped name", () => {
+    const factoryAgent = defineAgent<{ x: string }>(() => ({
+      type: "worker",
+      description: "f",
+      modelTier: "light",
+      tools: [],
+      permissions: "full",
+      timeoutSeconds: 60,
+      promptContext: [],
+      promptTemplate: "p",
+    }));
+    (factoryAgent as any).name = "my-derived-name";
+
+    const inv = factoryAgent({ x: "v" });
+    equal((inv.agent as any).name, "my-derived-name");
   });
 
   it("requires at least one step before .build()", () => {
