@@ -37,7 +37,10 @@ async function run(cmd: string[], cwd: string): Promise<{ stdout: string; exitCo
 }
 
 export async function runWorktreePrune(): Promise<void> {
-  // Resolve the repo root by walking up from cwd until we find .git.
+  // Anchored on the generata project root (not the git root) so this runs from
+  // anywhere inside the project. Git itself discovers the worktree set from
+  // there - the working dir for the spawned commands just needs to be inside
+  // the repo.
   const project = findProjectRoot();
   const { stdout: listOut, exitCode } = await run(["git", "worktree", "list", "--porcelain"], project);
   if (exitCode !== 0) {
