@@ -69,6 +69,12 @@ async function main() {
     return;
   }
 
+  if (command === "worktree" && target === "prune") {
+    const { runWorktreePrune } = await import("./cli/worktree-prune.js");
+    await runWorktreePrune();
+    return;
+  }
+
   if (command === "add") {
     const { runAdd } = await import("./cli/add.js");
     if (!target) {
