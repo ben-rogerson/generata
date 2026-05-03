@@ -329,6 +329,16 @@ export async function runWorkflow(
                   workflowVariables,
                   resolvedEnv,
                 });
+                // runAgent resolves even when the underlying claude call failed
+                // or declared outputs were not emitted (status="failure" set in
+                // metrics). Surface that as a thrown error so the retry/fail
+                // path runs instead of advancing with undefined outputs that
+                // crash the next step.
+                if (r.metrics.status === "failure") {
+                  throw new Error(
+                    r.metrics.error || "agent reported failure with no error message",
+                  );
+                }
                 break;
               } catch (err) {
                 attempt++;
@@ -340,6 +350,9 @@ export async function runWorkflow(
                 logStepRetry(targetStep.id, attempt);
               }
             }
+            // Failures throw above and are reported via the workflow-level
+            // error path, so logStepDone is only ever reached for a non-failure
+            // status here.
             logStepDone(
               targetStep.id,
               r!.metrics.duration_ms,
@@ -349,7 +362,6 @@ export async function runWorkflow(
               r!.metrics.cost_was_reported,
               r!.metrics.input_tokens + r!.metrics.output_tokens,
               config.showPricing,
-              r!.metrics.status === "failure",
             );
             return r!;
           };

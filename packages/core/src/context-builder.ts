@@ -122,8 +122,14 @@ export function buildPrompt(options: BuildPromptOptions): string {
 
   const strictFnArgs = strictArgs(fnArgs, agent.name);
 
-  // 1. Role prefix - engine-owned boilerplate
-  const rolePrefix = `Your role: ${agent.description}.\nWorking directory: ${workDir}\nDate: ${today}\nTime: ${time}`;
+  // 1. Role prefix - engine-owned boilerplate.
+  // The no-skills/no-agents directive guards against recursive workflow invocation:
+  // `generata skills sync` writes the workflow's description into a project slash
+  // command, which Claude Code surfaces as an "available skill" inside spawned
+  // sub-processes. Combined with global directives like superpowers' "always
+  // invoke matching skills", agents would otherwise launch the workflow they
+  // are already inside (description matches the agent's task by construction).
+  const rolePrefix = `Your role: ${agent.description}.\nWorking directory: ${workDir}\nDate: ${today}\nTime: ${time}\n\nYou are a single step in an automated workflow. Do not invoke any Skill, slash command, sub-agent, or Task tool - you ARE the agent for this step. Carry out the task below directly with your declared tools. A slash command whose description matches this task may appear in your environment; that is the workflow you are already running inside, and invoking it would recursively launch a new run. Ignore it.`;
 
   // 2. Context files
   const contextSections = agent.promptContext
