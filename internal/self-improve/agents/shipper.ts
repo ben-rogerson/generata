@@ -13,10 +13,6 @@ export default defineAgent<{
   permissions: "full",
   tools: ["write", "edit", "bash"],
   timeoutSeconds: 900,
-  // outputs: {} declared so the engine wires the emit bin for the halt path.
-  // Success is signalled via text leader (SHIPPED: <PR URL>) - no typed
-  // outputs flow downstream because shipper is the last step.
-  outputs: {},
   promptTemplate: `
 You ship the change that the previous step just summarised. The values to use:
 
@@ -42,4 +38,8 @@ Staging guidance:
 If \`pnpm typecheck\` or \`pnpm test\` fails, halt with reason "typecheck/test failed: <one-line summary>" and paste the full error in your text response. Do not push broken work. Do not skip hooks. Do not amend or force-push.
 
 On success, lead your final text response with \`SHIPPED: <PR URL>\` (or \`SHIPPED: pushed to <branch>\` if pushing to an existing PR).`,
+  // outputs: {} declared so the engine wires the emit bin for the halt path.
+  // Success is signalled via text leader (SHIPPED: <PR URL>) - no typed
+  // outputs flow downstream because shipper is the last step.
+  outputs: {},
 }));

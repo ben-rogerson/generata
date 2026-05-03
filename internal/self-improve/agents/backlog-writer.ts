@@ -8,7 +8,6 @@ export default defineAgent<{ ranked_json: string }>(({ ranked_json, work_dir }) 
   permissions: "full",
   tools: ["write", "bash"],
   timeoutSeconds: 120,
-  outputs: {},
   promptTemplate: `
 You receive the ranked findings as a JSON string from the prioritiser step:
 
@@ -29,4 +28,5 @@ Procedure:
 5. On success, print the script's summary line as your final text response.
 
 Do not run any other bash commands. Do not edit IMPROVEMENTS.md directly. Do not write any file other than the temp file in step 1.`,
+  outputs: {},
 }));

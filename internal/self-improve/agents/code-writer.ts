@@ -11,11 +11,6 @@ export default defineAgent<{ spec_filepath: string; plan_filepath: string }>(
     tools: ["write", "edit", "bash"],
     timeoutSeconds: 1200,
     maxRetries: 1,
-    // outputs: {} declared so the engine wires the emit bin; the success path
-    // produces no typed values (downstream change-summariser still reads the
-    // STATUS: complete text prefix), but the agent needs --halt for the
-    // out-of-scope / flaky / ambiguous halt branches.
-    outputs: {},
     promptTemplate: `
 SPEC: ${spec_filepath}
 PLAN: ${plan_filepath}
@@ -37,5 +32,10 @@ ${renderOutOfScopeList()}
 7. **Genuine external blockers only** (network/auth/missing creds): halt with reason "partial: <blocker detail>". This is NOT acceptable for "ran out of effort," failing tests, or lint errors - fix those or halt with the failure detail. Use halt-as-partial sparingly.
 
 Do not commit. Do not run \`git\` for anything destructive (no \`git reset\`, \`git checkout --\`, \`git clean\`, \`git stash drop\`, etc.). Do not run \`gh\`. Read-only git introspection (\`git diff\`, \`git status\`, \`git log\`) is fine. Leave the working tree dirty for the human to inspect and \`/ship\`.`,
+    // outputs: {} declared so the engine wires the emit bin; the success path
+    // produces no typed values (downstream change-summariser still reads the
+    // STATUS: complete text prefix), but the agent needs --halt for the
+    // out-of-scope / flaky / ambiguous halt branches.
+    outputs: {},
   }),
 );

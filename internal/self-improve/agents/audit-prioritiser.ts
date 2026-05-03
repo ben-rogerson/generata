@@ -9,10 +9,6 @@ export default defineAgent<{ findings_json: string }>(({ findings_json }) => ({
   tools: [],
   timeoutSeconds: 300,
   promptContext: [{ filepath: "IMPROVEMENTS.md", optional: true }],
-  outputs: {
-    ranked_json:
-      'JSON-encoded object of shape \'{"ranked":[{"lens":"...","title":"...","description":"...","evidence_paths":[...],"suggested_change_kind":"...","impact":N,"effort":N,"score":N,"reasoning":"one line"}]}\'. Preserve all original fields (lens, title, description, evidence_paths, suggested_change_kind) verbatim from each finding; add only impact, effort, score, and reasoning. Use \'{"ranked":[]}\' if every finding is dropped.',
-  },
   promptTemplate: `
 The repo-scanner emitted a JSON-encoded findings array as its \`findings_json\` output:
 
@@ -41,4 +37,8 @@ Procedure:
 6. Sort descending by \`score\`. Tie-breakers in order: lower \`effort\` first; then lens priority (\`dx-api\` > \`consistency\` > \`quality\` > \`docs\` > \`feature\`); then original order in the input. The output must be deterministic across re-runs given identical input.
 
 You are read-only. Do not edit files.`,
+  outputs: {
+    ranked_json:
+      'JSON-encoded object of shape \'{"ranked":[{"lens":"...","title":"...","description":"...","evidence_paths":[...],"suggested_change_kind":"...","impact":N,"effort":N,"score":N,"reasoning":"one line"}]}\'. Preserve all original fields (lens, title, description, evidence_paths, suggested_change_kind) verbatim from each finding; add only impact, effort, score, and reasoning. Use \'{"ranked":[]}\' if every finding is dropped.',
+  },
 }));

@@ -9,13 +9,6 @@ export default defineAgent<{ slug: string; code_writer_output: string }>(
     permissions: "full",
     tools: ["write", "edit", "bash"],
     timeoutSeconds: 300,
-    outputs: {
-      slug: "Kebab-case slug of the shipped item (echo the input slug verbatim)",
-      bump: "One of: patch, minor, major, none",
-      commit_subject: "Conventional-commit subject line: <type>: <subject> (single line)",
-      commit_body:
-        "Commit message body paragraph (single line; use \\\\n for paragraph breaks if needed)",
-    },
     promptTemplate: `
 You finalise an improve run.
 
@@ -38,5 +31,12 @@ Procedure:
    - **Commit message draft** (conventional-commit format: \`<type>: <subject>\` then a body paragraph)
 4. Edit \`${work_dir}/IMPROVEMENTS.md\` to remove the entry whose slug matches \`${slug}\`. Remove the entry plus exactly one adjacent \`---\` separator (the one immediately after it, or - if it is the last entry in the file - the one immediately before it). If it is the only entry, no separator exists - just remove the entry's lines. Leave the file header (everything above the first entry) intact.
 Do not run \`git commit\`, \`git push\`, or \`gh\` - the next step (\`ship\`) does that, using the typed values you produce. \`last-run.md\` is gitignored - it is local scratch, not committed.`,
+    outputs: {
+      slug: "Kebab-case slug of the shipped item (echo the input slug verbatim)",
+      bump: "One of: patch, minor, major, none",
+      commit_subject: "Conventional-commit subject line: <type>: <subject> (single line)",
+      commit_body:
+        "Commit message body paragraph (single line; use \\\\n for paragraph breaks if needed)",
+    },
   }),
 );

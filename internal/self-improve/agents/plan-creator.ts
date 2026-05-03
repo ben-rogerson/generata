@@ -14,9 +14,6 @@ export default defineAgent<{ spec_filepath: string }>(({ spec_filepath, today, w
     permissions: "full",
     tools: ["write"],
     timeoutSeconds: 300,
-    outputs: {
-      plan_filepath: "Absolute path to the plan file you wrote (use the path shown in the prompt)",
-    },
     promptTemplate: `
 Read the spec at: ${spec_filepath}
 Write the plan to: ${plan_filepath}
@@ -33,5 +30,8 @@ Procedure:
 4. Lead your final text response with a one-line objective summary.
 
 Constraints: the only file you may create is the plan at the path above. Do not write outside docs/superpowers/plans/. Do not run bash. Do not edit existing source files.`,
+    outputs: {
+      plan_filepath: "Absolute path to the plan file you wrote (use the path shown in the prompt)",
+    },
   };
 });
