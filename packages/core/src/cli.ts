@@ -9,7 +9,7 @@ import {
 import { loadConfig } from "./config.js";
 import { runAgent } from "./agent-runner.js";
 import { runWorkflow } from "./engine.js";
-import { readMetrics, readMetricsRange, summariseMetrics } from "./metrics.js";
+import { readMetrics, readMetricsRange, summariseMetrics, formatTokenCount } from "./metrics.js";
 import {
   fmt,
   logBanner,
@@ -162,7 +162,7 @@ async function main() {
     const agentUsage =
       result.metrics.cost_was_reported && config.showPricing
         ? `cost: ${fmt.cost(result.metrics.estimated_cost_usd)}`
-        : `tokens: ${fmt.dim(`${Math.round((result.metrics.input_tokens + result.metrics.output_tokens) / 1000)}k`)}`;
+        : `tokens: ${fmt.dim(formatTokenCount(result.metrics.input_tokens + result.metrics.output_tokens))}`;
     console.log(
       `\n${fmt.dim("[metrics]")} ${agentUsage}  time: ${fmt.duration(result.metrics.duration_ms)}${result.metrics.model ? `  ${fmt.dim(result.metrics.model)}` : ""}`,
     );
@@ -340,7 +340,7 @@ async function main() {
         sorted.forEach((r, i) => {
           const tok = r.input_tokens + r.output_tokens;
           console.log(
-            `  ${fmt.dim(`${i + 1}.`)} ${fmt.agent(r.agent)} ${fmt.dim(`${Math.round(tok / 1000)}k tok`)} ${fmt.dim(`(${r.duration_ms}ms)`)}`,
+            `  ${fmt.dim(`${i + 1}.`)} ${fmt.agent(r.agent)} ${fmt.dim(`${formatTokenCount(tok)} tok`)} ${fmt.dim(`(${r.duration_ms}ms)`)}`,
           );
         });
       }

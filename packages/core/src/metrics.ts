@@ -48,6 +48,11 @@ export function summariseMetrics(records: AgentMetrics[]) {
   return total;
 }
 
+export function formatTokenCount(n: number): string {
+  if (n < 1000) return `${n}`;
+  return `${Math.round(n / 1000)}k`;
+}
+
 function formatDelta(current: number, previous: number): string {
   if (previous <= 0) return "";
   const pct = Math.round(((current - previous) / previous) * 100);
@@ -65,7 +70,7 @@ export function formatWeeklySummary(
   const totalTokens = summary.input_tokens + summary.output_tokens;
   const prevTokens = previous ? previous.input_tokens + previous.output_tokens : 0;
   const callsSegment = `${summary.calls} calls${previous ? formatDelta(summary.calls, previous.calls) : ""}`;
-  const tokSegment = `${Math.round(totalTokens / 1000)}k tok${previous ? formatDelta(totalTokens, prevTokens) : ""}`;
+  const tokSegment = `${formatTokenCount(totalTokens)} tok${previous ? formatDelta(totalTokens, prevTokens) : ""}`;
   const parts = ["7d", callsSegment];
   if (showPricing && summary.cost > 0) parts.push(`$${summary.cost.toFixed(2)}`);
   parts.push(tokSegment);
