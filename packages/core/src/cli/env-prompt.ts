@@ -41,7 +41,8 @@ export function writeDotEnv(values: Record<string, string>, path: string): void 
   const lines: string[] = [];
   for (const [k, v] of Object.entries(values)) {
     if (v === undefined) continue;
-    lines.push(`${k}=${v}`);
+    const escaped = v.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n");
+    lines.push(`${k}="${escaped}"`);
   }
   writeFileSync(path, lines.join("\n") + "\n", { mode: 0o600 });
 }
