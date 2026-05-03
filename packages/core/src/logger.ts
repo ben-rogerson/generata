@@ -138,15 +138,26 @@ export function logAgentWelcome(
   console.log("");
 }
 
+export type WorkflowIsolation = { mode: "local" } | { mode: "worktree"; path: string };
+
+function formatIsolation(isolation: WorkflowIsolation): string {
+  if (isolation.mode === "local") return "local";
+  const rel = relative(process.cwd(), isolation.path);
+  const display = rel && rel.length < isolation.path.length ? rel : isolation.path;
+  return `worktree: ${display}`;
+}
+
 export function logWorkflowStart(
   name: string,
   stepCount: number,
   promptLogFile?: string,
   weeklyMetrics?: string,
+  isolation?: WorkflowIsolation,
 ): void {
   const folder = name.includes("/") ? name.slice(0, name.lastIndexOf("/")) : "";
   const label = folder.includes("workflow") ? "" : `${pc.bold("workflow")} `;
   console.log(`  ${label}${pc.bold(name)} ${pc.dim(`(${stepCount} steps queued)`)}`);
+  if (isolation) console.log(`  ${pc.dim(formatIsolation(isolation))}`);
   if (promptLogFile) {
     console.log(`  ${pc.dim(formatPromptLogPath(promptLogFile))}`);
   }

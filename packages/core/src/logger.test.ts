@@ -128,6 +128,25 @@ describe("logWorkflowStart", () => {
     ok(!out.includes("7d ·"), `did not expect weekly line, got: ${out}`);
     ok(!out.includes("prompts"), `did not expect prompt path, got: ${out}`);
   });
+
+  it("renders 'local' when isolation mode is local", () => {
+    const out = captureStdout(() =>
+      logWorkflowStart("flow-1", 3, undefined, undefined, { mode: "local" }),
+    );
+    ok(out.includes("local"), `expected local marker, got: ${out}`);
+    ok(!out.includes("worktree:"), `did not expect worktree marker, got: ${out}`);
+  });
+
+  it("renders worktree path when isolation mode is worktree", () => {
+    const out = captureStdout(() =>
+      logWorkflowStart("flow-1", 3, undefined, undefined, {
+        mode: "worktree",
+        path: "/tmp/repo-worktrees/wt-123",
+      }),
+    );
+    ok(out.includes("worktree:"), `expected worktree marker, got: ${out}`);
+    ok(out.includes("wt-123"), `expected worktree path, got: ${out}`);
+  });
 });
 
 describe("logAgentWelcome", () => {
