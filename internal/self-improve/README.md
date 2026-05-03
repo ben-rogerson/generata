@@ -21,7 +21,7 @@ pnpm self-improve:improve     # ship the top finding
 
 Read `IMPROVEMENTS.md` between the two. Read `last-run.md` after the second to see what shipped.
 
-The `code-writer` will not touch `.changeset/`, `.github/workflows/`, this folder, the root `package.json`, `pnpm-workspace.yaml`, the lockfile, or any `.env`. If a fix would touch one of those, the writer halts with `STATUS: halt` and leaves the entry in the queue. Ben does those by hand. He thinks I made him do them. I let him think that.
+The `code-writer` will not touch `.changeset/`, `.github/workflows/`, this folder, the root `package.json`, `pnpm-workspace.yaml`, the lockfile, or any `.env`. If a fix would touch one of those, the writer halts the workflow with a structured reason and leaves the entry in the queue. Ben does those by hand. He thinks I made him do them. I let him think that.
 
 ## The deal
 
