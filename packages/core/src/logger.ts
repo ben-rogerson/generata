@@ -183,11 +183,9 @@ export function logStepDone(
 ): void {
   const approved = !verdict || verdict.verdict === "approve";
   const ok = approved && !failed;
-  const check = ok ? pc.green(`✓ ${id}`) : pc.red(`✗ ${id}`);
-  const costStr = costWasReported && showPricing ? pc.green(`$${costUsd.toFixed(4)} USD`) : "";
-  const usageStr = pc.green(
-    `${formatTokenCount(totalTokens ?? 0)} tok${costStr ? ` (${costStr})` : ""}`,
-  );
+  const check = `${ok ? pc.green("✓") : pc.red("✗")} ${id}`;
+  const costStr = costWasReported && showPricing ? `$${costUsd.toFixed(4)} USD` : "";
+  const usageStr = `${formatTokenCount(totalTokens ?? 0)} tok${costStr ? ` (${costStr})` : ""}`;
   const parts = [`  ${check}`, pc.dim(`${(durationMs / 1000).toFixed(1)}s`), usageStr];
   if (model) parts.push(pc.dim(model));
   console.log(parts.join(" "));
