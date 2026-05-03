@@ -38,7 +38,9 @@ export default defineAgent<{ message: string }>(({ message }) => ({
 }));
 ```
 
-And a workflow that uses it. Workflows live under `agents/` (flat) or `agents/workflows/` (nested) - the filename is the workflow name. The starter uses flat; most templates use the nested convention.
+## What a workflow looks like
+
+`defineWorkflow` is a fluent chain: `.step()` calls wire agents into a typed pipeline, then `.build()` finalises it. Workflows live under `agents/` (flat) or `agents/workflows/` (nested) - the filename is the workflow name. The starter uses flat; most templates use the nested convention.
 
 ```ts
 // agents/hello.ts  (or agents/workflows/hello.ts)
@@ -53,7 +55,9 @@ export default defineWorkflow({
   .build();
 ```
 
-And the project config - `init` writes one for you, but here's what it looks like:
+## Project config
+
+`init` writes one for you, but here's what it looks like:
 
 ```ts
 // generata.config.ts
