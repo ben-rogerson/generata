@@ -1,6 +1,6 @@
-import { strictEqual, ok, match } from "node:assert/strict";
+import { strictEqual, ok, match, throws } from "node:assert/strict";
 import { describe, it } from "node:test";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { WorkflowDef } from "@generata/core";
@@ -51,6 +51,41 @@ describe("generateSlashCommands", () => {
       ok(readFileSync(join(dest, "execute-plan.md"), "utf8"));
     } finally {
       rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("flattens nested workflow names so commands are not namespaced", () => {
+    const nested: WorkflowDef = {
+      ...workflow,
+      name: "workflows/build-project",
+    } as unknown as WorkflowDef;
+    const dest = mkdtempSync(join(tmpdir(), "skills-"));
+    try {
+      generateSlashCommands({ workflows: [nested], destDir: dest });
+      ok(readFileSync(join(dest, "build-project.md"), "utf8"));
+      strictEqual(existsSync(join(dest, "workflows")), false);
+    } finally {
+      rmSync(dest, { recursive: true, force: true });
+    }
+  });
+
+  it("throws on basename collisions across workflows", () => {
+    const a: WorkflowDef = {
+      ...workflow,
+      name: "agents/build-project",
+    } as unknown as WorkflowDef;
+    const b: WorkflowDef = {
+      ...workflow,
+      name: "agents/workflows/build-project",
+    } as unknown as WorkflowDef;
+    const dest = mkdtempSync(join(tmpdir(), "skills-"));
+    try {
+      throws(
+        () => generateSlashCommands({ workflows: [a, b], destDir: dest }),
+        /agents\/build-project.*agents\/workflows\/build-project|agents\/workflows\/build-project.*agents\/build-project/,
+      );
+    } finally {
+      rmSync(dest, { recursive: true, force: true });
     }
   });
 });
