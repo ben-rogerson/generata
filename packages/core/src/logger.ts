@@ -226,8 +226,84 @@ function formatToolDetail(name: string, input: Record<string, unknown>): string 
   return typeof first === "string" ? first.slice(0, 120) : "";
 }
 
+// Naive but display-purpose-only shell tokeniser. Handles "foo bar", 'foo bar',
+// and bare tokens. Doesn't decode escapes inside quotes - agents rarely produce
+// them, and this is for log lines, not execution.
+function tokeniseShell(s: string): string[] {
+  const out: string[] = [];
+  const re = /"([^"]*)"|'([^']*)'|(\S+)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(s)) !== null) {
+    out.push(m[1] ?? m[2] ?? m[3] ?? "");
+  }
+  return out;
+}
+
+function truncate(s: string, max = 80): string {
+  return s.length > max ? `${s.slice(0, max - 3)}...` : s;
+}
+
+/**
+ * Engine-bin invocations (emit / verdict / params) are surfaced through the
+ * normal Bash tool, so by default they render as a long `Bash: /abs/path/to/bin
+ * --flag "..."` line. Replace those with a phrase that explains what the agent
+ * just did, e.g. `Halted with reason: "..."` or `Approved`. Returns null for
+ * any Bash command that isn't one of our bins, so the caller falls through to
+ * the normal formatter.
+ */
+export function formatBinInvocation(command: string): string | null {
+  const m = command.match(/\/bin\/(emit|verdict|params)\b\s*(.*)$/);
+  if (!m) return null;
+  const bin = m[1];
+  const args = tokeniseShell(m[2]);
+
+  if (bin === "emit") {
+    if (args[0] === "--halt") {
+      return `Halted with reason: "${truncate(args[1] ?? "")}"`;
+    }
+    if (args.length === 0) return "Step complete (no outputs declared)";
+    const pairs: string[] = [];
+    for (let i = 0; i < args.length; i += 2) {
+      const flag = (args[i] ?? "").replace(/^--/, "");
+      const value = args[i + 1] ?? "";
+      if (flag) pairs.push(`${flag}="${truncate(value, 60)}"`);
+    }
+    return `Outputs emitted: ${pairs.join(", ")}`;
+  }
+
+  if (bin === "verdict") {
+    const v = args[0];
+    if (v === "approve") return "Verdict: approve";
+    if (v === "reject") {
+      const summary = args[1] ?? "";
+      const issueCount = Math.max(0, args.length - 2);
+      const suffix = issueCount > 0 ? ` (${issueCount} issue${issueCount === 1 ? "" : "s"})` : "";
+      return `Verdict: reject - "${truncate(summary)}"${suffix}`;
+    }
+    return `Verdict: ${args.join(" ")}`;
+  }
+
+  if (bin === "params") {
+    const planName = args[0] ?? "";
+    const instructions = args[1] ?? "";
+    return `Plan params: ${planName} - "${truncate(instructions)}"`;
+  }
+
+  return null;
+}
+
 export function logStreamEvent(event: AgentStreamEvent): void {
   if (event.type !== "tool_use") return;
+
+  if (event.name.toLowerCase() === "bash") {
+    const cmd = typeof event.input.command === "string" ? event.input.command : "";
+    const friendly = formatBinInvocation(cmd);
+    if (friendly) {
+      console.log(`  ${pc.dim("→")} ${pc.dim(friendly)}`);
+      return;
+    }
+  }
+
   const detail = formatToolDetail(event.name, event.input);
   const detailStr = detail ? pc.dim(`: ${detail}`) : "";
   console.log(`  ${pc.dim("→")} ${pc.dim(event.name)}${detailStr}`);
