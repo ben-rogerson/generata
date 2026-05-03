@@ -9,9 +9,9 @@ import changeSummariser from "../change-summariser.js";
 import shipper from "../shipper.js";
 
 // Each step's agent emits typed outputs (slug, spec_filepath, plan_filepath,
-// bump, commit_subject, commit_body) via the engine's `outputs` mechanism.
-// Downstream stepFns destructure them with full type-safety; no parsing of
-// upstream text in any agent or workflow.
+// diff_filepath, checks_passed, bump, commit_subject, commit_body) via the
+// engine's `outputs` mechanism. Downstream stepFns destructure them with full
+// type-safety; no parsing of upstream text in any agent or workflow.
 export default defineWorkflow({
   description:
     "Pick a backlog item, plan it, ship it through the full spec/plan/code/review pipeline.",
@@ -32,12 +32,12 @@ export default defineWorkflow({
   .step("code", ({ spec_filepath, plan_filepath }) => codeWriter({ spec_filepath, plan_filepath }))
   .step(
     "review-code",
-    ({ code, spec_filepath, plan_filepath }) =>
-      codeReviewer({ code_writer_output: code, spec_filepath, plan_filepath }),
+    ({ spec_filepath, plan_filepath, diff_filepath, checks_passed }) =>
+      codeReviewer({ spec_filepath, plan_filepath, diff_filepath, checks_passed }),
     { maxRetries: 2 },
   )
-  .step("summarise", ({ slug, code }) => changeSummariser({ slug, code_writer_output: code }))
-  .step("ship", ({ slug, bump, commit_subject, commit_body }) =>
-    shipper({ slug, bump, commit_subject, commit_body }),
+  .step("summarise", ({ slug, diff_filepath }) => changeSummariser({ slug, diff_filepath }))
+  .step("ship", ({ slug, bump, commit_subject, commit_body, checks_passed }) =>
+    shipper({ slug, bump, commit_subject, commit_body, checks_passed }),
   )
   .build();
