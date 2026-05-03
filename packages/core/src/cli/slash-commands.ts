@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import type { WorkflowDef } from "../define.js";
 
 export interface GenerateSlashCommandsInput {
@@ -9,8 +9,17 @@ export interface GenerateSlashCommandsInput {
 
 export function generateSlashCommands(input: GenerateSlashCommandsInput): void {
   mkdirSync(input.destDir, { recursive: true });
+  const seenBasenames = new Map<string, string>();
   for (const wf of input.workflows) {
-    const path = join(input.destDir, `${wf.name}.md`);
+    const base = basename(wf.name);
+    const previous = seenBasenames.get(base);
+    if (previous !== undefined) {
+      throw new Error(
+        `Slash command basename collision: '${previous}' and '${wf.name}' both produce '${base}.md'. Rename one of the workflows.`,
+      );
+    }
+    seenBasenames.set(base, wf.name);
+    const path = join(input.destDir, `${base}.md`);
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, renderSlashCommand(wf), "utf8");
   }
