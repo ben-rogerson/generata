@@ -32,6 +32,7 @@ import {
   logStepDone,
   logStepRetry,
   logStreamEvent,
+  type WorkflowIsolation,
 } from "./logger.js";
 import { formatPrecheckReport, precheckWorkflow } from "./precheck.js";
 import { resolveEnvProfile, type ResolvedEnv } from "./env-profile.js";
@@ -198,6 +199,7 @@ export async function runWorkflow(
 
   const isolationConfig = resolveIsolation(deps.isolationOverride, workflow.isolation ?? "none");
   let executionRoot = resolve(workDir);
+  let worktreePath: string | undefined;
   let teardown: (() => Promise<void>) | undefined;
   let sigintHandler: (() => void) | undefined;
   let sigtermHandler: (() => void) | undefined;
@@ -214,6 +216,7 @@ export async function runWorkflow(
       metricsDir: config.metricsDir,
     });
     executionRoot = setupResult.executionRoot;
+    worktreePath = setupResult.worktreePath;
     teardown = setupResult.cleanup;
 
     sigintHandler = () => {
@@ -229,7 +232,16 @@ export async function runWorkflow(
   const weeklyMetrics = config.showWeeklyMetrics
     ? formatWeeklyMetricsLine(resolve(workDir, config.metricsDir), config.showPricing)
     : undefined;
-  logWorkflowStart(workflow.name, workflow.steps.length, promptLogFile, weeklyMetrics);
+  const isolationInfo: WorkflowIsolation = worktreePath
+    ? { mode: "worktree", path: worktreePath }
+    : { mode: "local" };
+  logWorkflowStart(
+    workflow.name,
+    workflow.steps.length,
+    promptLogFile,
+    weeklyMetrics,
+    isolationInfo,
+  );
 
   // Execute DAG
   const pending = new Map(workflow.steps.map((s) => [s.id, s]));
