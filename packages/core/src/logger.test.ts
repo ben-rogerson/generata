@@ -1,6 +1,12 @@
-import { ok } from "node:assert/strict";
+import { equal, ok } from "node:assert/strict";
 import { describe, it } from "node:test";
-import { logAgentWelcome, logStepDone, logWorkflowResult, logWorkflowStart } from "./logger.js";
+import {
+  formatBinInvocation,
+  logAgentWelcome,
+  logStepDone,
+  logWorkflowResult,
+  logWorkflowStart,
+} from "./logger.js";
 
 function captureStdout(fn: () => void): string {
   const original = process.stdout.write.bind(process.stdout);
@@ -164,5 +170,56 @@ describe("logAgentWelcome", () => {
     );
     ok(out.includes("7d · 5 calls · 10k tok"), `expected weekly line, got: ${out}`);
     ok(out.includes("prompts.log"), `expected prompt path, got: ${out}`);
+  });
+});
+
+describe("formatBinInvocation", () => {
+  it("returns null for non-bin Bash commands", () => {
+    equal(formatBinInvocation("ls -la"), null);
+    equal(formatBinInvocation("cd /Users/ben && pnpm test"), null);
+  });
+
+  it("formats emit --halt as a halt phrase", () => {
+    equal(
+      formatBinInvocation('/abs/packages/core/bin/emit --halt "no unbuilt ideas in NOTES.md"'),
+      'Halted with reason: "no unbuilt ideas in NOTES.md"',
+    );
+  });
+
+  it("formats emit success outputs as key=value pairs", () => {
+    equal(
+      formatBinInvocation(
+        '/abs/bin/emit --spec_filepath "/tmp/SPEC.md" --instructions "build a thing"',
+      ),
+      'Outputs emitted: spec_filepath="/tmp/SPEC.md", instructions="build a thing"',
+    );
+  });
+
+  it("formats no-arg emit as a step-complete phrase", () => {
+    equal(formatBinInvocation("/abs/bin/emit"), "Step complete (no outputs declared)");
+  });
+
+  it("formats verdict approve and reject", () => {
+    equal(formatBinInvocation("/abs/bin/verdict approve"), "Verdict: approve");
+    equal(
+      formatBinInvocation(
+        '/abs/bin/verdict reject "missing tests" "no test for X" "no test for Y"',
+      ),
+      'Verdict: reject - "missing tests" (2 issues)',
+    );
+  });
+
+  it("formats params with plan name and instructions", () => {
+    equal(
+      formatBinInvocation('/abs/bin/params "ship-it" "open a PR for the work"'),
+      'Plan params: ship-it - "open a PR for the work"',
+    );
+  });
+
+  it("truncates very long emit values", () => {
+    const long = "x".repeat(200);
+    const out = formatBinInvocation(`/abs/bin/emit --note "${long}"`);
+    ok(out!.includes("..."), `expected truncation, got: ${out}`);
+    ok(out!.length < 200, `expected shorter output, got: ${out}`);
   });
 });
