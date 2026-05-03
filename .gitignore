@@ -16,6 +16,7 @@ docs/superpowers/
 internal/self-improve/metrics/
 internal/self-improve/logs/
 internal/self-improve/last-run.md
+internal/self-improve/last-diff.patch
 internal/self-improve/IMPROVEMENTS.md
 
 # Idea capture - local only, written by the /idea skill
