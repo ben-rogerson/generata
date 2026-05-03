@@ -141,26 +141,33 @@ export async function setupWorktree(opts: SetupWorktreeOptions): Promise<SetupWo
   const backend = opts.backend ?? realBackend;
   const branchName = `generata/wt-${opts.runId}`;
   const worktreePath = resolveWorktreePath(opts);
+  const baseRef = opts.config.baseRef ?? "origin/main";
+  const slash = baseRef.indexOf("/");
 
-  // 1. Fetch origin/main
-  const stopFetch = startSpinner("worktree: fetching origin/main");
-  const fetched = await backend.exec(["git", "fetch", "origin", "main"], {
-    cwd: opts.mainProjectRoot,
-  });
-  stopFetch();
-  if (fetched.exitCode !== 0) {
-    throw new Error(
-      `isolation: "worktree" requires an 'origin' remote with a 'main' branch. ` +
-        `'git fetch origin main' failed: ${fetched.stderr.trim() || "(no stderr)"}`,
-    );
+  // 1. Fetch <baseRef> if it names a remote (contains '/'). Bare branch names
+  //    are treated as local refs and used as-is.
+  if (slash !== -1) {
+    const baseRemote = baseRef.slice(0, slash);
+    const baseBranch = baseRef.slice(slash + 1);
+    const stopFetch = startSpinner(`worktree: fetching ${baseRef}`);
+    const fetched = await backend.exec(["git", "fetch", baseRemote, baseBranch], {
+      cwd: opts.mainProjectRoot,
+    });
+    stopFetch();
+    if (fetched.exitCode !== 0) {
+      throw new Error(
+        `isolation: "worktree" requires '${baseRef}' to be reachable. ` +
+          `'git fetch ${baseRemote} ${baseBranch}' failed: ${fetched.stderr.trim() || "(no stderr)"}`,
+      );
+    }
   }
 
-  // 2. git worktree add -b <branch> <path> origin/main
+  // 2. git worktree add -b <branch> <path> <baseRef>
   const stopAdd = startSpinner(
     `worktree: creating ${relative(opts.mainProjectRoot, worktreePath)}`,
   );
   const added = await backend.exec(
-    ["git", "worktree", "add", "-b", branchName, worktreePath, "origin/main"],
+    ["git", "worktree", "add", "-b", branchName, worktreePath, baseRef],
     { cwd: opts.mainProjectRoot },
   );
   stopAdd();

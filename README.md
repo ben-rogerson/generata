@@ -119,7 +119,7 @@ Typo `slug`, reference it before `coin` runs, or pass the wrong shape to `expand
 
 ## Worktree isolation
 
-For workflows that mutate the repo and ship a PR, opt in to git-worktree isolation via `worktree`. The workflow runs in a fresh worktree branched from `origin/main`, while logs, metrics, and any declared `sharedPaths` symlink back to the main checkout. Pruned at run end.
+For workflows that mutate the repo and ship a PR, opt in to git-worktree isolation via `worktree`. The workflow runs in a fresh worktree branched from `origin/main` (override with `baseRef` - any `<remote>/<branch>` triggers a fetch first, a bare branch like `"main"` is used as-is), while logs, metrics, and any declared `sharedPaths` symlink back to the main checkout. Pruned at run end.
 
 ```ts
 import { defineWorkflow, worktree } from "@generata/core";

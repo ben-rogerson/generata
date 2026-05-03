@@ -197,6 +197,14 @@ const SharedPathEntry = z.string().refine(
   },
 );
 
+const BaseRef = z
+  .string()
+  .min(1)
+  .refine((s) => !s.startsWith("/") && !s.endsWith("/"), {
+    message:
+      "baseRef must be a local branch (e.g. 'main') or '<remote>/<branch>' (e.g. 'origin/main')",
+  });
+
 export const WorktreeConfig = z
   .object({
     worktreeSetup: z
@@ -205,6 +213,7 @@ export const WorktreeConfig = z
       .optional(),
     sharedPaths: z.array(SharedPathEntry).default([]),
     worktreeDir: z.string().min(1).optional(),
+    baseRef: BaseRef.optional(),
   })
   .strict();
 export type WorktreeConfig = z.infer<typeof WorktreeConfig>;
