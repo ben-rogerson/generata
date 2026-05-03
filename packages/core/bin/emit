@@ -1,0 +1,85 @@
+#!/bin/bash
+set -euo pipefail
+
+if [ -z "${EMIT_FILE:-}" ]; then
+  echo "error: EMIT_FILE environment variable is not set" >&2
+  exit 1
+fi
+
+# Two modes:
+#   1. Success: --key value pairs → JSON object {key: value, ...} written to $EMIT_FILE
+#   2. Halt:    --halt "<reason>" → JSON object {__halt: "<reason>"} written to $EMIT_FILE
+#
+# Halts and success-keys are mutually exclusive — passing both errors out.
+# Engine reads the file post-run: __halt present → workflow halts cleanly with
+# the reason; otherwise success keys flow into downstream stepFn params.
+
+KEYS=""
+VALUES=""
+HALT_REASON=""
+SAW_HALT=0
+SAW_KEYS=0
+SEP=$'\x1f'
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --halt)
+      if [ "$#" -lt 2 ]; then
+        echo "error: --halt requires a reason" >&2
+        exit 1
+      fi
+      if [ "$SAW_KEYS" -eq 1 ]; then
+        echo "error: --halt cannot be combined with success keys" >&2
+        exit 1
+      fi
+      HALT_REASON="$2"
+      SAW_HALT=1
+      shift 2
+      ;;
+    --*)
+      KEY="${1#--}"
+      if [ "$#" -lt 2 ]; then
+        echo "error: --${KEY} requires a value" >&2
+        exit 1
+      fi
+      if ! [[ "$KEY" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
+        echo "error: invalid key '${KEY}'" >&2
+        exit 1
+      fi
+      if [ "$SAW_HALT" -eq 1 ]; then
+        echo "error: success keys cannot be combined with --halt" >&2
+        exit 1
+      fi
+      if [ -z "$KEYS" ]; then
+        KEYS="$KEY"
+        VALUES="$2"
+      else
+        KEYS="${KEYS}${SEP}${KEY}"
+        VALUES="${VALUES}${SEP}$2"
+      fi
+      SAW_KEYS=1
+      shift 2
+      ;;
+    *)
+      echo "error: unexpected argument '$1' (expected --key value pairs or --halt reason)" >&2
+      exit 1
+      ;;
+  esac
+done
+
+if [ "$SAW_HALT" -eq 1 ]; then
+  EMIT_HALT="$HALT_REASON" EMIT_FILE="$EMIT_FILE" node -e "
+    const fs = require('fs');
+    fs.writeFileSync(process.env.EMIT_FILE, JSON.stringify({ __halt: process.env.EMIT_HALT }));
+  "
+else
+  EMIT_KEYS="$KEYS" EMIT_VALUES="$VALUES" EMIT_FILE="$EMIT_FILE" node -e "
+    const fs = require('fs');
+    const SEP = '\x1f';
+    const keys = (process.env.EMIT_KEYS || '').split(SEP).filter(Boolean);
+    const values = process.env.EMIT_VALUES === '' ? [] : (process.env.EMIT_VALUES || '').split(SEP);
+    const out = {};
+    for (let i = 0; i < keys.length; i++) out[keys[i]] = values[i] ?? '';
+    fs.writeFileSync(process.env.EMIT_FILE, JSON.stringify(out));
+  "
+fi

@@ -1,17 +1,17 @@
 import { defineAgent } from "@generata/core";
 
-export default defineAgent({
-  type: "critic",
-  description: "Audits PLAN.md against SPEC.md - approve or reject with concrete issues",
-  modelTier: "standard",
-  permissions: "read-only",
-  promptContext: [
-    { filepath: ({ spec_filepath }) => spec_filepath },
-    { filepath: ({ plan_filepath }) => plan_filepath },
-  ],
-  timeoutSeconds: 180,
-  promptTemplate: () => `
-You have a SPEC.md and a PLAN.md in your context. Evaluate whether the PLAN faithfully implements the SPEC:
+export default defineAgent<{ spec_filepath: string; plan_filepath: string }>(
+  ({ spec_filepath, plan_filepath }) => ({
+    type: "critic",
+    description: "Audits PLAN.md against SPEC.md - approve or reject with concrete issues",
+    modelTier: "standard",
+    permissions: "read-only",
+    timeoutSeconds: 180,
+    promptTemplate: `
+Read the spec at: ${spec_filepath}
+Read the plan at: ${plan_filepath}
+
+Evaluate whether the PLAN faithfully implements the SPEC:
 
 1. Does every acceptance criterion in SPEC have at least one corresponding implementation step in PLAN?
 2. Are the PLAN steps concrete and actionable (no vague "set up X" or "handle Y" steps)?
@@ -22,4 +22,5 @@ You have a SPEC.md and a PLAN.md in your context. Evaluate whether the PLAN fait
 Reason through each point in prose, then call the verdict command.
 
 When rejecting, list each concrete problem as a separate issue argument. The engine passes these verbatim back to plan-creator as feedback for the retry. Vague flags like "needs more detail" do not qualify; anchor each issue to a specific SPEC requirement that the PLAN misses or contradicts.`,
-});
+  }),
+);

@@ -45,30 +45,43 @@ declare const _factoryBrand: unique symbol;
 // can introspect without invoking the factory. promptTemplate is intentionally
 // omitted: the static value is a sentinel-laced placeholder; the real one is
 // rebuilt per invocation inside the StepInvocation.
-export type AgentCallable<TInputs extends Record<string, string>> = ((
-  inputs: TInputs,
-) => StepInvocation) & {
+//
+// TOutputs reflects the agent's `outputs` declaration so the chain builder can
+// read it back via the StepInvocation return type and extend downstream params.
+export type AgentCallable<
+  TInputs extends Record<string, string>,
+  TOutputs extends Record<string, string> = Record<never, string>,
+> = ((inputs: TInputs) => StepInvocation<TOutputs>) & {
   kind: "agent";
   __inputs: TInputs;
   readonly [_factoryBrand]: true;
 } & Omit<AgentDef, "kind" | "promptTemplate">;
 
-// Sentinel proxy used to extract static config (type, modelTier, ...) from a
-// factory at definition time without supplying real input values. Property
-// access returns a marker string so template-literal interpolation succeeds.
-function makeSentinelArgs(): Record<string, string> {
-  return new Proxy({} as Record<string, string>, {
-    get: (_, key) => `__placeholder_${String(key)}__`,
-    has: () => true,
-  });
-}
-
 // Object form: existing API. Factory form: declares typed inputs, called per
 // invocation by the engine via the returned callable.
-export function defineAgent<T extends AgentInput>(def: T): Extract<AgentDef, { type: T["type"] }>;
+//
+// `const T` preserves the literal `outputs` keys so the chain builder can
+// thread them downstream the same way it does for factory-form agents.
+export function defineAgent<const T extends AgentInput>(
+  def: T,
+): Extract<AgentDef, { type: T["type"] }> &
+  (T extends { outputs: infer O extends Record<string, string> } ? { outputs: O } : unknown);
 // Default TInputs to an empty record so omitting the generic narrows `args` to
 // just BuiltinPromptArgs - destructuring an unknown key then errors at the call
 // site, instead of silently typing every key as string.
+//
+// Two factory-form overloads: the first (with explicit `outputs: TOutputs` in
+// the return) binds TOutputs from the factory's outputs map and exposes it on
+// the AgentCallable so the chain builder can read it. The second is the
+// no-outputs case. Splitting this way side-steps an inference failure where
+// TOutputs was bound to the union default when outputs was just an optional
+// field of the discriminated AgentInput.
+export function defineAgent<
+  TInputs extends Record<string, string> = Record<never, string>,
+  const TOutputs extends Record<string, string> = Record<string, string>,
+>(
+  factory: (args: TInputs & BuiltinPromptArgs) => AgentInput & { outputs: TOutputs },
+): AgentCallable<TInputs, TOutputs>;
 export function defineAgent<TInputs extends Record<string, string> = Record<never, string>>(
   factory: (args: TInputs & BuiltinPromptArgs) => AgentInput,
 ): AgentCallable<TInputs>;
@@ -146,14 +159,31 @@ type BuiltinArgs = { work_dir: string; today: string; time: string };
 // the engine consume a sentinel-laced promptTemplate.
 type StepValue<TParams> =
   | (AgentDef & { readonly [_factoryBrand]?: never })
-  | ((params: TParams) => StepInvocation);
+  | ((params: TParams) => StepInvocation<Record<string, string>>);
 
-type StepOptions = {
+// Pulls the declared output keys back out of a step value's type.
+// - Bare AgentDef: the value's `outputs` field (if declared) carries the keys.
+// - stepFn: the StepInvocation it returns is generic on TOutputs (set by
+//   AgentCallable when the factory's `outputs` map is declared); pluck it via
+//   `infer`.
+type StepValueOutputs<V> = V extends (
+  ...args: never
+) => StepInvocation<infer TO extends Record<string, string>>
+  ? { [K in keyof TO]: string }
+  : V extends { outputs: infer O extends Record<string, string> }
+    ? { [K in keyof O]: string }
+    : Record<never, string>;
+
+type StepOptions<TParams = Record<string, string>> = {
   maxRetries?: number;
   dependsOn?: string[];
-  // onReject must be an object-form agent — same reason bare-step rejects
-  // factories: passing one bare uses the sentinel-laced static promptTemplate.
-  onReject?: LLMAgentDef & { readonly [_factoryBrand]?: never };
+  // Bare object-form agent OR a stepFn returning a StepInvocation. The engine
+  // calls the function (if any) with the same {builtins + vars + prior step
+  // outputs} bag the step's main fn sees, so the user can wrap a factory and
+  // map prior outputs to the factory's typed inputs symmetrically with .step().
+  onReject?:
+    | (LLMAgentDef & { readonly [_factoryBrand]?: never })
+    | ((params: TParams) => StepInvocation);
 };
 
 type WorktreeConfigInput = z.input<typeof WorktreeConfigSchema>;
@@ -170,7 +200,9 @@ type InternalStep = {
   stepFn?: (params: Record<string, string>) => StepInvocation;
   dependsOn?: string[];
   maxRetries?: number;
-  onReject?: LLMAgentDef;
+  // Stored loose because either an object agent or a callable factory may be
+  // passed; the engine narrows by `typeof === "function"` at rejection time.
+  onReject?: LLMAgentDef | ((inputs: Record<string, string>) => StepInvocation);
 };
 
 type WorkflowConfigInput<
@@ -185,14 +217,15 @@ type WorkflowConfigInput<
   isolation?: "none" | WorktreeConfig;
 };
 
-// Each .step() returns a Builder with TPrior expanded by the new step's id.
-// TBaseParams (builtins + vars + required + derived) stays constant.
+// Each .step() returns a Builder with TPrior expanded by the new step's id and
+// TBaseParams extended with any `outputs` declared on the step's agent. The
+// agent's emit values reach downstream stepFns as named string params.
 export type WorkflowBuilder<TBaseParams, TPrior extends string> = {
-  step<const Id extends string>(
+  step<const Id extends string, V extends StepValue<TBaseParams & Record<TPrior, string>>>(
     id: Id,
-    value: StepValue<TBaseParams & Record<TPrior, string>>,
-    options?: StepOptions,
-  ): WorkflowBuilder<TBaseParams, TPrior | Id>;
+    value: V,
+    options?: StepOptions<TBaseParams & Record<TPrior, string>>,
+  ): WorkflowBuilder<TBaseParams & StepValueOutputs<V>, TPrior | Id>;
   build(): WorkflowDef;
 };
 

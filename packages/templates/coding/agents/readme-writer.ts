@@ -1,24 +1,26 @@
 import { defineAgent } from "@generata/core";
 
-export default defineAgent({
-  type: "worker",
-  description: "Writes README.md for the completed project",
-  modelTier: "light",
-  permissions: "full",
-  tools: ["write"],
-  timeoutSeconds: 180,
-  promptContext: [{ filepath: ({ spec_filepath }) => spec_filepath }],
-  promptTemplate: ({ project_dir }) => `
-Write a README.md for the project at ${project_dir}/.
+export default defineAgent<{ spec_filepath: string }>(({ spec_filepath }) => {
+  const project_dir = spec_filepath.replace(/\/SPEC\.md$/, "");
+  return {
+    type: "worker",
+    description: "Writes README.md for the completed project",
+    modelTier: "light",
+    permissions: "full",
+    tools: ["write", "bash"],
+    timeoutSeconds: 180,
+    promptTemplate: `
+Project directory: ${project_dir}
+SPEC: ${spec_filepath}
 
-SPEC.md is in your context - use it for purpose and acceptance criteria.
+Read SPEC.md. Write README.md to ${project_dir}/README.md.
 
 First, explore the project:
 - Read package.json (if it exists) for name, scripts, dependencies
 - Read the main source files to confirm what was actually built
 - Note the entry points
 
-Write ${project_dir}/README.md with:
+Write the README with:
 - Project name and one-line description (from SPEC's Problem section)
 - What it does (2-3 sentences)
 - Prerequisites
@@ -27,4 +29,5 @@ Write ${project_dir}/README.md with:
 - Configuration (env vars, config files)
 
 After writing, output a one-sentence summary of the project.`,
+  };
 });

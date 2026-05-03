@@ -1,6 +1,6 @@
 import { existsSync } from "fs";
 import { resolve } from "path";
-import { BUILTIN_ARGS, LLMAgentDef, StepParams, WorkflowDef } from "./schema.js";
+import { BUILTIN_ARGS, LLMAgentDef, WorkflowDef } from "./schema.js";
 import { extractPromptParams } from "./context-builder.js";
 import { EnvProfileError, resolveEnvProfile } from "./env-profile.js";
 import { resolveStepShape } from "./step-shape.js";
@@ -199,9 +199,14 @@ export function precheckWorkflow(
     const step = workflow.steps[i];
     const { agent, args } = resolveStepShape(step);
 
-    // Available set = base + every prior step id.
+    // Available set = base + every prior step id + every prior step's declared
+    // outputs keys (the engine merges those into the params bag at runtime).
     const available = new Set(base);
-    for (let j = 0; j < i; j++) available.add(workflow.steps[j].id);
+    for (let j = 0; j < i; j++) {
+      available.add(workflow.steps[j].id);
+      const priorAgent = resolveStepShape(workflow.steps[j]).agent;
+      if (priorAgent.outputs) for (const k of Object.keys(priorAgent.outputs)) available.add(k);
+    }
 
     // For stepFn-form steps, also introspect the stepFn body for unavailable reads
     // (matches the old behaviour of flagging args fns that read missing keys).

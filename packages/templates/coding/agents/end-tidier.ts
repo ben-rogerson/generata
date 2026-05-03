@@ -1,6 +1,6 @@
 import { defineAgent } from "@generata/core";
 
-export default defineAgent({
+export default defineAgent<{ instructions: string }>(({ instructions }) => ({
   type: "worker",
   description: "Removes the just-built idea from NOTES.md (success path only)",
   modelTier: "light",
@@ -8,7 +8,7 @@ export default defineAgent({
   tools: ["edit"],
   timeoutSeconds: 120,
   promptContext: [{ filepath: "NOTES.md" }],
-  promptTemplate: ({ instructions }) => `
+  promptTemplate: `
 The project was built and reviewed successfully. The original idea was:
 
 ${instructions}
@@ -22,4 +22,4 @@ For the matched note:
 Use the edit tool to make targeted changes. Do not rewrite the whole file.
 
 Leave any unrelated notes untouched. If you cannot find a clear match, do nothing.`,
-});
+}));

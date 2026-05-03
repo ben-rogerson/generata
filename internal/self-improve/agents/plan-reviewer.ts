@@ -1,7 +1,7 @@
 import { defineAgent } from "@generata/core";
 
-export default defineAgent<{ spec_creator_output: string; plan_creator_output: string }>(
-  ({ spec_creator_output, plan_creator_output }) => ({
+export default defineAgent<{ spec_filepath: string; plan_filepath: string }>(
+  ({ spec_filepath, plan_filepath }) => ({
     type: "critic",
     description:
       "Verifies the plan covers the spec, scales to the declared SIZE, and stays in scope. Rejects with concrete issues.",
@@ -10,19 +10,8 @@ export default defineAgent<{ spec_creator_output: string; plan_creator_output: s
     tools: [],
     timeoutSeconds: 240,
     promptTemplate: `
-You have the spec-creator output and the plan-creator output:
-
-SPEC CREATOR OUTPUT:
-${spec_creator_output}
-
-PLAN CREATOR OUTPUT:
-${plan_creator_output}
-
-If either output contains a halt sentinel (\`NO_ITEMS\`, \`PICKER PARSE ERROR\`, \`SPEC SIZE MISSING\`), accept the verdict immediately - the upstream halt has already done its job.
-
-Otherwise:
-
-Extract the spec path from the spec-creator's \`SPEC WRITTEN: <path>\` line, and the plan path from the plan-creator's \`PLAN WRITTEN: <path>\` line. Read both files.
+Read the spec at: ${spec_filepath}
+Read the plan at: ${plan_filepath}
 
 Evaluate:
 1. Does the plan cover every acceptance criterion / requirement implied by the spec?

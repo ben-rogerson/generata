@@ -5,5 +5,5 @@ export default defineWorkflow({
   description: "Single-step workflow that greets a message",
   required: ["message"],
 })
-  .step("greet", greeter)
+  .step("greet", ({ message }) => greeter({ message }))
   .build();

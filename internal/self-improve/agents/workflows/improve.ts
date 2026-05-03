@@ -8,6 +8,10 @@ import codeReviewer from "../code-reviewer.js";
 import changeSummariser from "../change-summariser.js";
 import shipper from "../shipper.js";
 
+// Each step's agent emits typed outputs (slug, spec_filepath, plan_filepath,
+// bump, commit_subject, commit_body) via the engine's `outputs` mechanism.
+// Downstream stepFns destructure them with full type-safety; no parsing of
+// upstream text in any agent or workflow.
 export default defineWorkflow({
   description:
     "Pick a backlog item, plan it, ship it through the full spec/plan/code/review pipeline.",
@@ -16,28 +20,24 @@ export default defineWorkflow({
   }),
 })
   .step("pick", itemPicker)
-  .step("spec", ({ pick }) => specCreator({ picker_output: pick }))
-  .step("plan", ({ spec }) => planCreator({ spec_creator_output: spec }))
+  .step("spec", ({ slug, description, evidence_paths, suggested_change }) =>
+    specCreator({ slug, description, evidence_paths, suggested_change }),
+  )
+  .step("plan", ({ spec_filepath }) => planCreator({ spec_filepath }))
   .step(
     "review-plan",
-    ({ spec, plan }) => planReviewer({ spec_creator_output: spec, plan_creator_output: plan }),
+    ({ spec_filepath, plan_filepath }) => planReviewer({ spec_filepath, plan_filepath }),
     { maxRetries: 2 },
   )
-  .step("code", ({ spec, plan }) =>
-    codeWriter({ spec_creator_output: spec, plan_creator_output: plan }),
-  )
+  .step("code", ({ spec_filepath, plan_filepath }) => codeWriter({ spec_filepath, plan_filepath }))
   .step(
     "review-code",
-    ({ code, spec, plan }) =>
-      codeReviewer({
-        code_writer_output: code,
-        spec_creator_output: spec,
-        plan_creator_output: plan,
-      }),
+    ({ code, spec_filepath, plan_filepath }) =>
+      codeReviewer({ code_writer_output: code, spec_filepath, plan_filepath }),
     { maxRetries: 2 },
   )
-  .step("summarise", ({ pick, code }) =>
-    changeSummariser({ picker_output: pick, code_writer_output: code }),
+  .step("summarise", ({ slug, code }) => changeSummariser({ slug, code_writer_output: code }))
+  .step("ship", ({ slug, bump, commit_subject, commit_body }) =>
+    shipper({ slug, bump, commit_subject, commit_body }),
   )
-  .step("ship", ({ summarise }) => shipper({ summariser_output: summarise }))
   .build();
