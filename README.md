@@ -74,79 +74,54 @@ That's the whole API surface for most use cases - `defineAgent`, `defineWorkflow
 
 ## Passing values between steps
 
-Agents declare typed `outputs`. Downstream steps destructure them in their stepFn with full type-safety. No parsing, no fenced JSON blocks, no text sentinels - the chain builder threads each agent's output keys into the next step's params.
+Agents declare typed `outputs`. Downstream steps destructure them by name in their stepFn - the chain builder threads each agent's output keys into the next step's params with full type-safety. No parsing, no sentinels.
 
 ```ts
-// agents/spec-creator.ts
+// agents/coiner.ts - mints a slug from a topic
 import { defineAgent } from "@generata/core";
 
-export default defineAgent<{ output_dir: string }>(({ output_dir }) => ({
+export default defineAgent<{ topic: string }>(({ topic }) => ({
   type: "worker",
-  description: "Picks an idea, writes SPEC.md, returns the absolute path.",
-  modelTier: "standard",
-  permissions: "full",
-  tools: ["write", "bash"],
-  outputs: {
-    spec_filepath: "Absolute path to the SPEC.md file you wrote",
-    instructions: "2-4 sentence summary of what to build",
-  },
-  promptTemplate: `
-Pick an idea from NOTES.md and write the spec under ${output_dir}/<slug>/SPEC.md.
-
-If no unbuilt ideas exist, halt with reason "no unbuilt ideas in NOTES.md".
-`,
+  description: "Turns a topic into a kebab-case slug.",
+  modelTier: "light",
+  permissions: "read-only",
+  tools: [],
+  outputs: { slug: "Kebab-case slug, lowercase, dash-separated" },
+  promptTemplate: `Turn "${topic}" into a slug.`,
 }));
 ```
 
 ```ts
-// agents/plan-creator.ts
+// agents/expander.ts - takes a slug, writes a one-liner
 import { defineAgent } from "@generata/core";
 
-export default defineAgent<{ spec_filepath: string; instructions: string }>(
-  ({ spec_filepath, instructions }) => {
-    const plan_filepath = spec_filepath.replace(/\/SPEC\.md$/, "/PLAN.md");
-    return {
-      type: "planner",
-      description: "Reads SPEC.md, writes PLAN.md alongside it",
-      modelTier: "standard",
-      permissions: "full",
-      tools: ["write"],
-      outputs: { plan_filepath: "Absolute path to PLAN.md" },
-      promptTemplate: `
-Read the spec at: ${spec_filepath}
-Write the plan to: ${plan_filepath}
-
-Your task: ${instructions}
-`,
-    };
-  },
-);
+export default defineAgent<{ slug: string }>(({ slug }) => ({
+  type: "worker",
+  description: "Expands a slug into a one-line description.",
+  modelTier: "light",
+  permissions: "read-only",
+  tools: [],
+  promptTemplate: `Write one sentence describing "${slug}".`,
+}));
 ```
 
 ```ts
-// agents/workflows/build.ts
+// agents/workflows/blurb.ts
 import { defineWorkflow } from "@generata/core";
-import specCreator from "../spec-creator.js";
-import planCreator from "../plan-creator.js";
-import codeWriter from "../code-writer.js";
+import coiner from "../coiner.js";
+import expander from "../expander.js";
 
 export default defineWorkflow({
-  description: "Spec it, plan it, build it.",
-  variables: { output_dir: "projects" },
+  description: "Coin a slug, then expand it.",
+  required: ["topic"],
 })
-  .step("dream", ({ output_dir }) => specCreator({ output_dir }))
-  // spec_filepath + instructions arrived from spec-creator's `outputs`,
-  // typed via the chain builder. plan_filepath shows up after `plan` runs.
-  .step("plan", ({ spec_filepath, instructions }) =>
-    planCreator({ spec_filepath, instructions }),
-  )
-  .step("build", ({ spec_filepath, plan_filepath }) =>
-    codeWriter({ spec_filepath, plan_filepath }),
-  )
+  .step("coin", ({ topic }) => coiner({ topic }))
+  .step("expand", ({ slug }) => expander({ slug }))
+  //                ^ `slug` arrived from coiner's `outputs`, typed via the chain.
   .build();
 ```
 
-Each `.step()` destructure is fully typed. Typo a key, reference a value before the step that emits it, miss a required input - all type errors at the call site. Halt at any agent with `halt with reason "X"` and the engine stops the workflow cleanly; downstream steps don't run.
+Typo `slug`, reference it before `coin` runs, or pass the wrong shape to `expander` - all type errors at the call site. Halt at any agent with `halt with reason "X"` and the engine stops the workflow cleanly; downstream steps don't run.
 
 For workflows that mutate the repo and ship a PR, opt in to git-worktree isolation via `worktree`. The workflow runs in a fresh worktree branched from `origin/main`, while logs, metrics, and any declared `sharedPaths` symlink back to the main checkout. Pruned at run end:
 
