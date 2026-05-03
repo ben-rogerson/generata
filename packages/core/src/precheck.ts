@@ -261,11 +261,11 @@ export function precheckWorkflow(
       }
     }
 
-    if ("promptTemplate" in agent) {
+    if ("prompt" in agent) {
       const effective = new Set(available);
       for (const k of argKeys) effective.add(k);
 
-      for (const r of extractPromptParams(agent.promptTemplate)) {
+      for (const r of extractPromptParams(agent.prompt)) {
         if (!effective.has(r)) {
           issues.push({
             stepId: step.id,
@@ -371,7 +371,7 @@ export function validateAgentArgs(
   options: ValidateAgentArgsOptions = {},
 ): string[] {
   const errors: string[] = [];
-  const required = extractPromptParams(agent.promptTemplate);
+  const required = extractPromptParams(agent.prompt);
   for (const p of required.filter((p) => !args[p])) {
     errors.push(`requires --${p}`);
   }

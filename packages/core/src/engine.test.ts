@@ -86,7 +86,7 @@ describe("runWorkflow critic retry short-circuit", () => {
         permissions: "none",
         timeoutSeconds: 60,
         promptContext: [],
-        promptTemplate: () => "do the thing",
+        prompt: () => "do the thing",
       }),
       "code",
     );
@@ -100,7 +100,7 @@ describe("runWorkflow critic retry short-circuit", () => {
         permissions: "read-only",
         timeoutSeconds: 60,
         promptContext: [],
-        promptTemplate: () => "review the thing",
+        prompt: () => "review the thing",
       }),
       "review-code",
     );
@@ -137,7 +137,7 @@ describe("runWorkflow critic no-verdict retry", () => {
         permissions: "none",
         timeoutSeconds: 60,
         promptContext: [],
-        promptTemplate: () => "do the thing",
+        prompt: () => "do the thing",
       }),
       "code",
     );
@@ -150,7 +150,7 @@ describe("runWorkflow critic no-verdict retry", () => {
         permissions: "read-only",
         timeoutSeconds: 60,
         promptContext: [],
-        promptTemplate: () => "review the thing",
+        prompt: () => "review the thing",
       }),
       "review-code",
     );
@@ -277,7 +277,7 @@ describe("runWorkflow workflowId sanitisation", () => {
         permissions: "none",
         timeoutSeconds: 60,
         promptContext: [],
-        promptTemplate: () => "go",
+        prompt: () => "go",
       }),
       "go",
     );
@@ -309,7 +309,7 @@ describe("runWorkflow env propagation", () => {
         timeoutSeconds: 60,
         envKeys: ["RUNWORKFLOW_TEST_MISSING_KEY"],
         promptContext: [],
-        promptTemplate: () => "go",
+        prompt: () => "go",
       }),
       "vaulted",
     );
@@ -359,7 +359,7 @@ describe("agent-runner cwd plumbing", () => {
         permissions: "none",
         timeoutSeconds: 60,
         promptContext: [],
-        promptTemplate: () => "p",
+        prompt: () => "p",
       }),
       "code",
     );
@@ -415,7 +415,7 @@ describe("runWorkflow isolation: worktree", () => {
         permissions: "none",
         timeoutSeconds: 60,
         promptContext: [],
-        promptTemplate: () => "p",
+        prompt: () => "p",
       }),
       "code",
     );
@@ -455,7 +455,7 @@ describe("runWorkflow isolation: worktree", () => {
         permissions: "none",
         timeoutSeconds: 60,
         promptContext: [],
-        promptTemplate: () => "p",
+        prompt: () => "p",
       }),
       "code",
     );
@@ -498,7 +498,7 @@ describe("runWorkflow isolation: worktree", () => {
         permissions: "none",
         timeoutSeconds: 60,
         promptContext: [],
-        promptTemplate: () => "p",
+        prompt: () => "p",
       }),
       "code",
     );
@@ -536,7 +536,7 @@ describe("runWorkflow isolation: worktree", () => {
         permissions: "none",
         timeoutSeconds: 60,
         promptContext: [],
-        promptTemplate: () => "p",
+        prompt: () => "p",
       }),
       "code",
     );
@@ -575,7 +575,7 @@ describe("runWorkflow onReject factory-form", () => {
         permissions: "full",
         timeoutSeconds: 60,
         promptContext: [],
-        promptTemplate: () => "scan",
+        prompt: () => "scan",
       }),
       "scanner",
     );
@@ -589,7 +589,7 @@ describe("runWorkflow onReject factory-form", () => {
         permissions: "read-only",
         timeoutSeconds: 60,
         promptContext: [],
-        promptTemplate: () => "review",
+        prompt: () => "review",
       }),
       "reviewer",
     );
@@ -603,7 +603,7 @@ describe("runWorkflow onReject factory-form", () => {
         permissions: "full",
         timeoutSeconds: 60,
         promptContext: [],
-        promptTemplate: `cleanup at ${work_dir} of: ${scan}`,
+        prompt: `cleanup at ${work_dir} of: ${scan}`,
       })),
       "cleanup",
     );
@@ -671,7 +671,7 @@ describe("runWorkflow first-class halt via outputs", () => {
         permissions: "full",
         timeoutSeconds: 60,
         promptContext: [],
-        promptTemplate: `check ${output_dir}`,
+        prompt: `check ${output_dir}`,
         outputs: { spec_filepath: "Path to SPEC" },
       })),
       "halter",
@@ -686,7 +686,7 @@ describe("runWorkflow first-class halt via outputs", () => {
         permissions: "full",
         timeoutSeconds: 60,
         promptContext: [],
-        promptTemplate: () => "would do downstream work",
+        prompt: () => "would do downstream work",
       }),
       "downstream",
     );
@@ -749,7 +749,7 @@ describe("runWorkflow agent outputs flow into downstream stepFns", () => {
         permissions: "full",
         timeoutSeconds: 60,
         promptContext: [],
-        promptTemplate: `produce outputs at ${output_dir}`,
+        prompt: `produce outputs at ${output_dir}`,
         outputs: {
           spec_filepath: "Absolute path to SPEC.md",
           instructions: "One-line summary",
@@ -768,7 +768,7 @@ describe("runWorkflow agent outputs flow into downstream stepFns", () => {
           permissions: "full",
           timeoutSeconds: 60,
           promptContext: [],
-          promptTemplate: `read ${spec_filepath} for: ${instructions}`,
+          prompt: `read ${spec_filepath} for: ${instructions}`,
         }),
       ),
       "consumer",
@@ -813,7 +813,7 @@ describe("runWorkflow agent outputs flow into downstream stepFns", () => {
 
 describe("runWorkflow with factory-form agent (smoke)", () => {
   it("resolves builtins and prior step output through the factory closure end-to-end", async () => {
-    // End-to-end smoke: a factory agent's promptTemplate references both a
+    // End-to-end smoke: a factory agent's prompt references both a
     // builtin (today) and a step-output input (picker_output). The stub
     // runAgent invokes the real buildPrompt, so any regression in the
     // closure-vs-sentinel logic shows up as a placeholder leak in capturedPrompt.
@@ -828,7 +828,7 @@ describe("runWorkflow with factory-form agent (smoke)", () => {
         permissions: "full",
         timeoutSeconds: 60,
         promptContext: [],
-        promptTemplate: () => "pick something",
+        prompt: () => "pick something",
       }),
       "picker",
     );
@@ -842,7 +842,7 @@ describe("runWorkflow with factory-form agent (smoke)", () => {
         permissions: "full",
         timeoutSeconds: 60,
         promptContext: [],
-        promptTemplate: `today=${today}; dir=${work_dir}; picker=${picker_output}`,
+        prompt: `today=${today}; dir=${work_dir}; picker=${picker_output}`,
       })),
       "spec",
     );

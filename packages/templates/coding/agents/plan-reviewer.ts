@@ -7,7 +7,7 @@ export default defineAgent<{ spec_filepath: string; plan_filepath: string }>(
     modelTier: "standard",
     permissions: "read-only",
     timeoutSeconds: 180,
-    promptTemplate: `
+    prompt: `
 Read the spec at: ${spec_filepath}
 Read the plan at: ${plan_filepath}
 

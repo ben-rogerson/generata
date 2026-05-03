@@ -34,7 +34,7 @@ export default defineAgent<{ message: string }>(({ message }) => ({
   type: "worker",
   description: "Greets a message in one creative line.",
   modelTier: "light",
-  promptTemplate: `Greet "${message}" in one creative line.`,
+  prompt: `Greet "${message}" in one creative line.`,
 }));
 ```
 
@@ -82,8 +82,8 @@ export default defineAgent<{ topic: string }>(({ topic }) => ({
   type: "worker",
   description: "Turns a topic into a kebab-case slug.",
   modelTier: "light",
-  promptTemplate: `Turn "${topic}" into a slug.`,
   outputs: { slug: "Kebab-case slug, lowercase, dash-separated" },
+  prompt: `Turn "${topic}" into a slug.`,
 }));
 ```
 
@@ -95,7 +95,7 @@ export default defineAgent<{ slug: string }>(({ slug }) => ({
   type: "worker",
   description: "Expands a slug into a one-line description.",
   modelTier: "light",
-  promptTemplate: `Write one sentence describing "${slug}".`,
+  prompt: `Write one sentence describing "${slug}".`,
 }));
 ```
 

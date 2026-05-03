@@ -134,10 +134,7 @@ export function buildPrompt(options: BuildPromptOptions): string {
     .join("\n\n");
 
   // 3. Task instructions from template function (or pre-resolved string)
-  const taskBody =
-    typeof agent.promptTemplate === "string"
-      ? agent.promptTemplate
-      : agent.promptTemplate(strictFnArgs);
+  const taskBody = typeof agent.prompt === "string" ? agent.prompt : agent.prompt(strictFnArgs);
 
   return [rolePrefix, contextSections, options.retryPreamble, taskBody]
     .filter(Boolean)

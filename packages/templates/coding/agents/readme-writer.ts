@@ -9,7 +9,7 @@ export default defineAgent<{ spec_filepath: string }>(({ spec_filepath }) => {
     permissions: "full",
     tools: ["write", "bash"],
     timeoutSeconds: 180,
-    promptTemplate: `
+    prompt: `
 Project directory: ${project_dir}
 SPEC: ${spec_filepath}
 

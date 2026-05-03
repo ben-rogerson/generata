@@ -80,7 +80,7 @@ export default defineAgent<{ message: string }>(({ message }) => ({
   type: "worker",
   description: "Greets a message in one creative line.",
   modelTier: "light",
-  promptTemplate: `Greet "${message}" in one line.`,
+  prompt: `Greet "${message}" in one line.`,
 }));
 ```
 

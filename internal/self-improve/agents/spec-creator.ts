@@ -15,7 +15,10 @@ export default defineAgent<{
     permissions: "full",
     tools: ["write"],
     timeoutSeconds: 300,
-    promptTemplate: `
+    outputs: {
+      spec_filepath: "Absolute path to the spec file you wrote (use the path shown in the prompt)",
+    },
+    prompt: `
 Picked item:
 - slug: ${slug}
 - description: ${description}
@@ -39,8 +42,5 @@ Procedure:
 5. Lead your final text response with a one-line summary of what you wrote.
 
 Constraints: the only file you may create is the spec at the path above. If the spec would benefit from a companion file (fixture, snippet, etc.), describe it inline in the spec instead of creating it. Do not write outside docs/superpowers/specs/. Do not run bash. Do not edit existing source files.`,
-    outputs: {
-      spec_filepath: "Absolute path to the spec file you wrote (use the path shown in the prompt)",
-    },
   };
 });

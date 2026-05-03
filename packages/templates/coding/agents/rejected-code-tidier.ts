@@ -16,7 +16,7 @@ export default defineAgent<{
     tools: ["edit", "bash"],
     timeoutSeconds: 120,
     promptContext: [{ filepath: "NOTES.md" }],
-    promptTemplate: `
+    prompt: `
 The project at ${project_dir} was rejected by the code reviewer. Archive it cleanly.
 
 ORIGINAL IDEA (from SPEC creator):

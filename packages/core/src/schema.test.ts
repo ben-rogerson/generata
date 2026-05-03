@@ -12,7 +12,7 @@ const baseStep = {
     timeoutSeconds: 60,
     envKeys: [],
     promptContext: [],
-    promptTemplate: () => "p",
+    prompt: () => "p",
     tools: [],
     permissions: "full",
     maxRetries: 1,

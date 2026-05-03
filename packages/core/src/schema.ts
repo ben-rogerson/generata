@@ -45,9 +45,9 @@ const LLMAgentBase = AgentBase.extend({
   // string is allowed for the factory-form `defineAgent(({inputs}) => ({...}))`
   // pattern, where the template is built per-invocation via closure interpolation
   // and reaches the engine as a fully-resolved string.
-  promptTemplate: z.custom<PromptFn | string>(
+  prompt: z.custom<PromptFn | string>(
     (val) => typeof val === "function" || typeof val === "string",
-    "promptTemplate must be a function or string",
+    "prompt must be a function or string",
   ),
   promptContext: z.array(ContextSource).default([]),
   tools: z.array(Tool).default([]),

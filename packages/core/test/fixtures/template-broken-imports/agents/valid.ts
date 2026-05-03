@@ -9,5 +9,5 @@ export default {
   permissions: "read-only",
   timeoutSeconds: 10,
   envKeys: ["VALID_KEY"],
-  promptTemplate: () => "noop",
+  prompt: () => "noop",
 };

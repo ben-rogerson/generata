@@ -21,28 +21,28 @@ export type WorktreeConfig = z.infer<typeof WorktreeConfigSchema> & {
 // z.custom<PromptFn> breaks contextual typing through discriminated union inference,
 // so we override just that field. Everything else derives from the Zod schema.
 //
-// promptTemplate accepts string OR function:
+// prompt accepts string OR function:
 //  - function: receives prompt args at runtime, returns the prompt string
 //  - string:   pre-resolved (typically built via factory closure interpolation)
 type AgentInput =
-  | (Omit<Extract<z.input<typeof AgentDef>, { type: "critic" }>, "promptTemplate"> & {
-      promptTemplate: PromptFn | string;
+  | (Omit<Extract<z.input<typeof AgentDef>, { type: "critic" }>, "prompt"> & {
+      prompt: PromptFn | string;
     })
-  | (Omit<Extract<z.input<typeof AgentDef>, { type: "worker" }>, "promptTemplate"> & {
-      promptTemplate: PromptFn | string;
+  | (Omit<Extract<z.input<typeof AgentDef>, { type: "worker" }>, "prompt"> & {
+      prompt: PromptFn | string;
     })
-  | (Omit<Extract<z.input<typeof AgentDef>, { type: "planner" }>, "promptTemplate"> & {
-      promptTemplate: PromptFn | string;
+  | (Omit<Extract<z.input<typeof AgentDef>, { type: "planner" }>, "prompt"> & {
+      prompt: PromptFn | string;
     });
 
 // Brand that distinguishes factory-form agents from object-form. The bare-agent
 // step slot rejects branded values so a factory can't be passed without calling
-// it (which would silently use the sentinel-resolved promptTemplate at runtime).
+// it (which would silently use the sentinel-resolved prompt at runtime).
 declare const _factoryBrand: unique symbol;
 
 // Factory-form return: callable that produces StepInvocations. Static agent
 // metadata is attached as own properties so callers (registry, help, precheck)
-// can introspect without invoking the factory. promptTemplate is intentionally
+// can introspect without invoking the factory. prompt is intentionally
 // omitted: the static value is a sentinel-laced placeholder; the real one is
 // rebuilt per invocation inside the StepInvocation.
 //
@@ -55,7 +55,7 @@ export type AgentCallable<
   kind: "agent";
   __inputs: TInputs;
   readonly [_factoryBrand]: true;
-} & Omit<AgentDef, "kind" | "promptTemplate">;
+} & Omit<AgentDef, "kind" | "prompt">;
 
 // Object form: existing API. Factory form: declares typed inputs, called per
 // invocation by the engine via the returned callable.
@@ -105,18 +105,18 @@ export function defineAgent(
     const parsed = AgentDef.parse(staticConfig) as AgentDef;
     const inputKeys = [...inputProbe];
 
-    // The closure-form promptTemplate is the critical bit: rather than baking
+    // The closure-form prompt is the critical bit: rather than baking
     // builtins (today, work_dir, ...) into the prompt at invocation time —
     // when only the user's inputs are known — we defer to engine call time
     // when the full args bag (builtins + workflow context + inputs) is
     // available, then re-run the factory with everything in scope.
     const callable = ((inputs: Record<string, string>): StepInvocation => {
-      const promptTemplate = (runtimeArgs: Record<string, string>): string => {
+      const prompt = (runtimeArgs: Record<string, string>): string => {
         const fullArgs = { ...runtimeArgs, ...inputs };
         const resolved = defOrFactory(fullArgs);
-        return typeof resolved.promptTemplate === "string"
-          ? resolved.promptTemplate
-          : (resolved.promptTemplate as PromptFn)(fullArgs as never);
+        return typeof resolved.prompt === "string"
+          ? resolved.prompt
+          : (resolved.prompt as PromptFn)(fullArgs as never);
       };
       // Read callable.name at invocation time: the registry stamps it on the
       // callable AFTER definition, so closure-captured `parsed` doesn't have it.
@@ -125,7 +125,7 @@ export function defineAgent(
         kind: "step-invocation",
         agent: {
           ...(parsed as object),
-          promptTemplate,
+          prompt,
           name: callable.name,
         } as unknown as AgentDef,
         args: inputs,
@@ -156,7 +156,7 @@ type BuiltinArgs = { work_dir: string; today: string; time: string };
 
 // Bare slot rejects factory-form agents via the brand check. Factories must be
 // called inside a step function with their inputs — passing one bare would let
-// the engine consume a sentinel-laced promptTemplate.
+// the engine consume a sentinel-laced prompt.
 type StepValue<TParams> =
   | (AgentDef & { readonly [_factoryBrand]?: never })
   | ((params: TParams) => StepInvocation<Record<string, string>>);

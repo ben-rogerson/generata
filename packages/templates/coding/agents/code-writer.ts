@@ -11,7 +11,7 @@ export default defineAgent<{ spec_filepath: string; plan_filepath: string }>(
       tools: ["write", "bash", "edit"],
       timeoutSeconds: 600,
       maxRetries: 1,
-      promptTemplate: `
+      prompt: `
 Project directory: ${project_dir}
 SPEC: ${spec_filepath}
 PLAN: ${plan_filepath}

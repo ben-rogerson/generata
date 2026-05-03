@@ -13,7 +13,7 @@ export default defineAgent<{
     permissions: "read-only",
     tools: ["bash"],
     timeoutSeconds: 300,
-    promptTemplate: `
+    prompt: `
 Project directory: ${project_dir}
 SPEC: ${spec_filepath}
 PLAN: ${plan_filepath}

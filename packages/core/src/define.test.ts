@@ -11,7 +11,7 @@ describe("defineWorkflow chain builder", () => {
     permissions: "full",
     timeoutSeconds: 60,
     promptContext: [],
-    promptTemplate: () => "p",
+    prompt: () => "p",
   });
   (stub as any).name = "stub";
 
@@ -37,7 +37,7 @@ describe("defineWorkflow chain builder", () => {
       permissions: "full",
       timeoutSeconds: 60,
       promptContext: [],
-      promptTemplate: "p",
+      prompt: "p",
     }));
     (factoryAgent as any).name = "factory";
 
@@ -66,7 +66,7 @@ describe("defineWorkflow chain builder", () => {
       permissions: "full",
       timeoutSeconds: 60,
       promptContext: [],
-      promptTemplate: `${today}: ${picker_output}`,
+      prompt: `${today}: ${picker_output}`,
     }));
     (specCreator as any).name = "spec";
 
@@ -91,14 +91,14 @@ describe("defineWorkflow chain builder", () => {
       permissions: "full",
       timeoutSeconds: 60,
       promptContext: [],
-      promptTemplate: `today=${today} dir=${work_dir} x=${x}`,
+      prompt: `today=${today} dir=${work_dir} x=${x}`,
     }));
     (agent as any).name = "t";
 
     const inv = agent({ x: "real-x" });
-    equal(typeof inv.agent.promptTemplate, "function");
+    equal(typeof inv.agent.prompt, "function");
 
-    const prompt = (inv.agent.promptTemplate as (a: any) => string)({
+    const prompt = (inv.agent.prompt as (a: any) => string)({
       today: "2026-05-02",
       work_dir: "/repo",
       time: "12:00",
@@ -119,7 +119,7 @@ describe("defineWorkflow chain builder", () => {
       permissions: "full",
       timeoutSeconds: 60,
       promptContext: [],
-      promptTemplate: `x=${x}`,
+      prompt: `x=${x}`,
     }));
     (factoryAgent as any).name = "fac";
 
@@ -141,7 +141,7 @@ describe("defineWorkflow chain builder", () => {
       permissions: "full",
       timeoutSeconds: 60,
       promptContext: [],
-      promptTemplate: `x=${x}`,
+      prompt: `x=${x}`,
     }));
     (factoryAgent as any).name = "fac";
 
@@ -164,7 +164,7 @@ describe("defineWorkflow chain builder", () => {
       permissions: "full",
       timeoutSeconds: 60,
       promptContext: [],
-      promptTemplate: "p",
+      prompt: "p",
     }));
     (consumer as any).name = "consumer";
 
@@ -204,7 +204,7 @@ describe("defineWorkflow chain builder", () => {
       permissions: "full",
       timeoutSeconds: 60,
       promptContext: [],
-      promptTemplate: "p",
+      prompt: "p",
     }));
     (factoryAgent as any).name = "my-derived-name";
 
