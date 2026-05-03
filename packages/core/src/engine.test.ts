@@ -363,7 +363,9 @@ describe("agent-runner cwd plumbing", () => {
       }),
       "code",
     );
-    const workflow = withName(
+    // The workflow construction exercises the type-level chain builder; the
+    // test itself drives runAgent directly via the RunOptions surface.
+    void withName(
       defineWorkflow({
         description: "cwd",
       })
@@ -371,8 +373,6 @@ describe("agent-runner cwd plumbing", () => {
         .build(),
       "cwd",
     );
-    // For now, the engine doesn't yet pass cwd. This test exercises the
-    // RunOptions type addition and is a placeholder until Task 7 wires it.
     const r: RunResult = await stubRunAgent({
       agent: worker as any,
       args: {},
@@ -556,6 +556,258 @@ describe("runWorkflow isolation: worktree", () => {
       mainProjectRoot: "/tmp",
     });
     equal(setupCalls, 1);
+  });
+});
+
+describe("runWorkflow onReject factory-form", () => {
+  it("invokes factory onReject with merged params + step outputs and resolves its closure template", async () => {
+    // The reject handler is a factory that interpolates a prior step's output
+    // (`scan`) into its prompt. Without engine support it would either be
+    // rejected at config time or run with the sentinel-laced static template.
+    const captured: Record<string, string> = {};
+
+    const scanner = withName(
+      defineAgent({
+        type: "worker",
+        description: "scanner",
+        modelTier: "light",
+        tools: [],
+        permissions: "full",
+        timeoutSeconds: 60,
+        promptContext: [],
+        promptTemplate: () => "scan",
+      }),
+      "scanner",
+    );
+
+    const reviewer = withName(
+      defineAgent({
+        type: "critic",
+        description: "always rejects",
+        modelTier: "light",
+        tools: [],
+        permissions: "read-only",
+        timeoutSeconds: 60,
+        promptContext: [],
+        promptTemplate: () => "review",
+      }),
+      "reviewer",
+    );
+
+    const cleanup = withName(
+      defineAgent<{ scan: string }>(({ scan, work_dir }) => ({
+        type: "worker",
+        description: "archives the rejected output",
+        modelTier: "light",
+        tools: [],
+        permissions: "full",
+        timeoutSeconds: 60,
+        promptContext: [],
+        promptTemplate: `cleanup at ${work_dir} of: ${scan}`,
+      })),
+      "cleanup",
+    );
+
+    const stubRunAgent = async (options: RunOptions): Promise<RunResult> => {
+      const prompt = buildPrompt({
+        agent: options.agent,
+        args: options.args,
+        config: options.config,
+        workDir: options.workDir,
+        stepOutputs: options.stepOutputs,
+        workflowVariables: options.workflowVariables,
+      });
+      const stepId = options.stepId ?? options.agent.name;
+      captured[stepId] = prompt;
+      if (options.agent.type === "critic") {
+        return {
+          output: "rejected",
+          metrics: makeMetrics({ agent: options.agent.name }),
+          verdict: { verdict: "reject", summary: "no good", issues: ["x"] },
+        };
+      }
+      const output = options.agent.name === "scanner" ? "found-the-thing" : "ok";
+      return { output, metrics: makeMetrics({ agent: options.agent.name }) };
+    };
+
+    const workflow = withName(
+      defineWorkflow({ description: "reject-flow" })
+        .step("scan", scanner)
+        .step("review", reviewer, {
+          onReject: ({ scan }) => cleanup({ scan }),
+          maxRetries: 1,
+        })
+        .build(),
+      "reject-flow",
+    );
+
+    const result = await runWorkflow(workflow, {}, stubConfig, "/tmp", undefined, {
+      runAgent: stubRunAgent,
+    });
+
+    equal(result.success, false);
+    equal(result.halted, true);
+    // Cleanup ran with scan output and work_dir interpolated through closure
+    const cleanupPrompt = captured["review-cleanup"];
+    ok(cleanupPrompt, "cleanup ran");
+    ok(
+      cleanupPrompt.includes("cleanup at /tmp of: found-the-thing"),
+      `factory closure not resolved: ${cleanupPrompt}`,
+    );
+    ok(!cleanupPrompt.includes("__placeholder_"), `sentinel leaked: ${cleanupPrompt}`);
+  });
+});
+
+describe("runWorkflow first-class halt via outputs", () => {
+  it("stops the workflow cleanly when an agent emits --halt: no metric failure, downstream steps skipped, haltReason carries the message", async () => {
+    const callsByStep: Record<string, number> = {};
+
+    const halter = withName(
+      defineAgent<{ output_dir: string }>(({ output_dir }) => ({
+        type: "worker",
+        description: "halts on a precondition",
+        modelTier: "light",
+        tools: [],
+        permissions: "full",
+        timeoutSeconds: 60,
+        promptContext: [],
+        promptTemplate: `check ${output_dir}`,
+        outputs: { spec_filepath: "Path to SPEC" },
+      })),
+      "halter",
+    );
+
+    const downstream = withName(
+      defineAgent({
+        type: "worker",
+        description: "should not run",
+        modelTier: "light",
+        tools: [],
+        permissions: "full",
+        timeoutSeconds: 60,
+        promptContext: [],
+        promptTemplate: () => "would do downstream work",
+      }),
+      "downstream",
+    );
+
+    const stubRunAgent = async (options: RunOptions): Promise<RunResult> => {
+      const stepId = options.stepId ?? options.agent.name;
+      callsByStep[stepId] = (callsByStep[stepId] ?? 0) + 1;
+      if (options.agent.name === "halter") {
+        return {
+          output: "decided to halt",
+          metrics: makeMetrics({ agent: options.agent.name }),
+          halt: { reason: "no unbuilt ideas in NOTES.md" },
+        };
+      }
+      return { output: "ran", metrics: makeMetrics({ agent: options.agent.name }) };
+    };
+
+    const workflow = withName(
+      defineWorkflow({ description: "halt-flow", variables: { output_dir: "p" } })
+        .step("first", ({ output_dir }) => halter({ output_dir }))
+        .step("second", () => ({
+          kind: "step-invocation" as const,
+          agent: downstream as never,
+          args: {},
+        }))
+        .build(),
+      "halt-flow",
+    );
+
+    const result = await runWorkflow(workflow, {}, stubConfig, "/tmp", undefined, {
+      runAgent: stubRunAgent,
+    });
+
+    equal(result.halted, true);
+    match(result.haltReason ?? "", /no unbuilt ideas/);
+    equal(callsByStep.first, 1);
+    equal(callsByStep.second, undefined, "downstream step must not run after halt");
+    // Metric must NOT be a failure - halt is structured, not error
+    equal(result.steps[0].metrics.status, "success");
+    equal(result.success, false, "workflow success is false when halted");
+  });
+});
+
+describe("runWorkflow agent outputs flow into downstream stepFns", () => {
+  it("merges emitted outputs into params so the next step's stepFn destructures them as typed strings", async () => {
+    // The first agent declares outputs. The stub runAgent simulates the emit
+    // bin having been called by returning RunResult.outputs directly. The
+    // second step's stepFn destructures the emitted keys; this fails at type-
+    // check time if the chain builder didn't extend TBaseParams from the
+    // first step's declared outputs, and at runtime if the engine didn't
+    // merge result.outputs into params.
+    const captured: Record<string, Record<string, unknown>> = {};
+
+    const emitter = withName(
+      defineAgent<{ output_dir: string }>(({ output_dir }) => ({
+        type: "worker",
+        description: "emits two outputs",
+        modelTier: "light",
+        tools: [],
+        permissions: "full",
+        timeoutSeconds: 60,
+        promptContext: [],
+        promptTemplate: `produce outputs at ${output_dir}`,
+        outputs: {
+          spec_filepath: "Absolute path to SPEC.md",
+          instructions: "One-line summary",
+        },
+      })),
+      "emitter",
+    );
+
+    const consumer = withName(
+      defineAgent<{ spec_filepath: string; instructions: string }>(
+        ({ spec_filepath, instructions }) => ({
+          type: "worker",
+          description: "consumes the emitted outputs",
+          modelTier: "light",
+          tools: [],
+          permissions: "full",
+          timeoutSeconds: 60,
+          promptContext: [],
+          promptTemplate: `read ${spec_filepath} for: ${instructions}`,
+        }),
+      ),
+      "consumer",
+    );
+
+    const stubRunAgent = async (options: RunOptions): Promise<RunResult> => {
+      captured[options.stepId ?? options.agent.name] = options.args;
+      if (options.agent.name === "emitter") {
+        return {
+          output: "ok",
+          metrics: makeMetrics({ agent: options.agent.name }),
+          outputs: { spec_filepath: "/abs/SPEC.md", instructions: "build a thing" },
+        };
+      }
+      return { output: "done", metrics: makeMetrics({ agent: options.agent.name }) };
+    };
+
+    const workflow = withName(
+      defineWorkflow({
+        description: "outputs-flow",
+        variables: { output_dir: "projects" },
+      })
+        .step("first", ({ output_dir }) => emitter({ output_dir }))
+        // Compile-time check: spec_filepath + instructions must be on the
+        // destructure here (added to TBaseParams from the first step's outputs).
+        .step("second", ({ spec_filepath, instructions }) =>
+          consumer({ spec_filepath, instructions }),
+        )
+        .build(),
+      "outputs-flow",
+    );
+
+    const result = await runWorkflow(workflow, {}, stubConfig, "/tmp", undefined, {
+      runAgent: stubRunAgent,
+    });
+
+    equal(result.success, true);
+    equal(captured.second.spec_filepath, "/abs/SPEC.md");
+    equal(captured.second.instructions, "build a thing");
   });
 });
 

@@ -1,13 +1,13 @@
 import { defineAgent } from "@generata/core";
 
-export default defineAgent({
+export default defineAgent<{ repo: string }>(({ repo, work_dir }) => ({
   type: "worker",
   description: "Reads recent git activity and emits a terse list of what happened",
   modelTier: "light",
   tools: ["bash"],
   permissions: "read-only",
   timeoutSeconds: 60,
-  promptTemplate: ({ repo, work_dir }) => `
+  promptTemplate: `
 Summarise yesterday's git activity in ${repo || work_dir}.
 
 Steps:
@@ -19,4 +19,4 @@ Steps:
 
 Output ONLY the bullet list - no preamble, no closing remarks.
 `,
-});
+}));

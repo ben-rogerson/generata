@@ -87,7 +87,7 @@ function resolveArgs(
   // are NOT auto-leaked — agents only see what an `args` fn explicitly returns.
   const passthrough: Record<string, unknown> = { ...params };
   if (typeof args === "function") return { ...passthrough, ...args(stringParams) };
-  return { ...passthrough, ...(args ?? {}) };
+  return { ...passthrough, ...args };
 }
 
 // Resolve a workflow step (agent-form or stepFn-form) to {agent, args} for
@@ -351,6 +351,21 @@ export async function runWorkflow(
             metrics: result.metrics,
           });
 
+          // First-class halt: agent emitted `--halt "<reason>"` via the emit bin.
+          // Set the workflow halt signal and skip remaining steps cleanly. No
+          // metric failure - this is a deliberate, structured stop.
+          if (result.halt) {
+            haltSignal = `${step.id} halted: ${result.halt.reason}`;
+          }
+
+          // Merge typed `outputs` emitted by the agent into the runtime params
+          // bag so downstream stepFns and derive can read them as named keys.
+          // Last-wins on collisions (mirrors how the planner-emits-params merge
+          // works further down).
+          if (result.outputs) {
+            params = { ...params, ...result.outputs };
+          }
+
           if (planName) {
             // Move plan into project folder once the executor has created the code dir.
             // Fires once: when code/ exists but the plan hasn't been moved yet.
@@ -440,14 +455,31 @@ export async function runWorkflow(
               if (result.verdict?.verdict !== "approve") {
                 const onRejectAgent = (step as CriticWorkflowStep).onReject;
                 if (onRejectAgent) {
+                  // Factory-form: call it with all available runtime state to
+                  // get a freshly-resolved StepInvocation (closure interpolation
+                  // bakes in real values, replacing the sentinel placeholders
+                  // attached at definition time).
+                  let rejectAgent: LLMAgentDef;
+                  let rejectArgs: Record<string, unknown>;
+                  if (typeof onRejectAgent === "function") {
+                    const merged: Record<string, string> = Object.fromEntries(
+                      Object.entries({ ...params, ...stepOutputs }).map(([k, v]) => [k, String(v)]),
+                    );
+                    const inv = onRejectAgent(merged);
+                    rejectAgent = inv.agent as LLMAgentDef;
+                    rejectArgs = { ...params, ...inv.args };
+                  } else {
+                    rejectAgent = onRejectAgent as LLMAgentDef;
+                    rejectArgs = resolveArgs({}, params, stepOutputs);
+                  }
                   await runAgentStep(
                     {
                       id: `${step.id}-cleanup`,
-                      agent: onRejectAgent as any,
+                      agent: rejectAgent,
                       args: {},
                     } as WorkflowStep,
-                    onRejectAgent as LLMAgentDef,
-                    resolveArgs({}, params, stepOutputs),
+                    rejectAgent,
+                    rejectArgs,
                   );
                 }
                 haltSignal = result.verdict?.summary

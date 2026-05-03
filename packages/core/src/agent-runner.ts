@@ -38,6 +38,11 @@ export interface RunResult {
   interactive?: boolean;
   verdict?: { verdict: string; summary: string; issues: string[] };
   params?: { plan_name: string; instructions: string };
+  outputs?: Record<string, string>;
+  // Set when the agent emitted `--halt "<reason>"` via the emit bin. The engine
+  // treats this as a structured workflow stop: no metric failure, no retry,
+  // downstream steps are skipped, haltSignal carries the reason.
+  halt?: { reason: string };
 }
 
 function resolveModel(
@@ -205,21 +210,42 @@ export async function runAgent(options: RunOptions): Promise<RunResult> {
   // Spinner only when not streaming - live tool events are better feedback
   const stopSpinner = onEvent ? () => {} : startSpinner(pickTagline(agent.type));
 
-  // For critic agents, set up a verdict file and inject the command footer
-  // For planner agents (non-interactive), set up a params file and inject the command footer
+  // Per-agent emission bins. Each gets its own tmp file (read+unlinked post-run)
+  // and a surgical Bash(<bin>:*) permission so the LLM can call exactly that
+  // binary without the agent's user-declared `tools` being widened.
   let verdictFile: string | null = null;
   let paramsFile: string | null = null;
+  let outputsFile: string | null = null;
+  let verdictBin: string | null = null;
+  let paramsBin: string | null = null;
+  let outputsBin: string | null = null;
   let prompt = basePrompt;
+  const fileId = `${options.workflowId ?? "standalone"}-${options.stepId ?? "agent"}`;
   if (agent.type === "critic") {
-    const verdictBin = resolve(fileURLToPath(new URL("../bin/verdict", import.meta.url)));
-    const fileId = `${options.workflowId ?? "standalone"}-${options.stepId ?? "agent"}`;
+    verdictBin = resolve(fileURLToPath(new URL("../bin/verdict", import.meta.url)));
     verdictFile = join(tmpdir(), `verdict-${fileId}.json`);
-    prompt = `${basePrompt}\n\n---\nTo record your verdict, run ONE of:\n  ${verdictBin} approve\n  ${verdictBin} reject "<one-line summary>" "<issue 1>" "<issue 2>" ...\n\nWhen rejecting, each issue must be a specific, actionable one-sentence statement the upstream agent can address - one issue per failure, not concatenated. If you have nothing specific to flag, approve instead.`;
+    prompt = `${prompt}\n\n---\nTo record your verdict, run ONE of:\n  ${verdictBin} approve\n  ${verdictBin} reject "<one-line summary>" "<issue 1>" "<issue 2>" ...\n\nWhen rejecting, each issue must be a specific, actionable one-sentence statement the upstream agent can address - one issue per failure, not concatenated. If you have nothing specific to flag, approve instead.`;
   } else if (agent.type === "planner") {
-    const paramsBin = resolve(fileURLToPath(new URL("../bin/params", import.meta.url)));
-    const fileId = `${options.workflowId ?? "standalone"}-${options.stepId ?? "agent"}`;
+    paramsBin = resolve(fileURLToPath(new URL("../bin/params", import.meta.url)));
     paramsFile = join(tmpdir(), `params-${fileId}.json`);
-    prompt = `${basePrompt}\n\n---\nTo emit workflow params, run: ${paramsBin} <plan_name> <instructions>`;
+    prompt = `${prompt}\n\n---\nTo emit workflow params, run: ${paramsBin} <plan_name> <instructions>`;
+  }
+  if (agent.outputs) {
+    outputsBin = resolve(fileURLToPath(new URL("../bin/emit", import.meta.url)));
+    outputsFile = join(tmpdir(), `outputs-${fileId}.json`);
+    const successPath =
+      Object.keys(agent.outputs).length > 0
+        ? `As your final action, emit the workflow outputs by running:\n  ${outputsBin} ${Object.keys(
+            agent.outputs,
+          )
+            .map((k) => `--${k} "<value>"`)
+            .join(" ")}\n\nFlags:\n${Object.entries(agent.outputs)
+            .map(([k, desc]) => `  --${k} "<value>"   # ${desc}`)
+            .join(
+              "\n",
+            )}\n\nAll listed flags are required. Pass each value as a single shell-escaped string.`
+        : `As your final action, signal completion to the workflow by running:\n  ${outputsBin}\n(no flags - this agent declares no typed outputs)`;
+    prompt = `${prompt}\n\n---\n${successPath}\n\nIf you cannot complete the work (e.g. precondition unmet, ambiguous input, external blocker), halt the workflow cleanly by running:\n  ${outputsBin} --halt "<one-line reason>"\nWhen you halt, do not also emit success values. The workflow stops and the reason is propagated.`;
   }
 
   if (options.promptLogFile) {
@@ -238,29 +264,35 @@ export async function runAgent(options: RunOptions): Promise<RunResult> {
     "--verbose",
   ];
 
+  // Surgical bin permissions: lets the LLM invoke the specific verdict/params/
+  // emit bins without widening the agent's declared `tools` to general Bash.
+  // `Bash(<abs path>:*)` is the Claude Code syntax for "this binary only".
+  const binPermissions: string[] = [];
+  if (verdictBin) binPermissions.push(`Bash(${verdictBin}:*)`);
+  if (paramsBin) binPermissions.push(`Bash(${paramsBin}:*)`);
+  if (outputsBin) binPermissions.push(`Bash(${outputsBin}:*)`);
+
   // Apply tool permissions
   if (agent.permissions === "read-only") {
     const extraTools = agent.tools.flatMap((t) => {
       const mapped = TOOL_NAME_MAP[t as Tool];
       return mapped ? [mapped] : [];
     });
-    // Critics and planners need Bash to invoke the verdict/params bins regardless of declared tools.
     const baseTools = ["Read", "Glob", "Grep"];
-    if (agent.type === "critic" || agent.type === "planner") baseTools.push("Bash");
-    claudeArgs.push("--allowedTools", [...baseTools, ...extraTools].join(","));
+    claudeArgs.push("--allowedTools", [...baseTools, ...extraTools, ...binPermissions].join(","));
   } else if (agent.permissions === "none") {
-    claudeArgs.push("--allowedTools", "");
+    // Even with no tools, the agent may need to call its emission bins.
+    claudeArgs.push("--allowedTools", binPermissions.join(","));
   } else {
     // permissions === "full": trust the agent with every tool, including WebSearch/WebFetch.
     // Non-interactive CLI mode otherwise denies tools that would require a permission prompt.
-    if (agent.tools.length > 0) {
+    if (agent.tools.length > 0 || binPermissions.length > 0) {
       const extraTools = agent.tools.flatMap((t) => {
         const mapped = TOOL_NAME_MAP[t as Tool];
         return mapped ? [mapped] : [];
       });
       const baseTools = ["Read", "Glob", "Grep"];
-      if (agent.type === "planner") baseTools.push("Bash");
-      claudeArgs.push("--allowedTools", [...baseTools, ...extraTools].join(","));
+      claudeArgs.push("--allowedTools", [...baseTools, ...extraTools, ...binPermissions].join(","));
     }
     claudeArgs.push("--dangerously-skip-permissions");
   }
@@ -268,6 +300,7 @@ export async function runAgent(options: RunOptions): Promise<RunResult> {
   const spawnEnv: Record<string, string | undefined> = { ...process.env };
   if (verdictFile) spawnEnv.VERDICT_FILE = verdictFile;
   if (paramsFile) spawnEnv.PARAMS_FILE = paramsFile;
+  if (outputsFile) spawnEnv.EMIT_FILE = outputsFile;
   if (options.resolvedEnv) {
     for (const [key, value] of Object.entries(options.resolvedEnv)) {
       spawnEnv[key] = value;
@@ -395,8 +428,44 @@ export async function runAgent(options: RunOptions): Promise<RunResult> {
         } catch {}
       }
 
+      // Read and clean up outputs file. Three branches:
+      //   1. Halt emission ({__halt: "<reason>"}) — return halt signal, no
+      //      metric failure; engine treats as structured workflow stop.
+      //   2. Success keys present — validate declared keys, expose as outputs.
+      //   3. Missing keys / no emission — fail metric so engine retries/halts.
+      let outputsData: Record<string, string> | undefined;
+      let haltData: { reason: string } | undefined;
+      if (outputsFile && existsSync(outputsFile)) {
+        try {
+          const raw = JSON.parse(readFileSync(outputsFile, "utf8")) as Record<string, unknown>;
+          unlinkSync(outputsFile);
+          if (typeof raw.__halt === "string") {
+            haltData = { reason: raw.__halt };
+          } else {
+            const declared = Object.keys(agent.outputs ?? {});
+            const missing = declared.filter((k) => !(k in raw));
+            if (missing.length === 0) {
+              outputsData = Object.fromEntries(declared.map((k) => [k, String(raw[k] ?? "")]));
+            } else {
+              metrics.status = "failure";
+              metrics.error = `${metrics.error ? metrics.error + "; " : ""}emit missing keys: ${missing.join(", ")}`;
+            }
+          }
+        } catch {}
+      } else if (outputsFile && agent.outputs && Object.keys(agent.outputs).length > 0) {
+        metrics.status = "failure";
+        metrics.error = `${metrics.error ? metrics.error + "; " : ""}emit bin was not invoked - declared outputs missing: ${Object.keys(agent.outputs).join(", ")}`;
+      }
+
       writeMetrics(metrics, resolve(workDir, config.metricsDir));
-      resolve_p({ output, metrics, verdict: verdictData, params: paramsData });
+      resolve_p({
+        output,
+        metrics,
+        verdict: verdictData,
+        params: paramsData,
+        outputs: outputsData,
+        halt: haltData,
+      });
     });
 
     proc.on("error", (err: Error) => reject(err));

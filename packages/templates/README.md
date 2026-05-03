@@ -68,7 +68,7 @@ export default defineWorkflow({
   description: "Greets the supplied message.",
   required: ["message"], // Supplied via --message flag
 })
-  .step("greet", greeter)
+  .step("greet", ({ message }) => greeter({ message }))
   .build();
 ```
 
@@ -76,14 +76,14 @@ export default defineWorkflow({
 // agents/greeter.ts
 import { defineAgent } from "@generata/core";
 
-export default defineAgent({
+export default defineAgent<{ message: string }>(({ message }) => ({
   type: "worker",
   description: "Greets a message in one creative line.",
   modelTier: "light",
   permissions: "read-only",
   tools: [],
-  promptTemplate: ({ message }) => `Greet "${message}" in one line.`,
-});
+  promptTemplate: `Greet "${message}" in one line.`,
+}));
 ```
 
 The filename becomes the agent or workflow name. Every `.ts` under `agents/` is scanned recursively and classified by its default export - `defineAgent` makes it an agent, `defineWorkflow` makes it a workflow. Putting workflows under `agents/workflows/` is a convention (used by `standup` and `coding`) but not a requirement; the `starter` template keeps its workflow flat in `agents/`.

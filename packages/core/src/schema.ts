@@ -52,6 +52,10 @@ const LLMAgentBase = AgentBase.extend({
   promptContext: z.array(ContextSource).default([]),
   tools: z.array(Tool).default([]),
   maxRetries: z.number().default(1),
+  // Declares typed string outputs the agent emits via `emit` bin at end of run.
+  // Map: emission key -> human-readable description (rendered into prompt footer).
+  // Engine surfaces parsed values into the runtime params bag for downstream stepFns.
+  outputs: z.record(z.string(), z.string()).optional(),
 });
 
 export const AgentDef = z.discriminatedUnion("type", [
@@ -85,7 +89,13 @@ export type StepParams = Record<string, string>;
 
 // Returned by an AgentCallable (factory-form agent) when invoked from a stepFn.
 // Engine consumes it directly: agent + resolved args.
-export type StepInvocation = {
+// TOutputs is a phantom generic so the chain builder can pull declared outputs
+// keys back out of the stepFn's return type and extend TBaseParams accordingly.
+// It carries no runtime value.
+export type StepInvocation<
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  TOutputs extends Record<string, string> = Record<never, string>,
+> = {
   kind: "step-invocation";
   agent: AgentDef;
   args: Record<string, unknown>;
@@ -101,15 +111,18 @@ const FnWorkflowStep = z.object({
   ),
   dependsOn: z.array(z.string()).optional(),
   maxRetries: z.number().optional(),
+  // Accepts either an object-form AgentDef or a function (stepFn / factory)
+  // returning a StepInvocation. The engine narrows by typeof at rejection time.
   onReject: z
-    .custom<LLMAgentDef>(
-      (val) =>
+    .custom<LLMAgentDef | ((inputs: Record<string, string>) => StepInvocation)>((val) => {
+      if (val === null || val === undefined) return false;
+      if (typeof val === "function") return true;
+      return (
         typeof val === "object" &&
-        val !== null &&
         "type" in val &&
-        ["worker", "planner", "critic"].includes((val as { type: unknown }).type as string),
-      "onReject must be an LLM agent definition",
-    )
+        ["worker", "planner", "critic"].includes((val as { type: unknown }).type as string)
+      );
+    }, "onReject must be an LLM agent definition or a function returning a StepInvocation")
     .optional(),
 });
 
@@ -129,15 +142,18 @@ const CriticWorkflowStep = z.object({
     .default({}),
   dependsOn: z.array(z.string()).optional(),
   maxRetries: z.number().optional(),
+  // Accepts either an object-form AgentDef or a function (stepFn / factory)
+  // returning a StepInvocation. The engine narrows by typeof at rejection time.
   onReject: z
-    .custom<LLMAgentDef>(
-      (val) =>
+    .custom<LLMAgentDef | ((inputs: Record<string, string>) => StepInvocation)>((val) => {
+      if (val === null || val === undefined) return false;
+      if (typeof val === "function") return true;
+      return (
         typeof val === "object" &&
-        val !== null &&
         "type" in val &&
-        ["worker", "planner", "critic"].includes((val as { type: unknown }).type as string),
-      "onReject must be an LLM agent definition",
-    )
+        ["worker", "planner", "critic"].includes((val as { type: unknown }).type as string)
+      );
+    }, "onReject must be an LLM agent definition or a function returning a StepInvocation")
     .optional(),
 });
 
