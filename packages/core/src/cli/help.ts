@@ -17,7 +17,7 @@ Commands:
   add <template>              Merge a template into the current project
   agent <name> [args]         Run a single agent
   workflow <name> [args]      Run a workflow (alias: 'run')
-  validate [<workflow>|--all] Static-check workflow definitions
+  validate [<workflow>|--all] [--check-files] [--profile <p>] [--key v]  Static-check workflow definitions
   metrics [today|week|...]    Show metrics summary
   skills sync                 Regenerate .claude/commands/ from workflows
   worktree prune              Remove orphaned 'generata/wt-*' worktrees and branches
