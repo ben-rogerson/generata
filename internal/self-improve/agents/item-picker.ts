@@ -9,16 +9,6 @@ export default defineAgent({
   tools: [],
   timeoutSeconds: 120,
   promptContext: [{ filepath: "IMPROVEMENTS.md" }],
-  outputs: {
-    slug: "Kebab-case slug from the entry header",
-    title: "Slug rendered as title-case-with-spaces",
-    lens: "Lens label (quality, dx-api, docs, consistency, feature)",
-    score: "Integer score, rendered as a string (e.g. '21')",
-    description: "Prose under the heading",
-    evidence_paths:
-      "Comma-joined list of paths from the **Evidence:** line; no spaces around commas (e.g. 'packages/core/src/cli.ts:120-145,packages/core/src/init.ts:42')",
-    suggested_change: "Text from the **Suggested change:** line",
-  },
   promptTemplate: () => `
 IMPROVEMENTS.md is in your context. Each entry header has the form:
 \`### <slug> [<lens> · score <N>]\`
@@ -29,4 +19,14 @@ Procedure:
 3. If no entries exist (file is empty below the header), halt the workflow with reason "IMPROVEMENTS.md is empty".
 
 You are read-only. Do not edit files.`,
+  outputs: {
+    slug: "Kebab-case slug from the entry header",
+    title: "Slug rendered as title-case-with-spaces",
+    lens: "Lens label (quality, dx-api, docs, consistency, feature)",
+    score: "Integer score, rendered as a string (e.g. '21')",
+    description: "Prose under the heading",
+    evidence_paths:
+      "Comma-joined list of paths from the **Evidence:** line; no spaces around commas (e.g. 'packages/core/src/cli.ts:120-145,packages/core/src/init.ts:42')",
+    suggested_change: "Text from the **Suggested change:** line",
+  },
 });

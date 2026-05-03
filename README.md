@@ -82,8 +82,8 @@ export default defineAgent<{ topic: string }>(({ topic }) => ({
   type: "worker",
   description: "Turns a topic into a kebab-case slug.",
   modelTier: "light",
-  outputs: { slug: "Kebab-case slug, lowercase, dash-separated" },
   promptTemplate: `Turn "${topic}" into a slug.`,
+  outputs: { slug: "Kebab-case slug, lowercase, dash-separated" },
 }));
 ```
 

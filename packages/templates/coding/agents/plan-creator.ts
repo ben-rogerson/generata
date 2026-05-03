@@ -10,9 +10,6 @@ export default defineAgent<{ spec_filepath: string; instructions: string }>(
       permissions: "full",
       tools: ["write"],
       timeoutSeconds: 300,
-      outputs: {
-        plan_filepath: "Absolute path to the PLAN.md you wrote (use the path shown in the prompt)",
-      },
       promptTemplate: `
 Read the spec at: ${spec_filepath}
 Write the plan to: ${plan_filepath}
@@ -25,6 +22,9 @@ Plan structure:
 - **Implementation steps** (numbered, concrete, actionable - no vague "set up" or "handle X" steps)
 - **Dependencies and risks**
 - **Estimated complexity** (low / medium / high)`,
+      outputs: {
+        plan_filepath: "Absolute path to the PLAN.md you wrote (use the path shown in the prompt)",
+      },
     };
   },
 );
