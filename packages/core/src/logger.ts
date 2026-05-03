@@ -1,6 +1,7 @@
 import { basename, relative } from "path";
 import pc from "picocolors";
 import { AgentType, AgentStreamEvent } from "./schema.js";
+import { formatTokenCount } from "./metrics.js";
 
 // Formatters for inline use
 export const fmt = {
@@ -174,7 +175,7 @@ export function logStepDone(
   const check = ok ? pc.green(`✓ ${id}`) : pc.red(`✗ ${id}`);
   const costStr = costWasReported && showPricing ? pc.green(`$${costUsd.toFixed(4)} USD`) : "";
   const usageStr = pc.green(
-    `${Math.round((totalTokens ?? 0) / 1000)}k tok${costStr ? ` (${costStr})` : ""}`,
+    `${formatTokenCount(totalTokens ?? 0)} tok${costStr ? ` (${costStr})` : ""}`,
   );
   const parts = [`  ${check}`, pc.dim(`${(durationMs / 1000).toFixed(1)}s`), usageStr];
   if (model) parts.push(pc.dim(model));
@@ -239,7 +240,7 @@ export function logWorkflowResult(
   const usageStr =
     costWasReported && showPricing
       ? `cost: ${pc.magenta(`$${cost.toFixed(4)}`)}`
-      : `tokens: ${pc.cyan(`${Math.round((totalTokens ?? 0) / 1000)}k`)}`;
+      : `tokens: ${pc.cyan(formatTokenCount(totalTokens ?? 0))}`;
   const parts = [`  ${usageStr}  time: ${pc.dim(`${(durationMs / 1000).toFixed(1)}s`)}`];
   if (model) parts.push(pc.dim(model));
   console.log(parts.join("  "));
