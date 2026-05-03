@@ -41,6 +41,33 @@ describe("WorkflowDef worktree fields", () => {
     deepEqual(parsed.isolation.worktreeSetup, ["pnpm", "install"]);
     deepEqual(parsed.isolation.sharedPaths, ["IMPROVEMENTS.md", "logs/"]);
     equal(parsed.isolation.worktreeDir, "../wt");
+    equal(parsed.isolation.baseRef, undefined);
+  });
+
+  it("accepts baseRef as remote/branch or bare local branch", () => {
+    for (const ref of ["upstream/develop", "main", "feature/wip"]) {
+      const parsed = WorkflowDef.parse({
+        description: "d",
+        isolation: { baseRef: ref },
+        steps: [baseStep],
+      });
+      if (parsed.isolation === "none") throw new Error("expected config");
+      equal(parsed.isolation.baseRef, ref);
+    }
+  });
+
+  it("rejects malformed baseRef (leading/trailing slash, empty)", () => {
+    for (const bad of ["/main", "origin/", ""]) {
+      throws(
+        () =>
+          WorkflowDef.parse({
+            description: "d",
+            isolation: { baseRef: bad },
+            steps: [baseStep],
+          }),
+        /baseRef|String must contain/,
+      );
+    }
   });
 
   it("rejects sharedPaths containing traversal, absolute, or .git inside isolation", () => {

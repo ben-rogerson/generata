@@ -105,6 +105,43 @@ describe("setupWorktree", () => {
     equal(result.executionRoot, `${result.worktreePath}/internal/self-improve`);
   });
 
+  it("uses baseRef override for fetch and worktree add", async () => {
+    const backend = makeStubBackend();
+    await setupWorktree({
+      workflow: makeWorkflow(),
+      config: {
+        worktreeSetup: ["pnpm", "install"],
+        sharedPaths: [],
+        baseRef: "upstream/develop",
+      },
+      mainProjectRoot: "/repo",
+      workDir: "/repo",
+      runId: "r1",
+      backend,
+      logsDir: "logs",
+      metricsDir: "metrics",
+    });
+    deepEqual(backend.calls[0].cmd, ["git", "fetch", "upstream", "develop"]);
+    equal(backend.calls[1].cmd[6], "upstream/develop");
+  });
+
+  it("skips fetch and uses local branch when baseRef has no remote", async () => {
+    const backend = makeStubBackend();
+    await setupWorktree({
+      workflow: makeWorkflow(),
+      config: { worktreeSetup: ["pnpm", "install"], sharedPaths: [], baseRef: "main" },
+      mainProjectRoot: "/repo",
+      workDir: "/repo",
+      runId: "r1",
+      backend,
+      logsDir: "logs",
+      metricsDir: "metrics",
+    });
+    equal(backend.calls[0].cmd[0], "git");
+    equal(backend.calls[0].cmd[1], "worktree");
+    equal(backend.calls[0].cmd[6], "main");
+  });
+
   it("aborts and runs cleanup when 'origin' remote is missing", async () => {
     const backend = makeStubBackend();
     backend.failOn(["git", "fetch", "origin", "main"], { stderr: "no such remote 'origin'" });
