@@ -144,7 +144,7 @@ Run-time overrides: `generata workflow <name> --worktree` forces isolation on, `
 
 - **Composable agents** - planners, workers, critics. Mix and match.
 - **Heavy/standard/light tiers** - each agent declares the tier it needs; you map tiers to actual models once in `generata.config.ts`. Swap a whole pipeline from Opus to Haiku by editing three lines.
-- **Workflows as graphs** - steps run in parallel where they can; critics can retry an upstream step on rejection.
+- **Typed workflow chains** - each agent's `outputs` flow into the next step's params with full type-safety. Steps run in parallel where deps allow; critics retry an upstream step on rejection; agents halt the workflow cleanly with a structured reason.
 - **Runs on the Claude Code CLI you already have** - no separate API key, no provider config.
 - **Zod-validated** end to end. Bad configs and bad step args fail loud at the edges.
 - **Metrics included** - cost, tokens, and duration per agent and per workflow, out of the box.
