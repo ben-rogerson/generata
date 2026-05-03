@@ -10,7 +10,11 @@ export default defineAgent<{ output_dir: string; random_pick: string }>(
     tools: ["write", "bash"],
     promptContext: [{ filepath: "NOTES.md" }],
     timeoutSeconds: 180,
-    promptTemplate: `
+    outputs: {
+      spec_filepath: "Absolute path to the SPEC.md file you wrote",
+      instructions: "2-4 sentence summary of what to build and the key acceptance criteria",
+    },
+    prompt: `
 You are deciding what to build next.
 
 Selection is random, not subjective. Follow these steps exactly:
@@ -28,9 +32,5 @@ Selection is random, not subjective. Follow these steps exactly:
       - **Non-goals** (bullet list of what is explicitly out of scope)
       - **Acceptance criteria** (bullet list of testable outcomes)
       - **Constraints** (tech stack, deployment target, anything fixed)`,
-    outputs: {
-      spec_filepath: "Absolute path to the SPEC.md file you wrote",
-      instructions: "2-4 sentence summary of what to build and the key acceptance criteria",
-    },
   }),
 );

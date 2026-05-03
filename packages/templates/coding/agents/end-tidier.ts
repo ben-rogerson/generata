@@ -8,7 +8,7 @@ export default defineAgent<{ instructions: string }>(({ instructions }) => ({
   tools: ["edit"],
   timeoutSeconds: 120,
   promptContext: [{ filepath: "NOTES.md" }],
-  promptTemplate: `
+  prompt: `
 The project was built and reviewed successfully. The original idea was:
 
 ${instructions}

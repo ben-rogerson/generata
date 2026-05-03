@@ -9,7 +9,11 @@ export default defineAgent({
   tools: [],
   timeoutSeconds: 600,
   promptContext: [{ filepath: "../../README.md" }],
-  promptTemplate: () => `
+  outputs: {
+    findings_json:
+      'JSON-encoded array of findings, e.g. \'[{"lens":"...","title":"...","description":"...","evidence_paths":["path:line"],"suggested_change_kind":"refactor"}]\'. Each finding object has: lens (one of: quality, dx-api, docs, consistency, feature), title (max 60 chars, kebab-case-friendly), description (1-2 sentences), evidence_paths (array of 1-3 strings; each "path", "path:line", or "path:line-line"), suggested_change_kind (one of: refactor, doc-update, bug-fix, new-feature, rename, test-add).',
+  },
+  prompt: () => `
 You are the audit step in a self-improvement loop for the \`generata\` framework. Your job is to scan this repo and surface candidate improvements - things a careful maintainer would notice and want to fix or build.
 
 Scope IN:
@@ -39,8 +43,4 @@ Procedure:
 3. For each candidate improvement, capture: lens, title, description, evidence_paths, suggested_change_kind (see the findings_json output description for shape and allowed values).
 
 You are read-only. Do not edit files. Do not run bash. Use only read/glob/grep tools.`,
-  outputs: {
-    findings_json:
-      'JSON-encoded array of findings, e.g. \'[{"lens":"...","title":"...","description":"...","evidence_paths":["path:line"],"suggested_change_kind":"refactor"}]\'. Each finding object has: lens (one of: quality, dx-api, docs, consistency, feature), title (max 60 chars, kebab-case-friendly), description (1-2 sentences), evidence_paths (array of 1-3 strings; each "path", "path:line", or "path:line-line"), suggested_change_kind (one of: refactor, doc-update, bug-fix, new-feature, rename, test-add).',
-  },
 });

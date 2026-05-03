@@ -18,7 +18,7 @@ const planner = withName(
     timeoutSeconds: 60,
     interactive: false,
     promptContext: [],
-    promptTemplate: () => "plan",
+    prompt: () => "plan",
   }),
   "stub-planner",
 );
@@ -33,7 +33,7 @@ const worker = (name: string, reads: string[] = []) =>
       permissions: "none",
       timeoutSeconds: 60,
       promptContext: [],
-      promptTemplate: (args) => reads.map((r) => `${r}=${args[r]}`).join("\n"),
+      prompt: (args) => reads.map((r) => `${r}=${args[r]}`).join("\n"),
     }),
     name,
   );
@@ -48,7 +48,7 @@ const critic = (name: string) =>
       permissions: "read-only",
       timeoutSeconds: 60,
       promptContext: [],
-      promptTemplate: () => "review",
+      prompt: () => "review",
     }),
     name,
   );
@@ -140,7 +140,7 @@ describe("precheckWorkflow", () => {
       permissions: "none",
       timeoutSeconds: 60,
       promptContext: [],
-      promptTemplate: `out=${out}`,
+      prompt: `out=${out}`,
     }));
     (consumer as any).name = "consumer";
 
@@ -167,7 +167,7 @@ describe("precheckWorkflow", () => {
         permissions: "none",
         timeoutSeconds: 60,
         promptContext: [{ filepath: ({ unavail }) => `${unavail}/readme.md` }],
-        promptTemplate: () => "go",
+        prompt: () => "go",
       }),
       "ctx-reader",
     );
@@ -293,7 +293,7 @@ describe("precheckWorkflow", () => {
         timeoutSeconds: 60,
         envKeys: ["PRECHECK_TEST_MISSING_KEY_XYZ"],
         promptContext: [],
-        promptTemplate: () => "go",
+        prompt: () => "go",
       }),
       "vaulted",
     );

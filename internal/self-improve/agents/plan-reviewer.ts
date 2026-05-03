@@ -9,7 +9,7 @@ export default defineAgent<{ spec_filepath: string; plan_filepath: string }>(
     permissions: "read-only",
     tools: [],
     timeoutSeconds: 240,
-    promptTemplate: `
+    prompt: `
 Read the spec at: ${spec_filepath}
 Read the plan at: ${plan_filepath}
 

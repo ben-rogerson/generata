@@ -8,7 +8,7 @@ export default defineAgent<{ git_summary: string; today_focus: string }>(
   tools: [],
   permissions: "read-only",
   timeoutSeconds: 60,
-  promptTemplate: `
+  prompt: `
 You are drafting a daily standup for an engineer.
 
 Yesterday's git activity:

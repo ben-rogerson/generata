@@ -122,7 +122,7 @@ async function main() {
       flags.plan_filepath = `${plansDir}/${flags.plan_name}.md`;
     }
 
-    if ("promptTemplate" in agent) {
+    if ("prompt" in agent) {
       const errors = validateAgentArgs(agent, flags, {
         checkProjectExists: true,
         workDir: config.workDir,

@@ -7,7 +7,7 @@ export default defineAgent<{ repo: string }>(({ repo, work_dir }) => ({
   tools: ["bash"],
   permissions: "read-only",
   timeoutSeconds: 60,
-  promptTemplate: `
+  prompt: `
 Summarise yesterday's git activity in ${repo || work_dir}.
 
 Steps:

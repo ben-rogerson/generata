@@ -20,7 +20,7 @@ export default defineAgent({
   permissions: "read-only",
   tools: [],
   timeoutSeconds: 10,
-  promptTemplate: () => "noop",
+  prompt: () => "noop",
 });
 `,
   );

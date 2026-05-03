@@ -8,5 +8,5 @@ export default defineAgent({
   permissions: "read-only",
   timeoutSeconds: 10,
   envKeys: ["FAKE_KEY"],
-  promptTemplate: ({ input }) => `Echo: ${input}`,
+  prompt: ({ input }) => `Echo: ${input}`,
 });
