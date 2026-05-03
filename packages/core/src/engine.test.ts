@@ -811,6 +811,74 @@ describe("runWorkflow agent outputs flow into downstream stepFns", () => {
   });
 });
 
+describe("runWorkflow agent failure status fails the workflow", () => {
+  it("treats RunResult.metrics.status='failure' as a thrown error so downstream steps don't run with undefined inputs", async () => {
+    // Regression: agent-runner sets status='failure' (e.g. claude crash, or
+    // declared outputs not emitted) but resolves rather than throws. Without
+    // the engine surfacing that, the next step's stepFn destructured undefined
+    // values and crashed inside an agent factory (e.g. spec_filepath.replace).
+    let secondCalled = false;
+
+    const broken = withName(
+      defineAgent<{ output_dir: string }>(({ output_dir }) => ({
+        type: "worker",
+        description: "would emit but does not",
+        modelTier: "light",
+        tools: [],
+        permissions: "full",
+        timeoutSeconds: 60,
+        promptContext: [],
+        prompt: `${output_dir}`,
+        outputs: { spec_filepath: "Absolute path to SPEC.md" },
+      })),
+      "broken",
+    );
+
+    const downstream = withName(
+      defineAgent<{ spec_filepath: string }>(({ spec_filepath }) => ({
+        type: "worker",
+        description: "consumer",
+        modelTier: "light",
+        tools: [],
+        permissions: "full",
+        timeoutSeconds: 60,
+        promptContext: [],
+        prompt: `read ${spec_filepath}`,
+      })),
+      "downstream",
+    );
+
+    const stubRunAgent = async (options: RunOptions): Promise<RunResult> => {
+      if (options.agent.name === "broken") {
+        return {
+          output: "",
+          metrics: makeMetrics({
+            agent: options.agent.name,
+            status: "failure",
+            error: "emit missing keys: spec_filepath",
+          }),
+        };
+      }
+      secondCalled = true;
+      return { output: "", metrics: makeMetrics({ agent: options.agent.name }) };
+    };
+
+    const workflow = withName(
+      defineWorkflow({ description: "fail-stops", variables: { output_dir: "p" } })
+        .step("first", ({ output_dir }) => broken({ output_dir }))
+        .step("second", ({ spec_filepath }) => downstream({ spec_filepath }))
+        .build(),
+      "fail-stops",
+    );
+
+    await rejects(
+      runWorkflow(workflow, {}, stubConfig, "/tmp", undefined, { runAgent: stubRunAgent }),
+      /emit missing keys: spec_filepath/,
+    );
+    equal(secondCalled, false);
+  });
+});
+
 describe("runWorkflow with factory-form agent (smoke)", () => {
   it("resolves builtins and prior step output through the factory closure end-to-end", async () => {
     // End-to-end smoke: a factory agent's prompt references both a
