@@ -117,7 +117,9 @@ export default defineWorkflow({
 
 Typo `slug`, reference it before `coin` runs, or pass the wrong shape to `expander` - all type errors at the call site. Halt at any agent with `halt with reason "X"` and the engine stops the workflow cleanly; downstream steps don't run.
 
-For workflows that mutate the repo and ship a PR, opt in to git-worktree isolation via `worktree`. The workflow runs in a fresh worktree branched from `origin/main`, while logs, metrics, and any declared `sharedPaths` symlink back to the main checkout. Pruned at run end:
+## Worktree isolation
+
+For workflows that mutate the repo and ship a PR, opt in to git-worktree isolation via `worktree`. The workflow runs in a fresh worktree branched from `origin/main`, while logs, metrics, and any declared `sharedPaths` symlink back to the main checkout. Pruned at run end.
 
 ```ts
 import { defineWorkflow, worktree } from "@generata/core";
