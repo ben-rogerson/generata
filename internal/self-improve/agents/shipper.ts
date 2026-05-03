@@ -44,11 +44,12 @@ Use the typed values above directly:
 
 Procedure (call commands once each unless something fails):
 1. Compute \`$MAIN_REPO\` as above.
-2. Switch main repo to a fresh branch: \`git -C "$MAIN_REPO" checkout main && git -C "$MAIN_REPO" pull --ff-only origin main && git -C "$MAIN_REPO" checkout -b <branch>\`.
-3. Copy the writer's changed files from \`${worktree_root}\` into \`$MAIN_REPO\` at the same relative paths. Source the file list from the patch at \`${worktree_root}\`/internal/self-improve/last-diff.patch (or fall back to \`git -C ${worktree_root} diff --name-only HEAD\`).
-4. Run validation **once** in \`$MAIN_REPO\` as the final gate (the worktree gauntlet ran in a different working tree): \`(cd "$MAIN_REPO" && pnpm typecheck && pnpm lint && pnpm test)\`. If anything fails, halt with reason "typecheck/lint/test failed in main: <one-line summary>" and paste the error in your text response. Do not push broken work, do not skip hooks, do not amend, do not force-push.
-5. Stage only the writer's paths by explicit name (never \`git add -A\` or \`git add .\`). \`internal/self-improve/IMPROVEMENTS.md\` and \`internal/self-improve/last-run.md\` and \`internal/self-improve/last-diff.patch\` are gitignored - they will not appear in \`git status\` and you do not need to stage them.
-6. Commit, push, open the PR per the /ship skill.
+2. **Preflight: refuse to clobber the human's work.** Run \`git -C "$MAIN_REPO" status --porcelain\`. If output is non-empty, the main repo has uncommitted changes that \`git checkout main\` could carry onto the new branch and silently mix with the workflow's output (this has happened before). Halt with reason "main repo has uncommitted changes - clean or commit them before re-running" and paste the porcelain output in your text response. Do not stash, do not reset, do not \`git checkout --\` - the user inspects and resolves.
+3. Switch main repo to a fresh branch: \`git -C "$MAIN_REPO" checkout main && git -C "$MAIN_REPO" pull --ff-only origin main && git -C "$MAIN_REPO" checkout -b <branch>\`.
+4. Copy the writer's changed files from \`${worktree_root}\` into \`$MAIN_REPO\` at the same relative paths. Source the file list from the patch at \`${worktree_root}\`/internal/self-improve/last-diff.patch (or fall back to \`git -C ${worktree_root} diff --name-only HEAD\`).
+5. Run validation **once** in \`$MAIN_REPO\` as the final gate (the worktree gauntlet ran in a different working tree): \`(cd "$MAIN_REPO" && pnpm typecheck && pnpm lint && pnpm test)\`. If anything fails, halt with reason "typecheck/lint/test failed in main: <one-line summary>" and paste the error in your text response. Do not push broken work, do not skip hooks, do not amend, do not force-push.
+6. Stage only the writer's paths by explicit name (never \`git add -A\` or \`git add .\`). \`internal/self-improve/IMPROVEMENTS.md\` and \`internal/self-improve/last-run.md\` and \`internal/self-improve/last-diff.patch\` are gitignored - they will not appear in \`git status\` and you do not need to stage them.
+7. Commit, push, open the PR per the /ship skill.
 
 On success, lead your final text response with \`SHIPPED: <PR URL>\` (or \`SHIPPED: pushed to <branch>\` if pushing to an existing PR).`,
     outputs: {},
