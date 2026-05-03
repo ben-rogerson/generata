@@ -1,6 +1,6 @@
 {
   "name": "@generata/core",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Composable multi-agent pipelines on top of the Claude Code CLI.",
   "keywords": [
     "agents",
