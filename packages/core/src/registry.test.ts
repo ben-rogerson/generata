@@ -126,10 +126,7 @@ function writeWorkflow(file: string, agentRel: string): void {
     file,
     `import { defineWorkflow } from ${JSON.stringify(DEFINE_PATH)};
 import agent from "${agentRel}";
-export default defineWorkflow({
-  description: "test",
-  steps: [{ id: "s", agent }],
-});
+export default defineWorkflow({ description: "test" }).step("s", agent).build();
 `,
   );
 }
@@ -186,9 +183,10 @@ describe("loadRegistry workflows", () => {
   it("workflow steps reference the same agent objects as the agents map", async () => {
     const registry = await loadRegistry({ projectRoot: root, agentsDir: "agents" });
     const wf = registry.getWorkflow("standup/flow");
-    const stepAgent = wf.steps[0].agent as { name?: string };
+    const step = wf.steps[0];
+    const stepAgent = ("agent" in step ? step.agent : undefined) as { name?: string } | undefined;
     const directAgent = registry.get("echo");
-    strictEqual(stepAgent.name, "echo");
+    strictEqual(stepAgent?.name, "echo");
     strictEqual(stepAgent === directAgent, true);
   });
 });

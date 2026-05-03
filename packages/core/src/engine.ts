@@ -35,6 +35,7 @@ import {
 } from "./logger.js";
 import { formatPrecheckReport, precheckWorkflow } from "./precheck.js";
 import { resolveEnvProfile, type ResolvedEnv } from "./env-profile.js";
+import { resolveStepShape } from "./step-shape.js";
 
 // Workers signal a structural halt by leading their output with `STATUS: halt`.
 // The critic retry loop checks this to short-circuit retries that would re-hit
@@ -75,15 +76,36 @@ export interface WorkflowResult {
 }
 
 function resolveArgs(
-  args: Record<string, unknown> | ((params: StepParams) => Record<string, unknown>),
+  args: Record<string, unknown> | ((params: StepParams) => Record<string, unknown>) | undefined,
   params: Record<string, unknown>,
   stepOutputs: Record<string, string>,
 ): Record<string, unknown> {
   const stringParams: StepParams = Object.fromEntries(
     Object.entries({ ...params, ...stepOutputs }).map(([k, v]) => [k, String(v)]),
   );
-  if (typeof args === "function") return { ...stringParams, ...args(stringParams) };
-  return { ...stringParams, ...args };
+  // Always-passthrough: builtins, vars, required, derived. Prior step outputs
+  // are NOT auto-leaked — agents only see what an `args` fn explicitly returns.
+  const passthrough: Record<string, unknown> = { ...params };
+  if (typeof args === "function") return { ...passthrough, ...args(stringParams) };
+  return { ...passthrough, ...(args ?? {}) };
+}
+
+// Resolve a workflow step (agent-form or stepFn-form) to {agent, args} for
+// the run loop. For stepFn-form, run the user's function with the current
+// {params + stepOutputs} so it can map prior outputs into the agent factory.
+function resolveStepForRun(
+  step: WorkflowStep,
+  params: Record<string, unknown>,
+  stepOutputs: Record<string, string>,
+): { agent: LLMAgentDef; args: Record<string, unknown> } {
+  if ("stepFn" in step) {
+    const stringParams: StepParams = Object.fromEntries(
+      Object.entries({ ...params, ...stepOutputs }).map(([k, v]) => [k, String(v)]),
+    );
+    const inv = step.stepFn(stringParams);
+    return { agent: inv.agent as LLMAgentDef, args: { ...params, ...inv.args } };
+  }
+  return { agent: step.agent as LLMAgentDef, args: resolveArgs(step.args, params, stepOutputs) };
 }
 
 function resolveIsolation(
@@ -144,7 +166,9 @@ export async function runWorkflow(
   }
 
   // Precheck confirmed env keys are resolvable; now materialise them.
-  const requiredEnvKeys = [...new Set(workflow.steps.flatMap((s) => s.agent.envKeys ?? []))];
+  const requiredEnvKeys = [
+    ...new Set(workflow.steps.flatMap((s) => resolveStepShape(s).agent.envKeys ?? [])),
+  ];
   const resolvedEnv: ResolvedEnv = resolveEnvProfile(requiredEnvKeys, profile);
 
   // Inject today builtin so function args (e.g. daily-plan) can use today.
@@ -246,7 +270,9 @@ export async function runWorkflow(
 
           const stepIndex = workflow.steps.findIndex((s) => s.id === step.id) + 1;
 
-          const resolvedArgs = resolveArgs(step.args, params, stepOutputs);
+          const resolved = resolveStepForRun(step, params, stepOutputs);
+          const stepAgent = resolved.agent;
+          const resolvedArgs = resolved.args;
 
           // Compute workflow variables (static vars + derive) for this step.
           // Builtins and resolved step args are merged as input to derive().
@@ -264,10 +290,10 @@ export async function runWorkflow(
           // Used for both the initial run and critic-triggered retries.
           const runAgentStep = async (
             targetStep: WorkflowStep,
+            targetAgent: LLMAgentDef,
             targetArgs: Record<string, unknown>,
             retryPreamble?: string,
           ): Promise<RunResult> => {
-            const targetAgent = targetStep.agent as LLMAgentDef;
             let r: RunResult | undefined;
             let attempt = 0;
             while (true) {
@@ -316,7 +342,7 @@ export async function runWorkflow(
             return r!;
           };
 
-          let result = await runAgentStep(step, resolvedArgs);
+          let result = await runAgentStep(step, stepAgent, resolvedArgs);
 
           stepOutputs[step.id] = result.output;
           stepResults.push({
@@ -349,7 +375,7 @@ export async function runWorkflow(
           // critic. Repeats up to maxRetries (step override) or
           // config.maxCriticRetries (global default). The upstream step must be
           // a worker or non-interactive planner; validate.ts enforces this.
-          if (step.agent.type === "critic") {
+          if (stepAgent.type === "critic") {
             // No-verdict retry loop: when the critic's CLI invocation produces no
             // verdict file (transient hang, empty stream, killed mid-call), re-run
             // just the critic - the worker output is fine. Burns up to maxRetries.
@@ -362,13 +388,13 @@ export async function runWorkflow(
               while (retryAttempt < maxAttempts && !result.verdict) {
                 retryAttempt++;
                 logStepRetry(step.id, retryAttempt);
-                const criticArgs = resolveArgs(step.args, params, stepOutputs);
-                result = await runAgentStep(step, criticArgs);
+                const reResolved = resolveStepForRun(step, params, stepOutputs);
+                result = await runAgentStep(step, reResolved.agent, reResolved.args);
                 stepOutputs[step.id] = result.output;
               }
             }
             if (!result.verdict) {
-              haltSignal = `Step '${step.id}' (${step.agent.name}): critic produced no verdict`;
+              haltSignal = `Step '${step.id}' (${stepAgent.name}): critic produced no verdict`;
             } else if (result.verdict.verdict !== "approve") {
               const deps = effectiveDeps.get(step.id) ?? [];
               const executorStepId = deps[0];
@@ -391,12 +417,17 @@ export async function runWorkflow(
                     summary: result.verdict?.summary ?? "",
                     issues: result.verdict?.issues ?? [],
                   });
-                  const execArgs = resolveArgs(executorStep.args, params, stepOutputs);
-                  const execResult = await runAgentStep(executorStep, execArgs, preamble);
+                  const execResolved = resolveStepForRun(executorStep, params, stepOutputs);
+                  const execResult = await runAgentStep(
+                    executorStep,
+                    execResolved.agent,
+                    execResolved.args,
+                    preamble,
+                  );
                   stepOutputs[executorStep.id] = execResult.output;
 
-                  const criticArgs = resolveArgs(step.args, params, stepOutputs);
-                  result = await runAgentStep(step, criticArgs);
+                  const criticResolved = resolveStepForRun(step, params, stepOutputs);
+                  result = await runAgentStep(step, criticResolved.agent, criticResolved.args);
                   stepOutputs[step.id] = result.output;
 
                   // Structural-halt short-circuit: if the worker reports STATUS: halt
@@ -415,6 +446,7 @@ export async function runWorkflow(
                       agent: onRejectAgent as any,
                       args: {},
                     } as WorkflowStep,
+                    onRejectAgent as LLMAgentDef,
                     resolveArgs({}, params, stepOutputs),
                   );
                 }
@@ -428,7 +460,7 @@ export async function runWorkflow(
           // Merge planner params into runtime params and create project directory.
           // Only the initiator planner (no effective deps) emits params; non-initiator
           // planners like plan-creator just produce artifacts and don't call the params bin.
-          if (step.agent.type === "planner" && (effectiveDeps.get(step.id)?.length ?? 0) === 0) {
+          if (stepAgent.type === "planner" && (effectiveDeps.get(step.id)?.length ?? 0) === 0) {
             if (!result.params) {
               haltSignal = "planner produced no params";
             } else {

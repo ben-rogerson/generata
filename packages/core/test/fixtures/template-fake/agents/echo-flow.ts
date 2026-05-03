@@ -4,5 +4,6 @@ import echo from "./echo.js";
 export default defineWorkflow({
   description: "One-step echo workflow",
   required: ["input"] as const,
-  steps: [{ id: "echo", agent: echo }],
-});
+})
+  .step("echo", echo)
+  .build();

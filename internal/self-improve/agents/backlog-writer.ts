@@ -1,6 +1,6 @@
 import { defineAgent } from "@generata/core";
 
-export default defineAgent({
+export default defineAgent<{ prioritiser_output: string }>(({ prioritiser_output, work_dir }) => ({
   type: "worker",
   description:
     "Writes the prioritiser output to a temp file and runs the deterministic merge script to update IMPROVEMENTS.md.",
@@ -8,7 +8,7 @@ export default defineAgent({
   permissions: "full",
   tools: ["write", "bash"],
   timeoutSeconds: 120,
-  promptTemplate: ({ prioritiser_output, work_dir }) => `
+  promptTemplate: `
 You receive the ranked findings from the prioritiser step:
 
 PRIORITISER OUTPUT:
@@ -28,4 +28,4 @@ Procedure:
 5. Print the script's summary line as your final output. If the script exits non-zero, print \`ERROR:\` followed by its stderr instead.
 
 Do not run any other bash commands. Do not edit IMPROVEMENTS.md directly. Do not write any file other than the temp file in step 2.`,
-});
+}));

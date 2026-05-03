@@ -1,6 +1,7 @@
-import { equal, match, rejects } from "node:assert/strict";
+import { equal, match, ok, rejects } from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { RunOptions, RunResult } from "./agent-runner.js";
+import { buildPrompt } from "./context-builder.js";
 import { defineAgent, defineWorkflow, worktree } from "./define.js";
 import { isStructuralHalt, runWorkflow } from "./engine.js";
 import { EnvProfileError } from "./env-profile.js";
@@ -105,14 +106,10 @@ describe("runWorkflow critic retry short-circuit", () => {
     );
 
     const workflow = withName(
-      defineWorkflow({
-        description: "halt-loop",
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        steps: [
-          { id: "code", agent: worker },
-          { id: "review-code", agent: critic, maxRetries: 5 },
-        ] as any,
-      }),
+      defineWorkflow({ description: "halt-loop" })
+        .step("code", worker)
+        .step("review-code", critic, { maxRetries: 5 })
+        .build(),
       "halt-loop",
     );
 
@@ -158,14 +155,10 @@ describe("runWorkflow critic no-verdict retry", () => {
       "review-code",
     );
     return withName(
-      defineWorkflow({
-        description: "no-verdict",
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        steps: [
-          { id: "code", agent: worker },
-          { id: "review-code", agent: critic, maxRetries },
-        ] as any,
-      }),
+      defineWorkflow({ description: "no-verdict" })
+        .step("code", worker)
+        .step("review-code", critic, { maxRetries })
+        .build(),
       "no-verdict",
     );
   }
@@ -290,10 +283,7 @@ describe("runWorkflow workflowId sanitisation", () => {
     );
 
     const workflow = withName(
-      defineWorkflow({
-        description: "nested",
-        steps: [{ id: "step", agent: worker }],
-      }),
+      defineWorkflow({ description: "nested" }).step("step", worker).build(),
       "workflows/improve",
     );
 
@@ -336,10 +326,7 @@ describe("runWorkflow env propagation", () => {
     });
 
     const workflow = withName(
-      defineWorkflow({
-        description: "d",
-        steps: [{ id: "go", agent: worker }],
-      }),
+      defineWorkflow({ description: "d" }).step("go", worker).build(),
       "env-prop",
     );
 
@@ -379,8 +366,9 @@ describe("agent-runner cwd plumbing", () => {
     const workflow = withName(
       defineWorkflow({
         description: "cwd",
-        steps: [{ id: "code", agent: worker }] as any,
-      }),
+      })
+        .step("code", worker)
+        .build(),
       "cwd",
     );
     // For now, the engine doesn't yet pass cwd. This test exercises the
@@ -435,8 +423,9 @@ describe("runWorkflow isolation: worktree", () => {
       defineWorkflow({
         description: "wt",
         isolation: worktree({}),
-        steps: [{ id: "code", agent: worker }] as any,
-      }),
+      })
+        .step("code", worker)
+        .build(),
       "wt",
     );
     const { stubSetup, getCleanupCalls } = makeStubSetup();
@@ -474,8 +463,9 @@ describe("runWorkflow isolation: worktree", () => {
       defineWorkflow({
         description: "wt-fail",
         isolation: worktree({}),
-        steps: [{ id: "code", agent: worker }] as any,
-      }),
+      })
+        .step("code", worker)
+        .build(),
       "wt-fail",
     );
     const { stubSetup, getCleanupCalls } = makeStubSetup();
@@ -515,8 +505,9 @@ describe("runWorkflow isolation: worktree", () => {
     const workflow = withName(
       defineWorkflow({
         description: "no-wt",
-        steps: [{ id: "code", agent: worker }] as any,
-      }),
+      })
+        .step("code", worker)
+        .build(),
       "no-wt",
     );
     await runWorkflow(workflow, {}, stubConfig, "/tmp", undefined, {
@@ -553,8 +544,9 @@ describe("runWorkflow isolation: worktree", () => {
       defineWorkflow({
         description: "no-wt-overridden",
         // declared "none" but overridden to "worktree"
-        steps: [{ id: "code", agent: worker }] as any,
-      }),
+      })
+        .step("code", worker)
+        .build(),
       "no-wt-overridden",
     );
     await runWorkflow(workflow, {}, stubConfig, "/tmp", undefined, {
@@ -564,5 +556,82 @@ describe("runWorkflow isolation: worktree", () => {
       mainProjectRoot: "/tmp",
     });
     equal(setupCalls, 1);
+  });
+});
+
+describe("runWorkflow with factory-form agent (smoke)", () => {
+  it("resolves builtins and prior step output through the factory closure end-to-end", async () => {
+    // End-to-end smoke: a factory agent's promptTemplate references both a
+    // builtin (today) and a step-output input (picker_output). The stub
+    // runAgent invokes the real buildPrompt, so any regression in the
+    // closure-vs-sentinel logic shows up as a placeholder leak in capturedPrompt.
+    const captured: Record<string, string> = {};
+
+    const picker = withName(
+      defineAgent({
+        type: "worker",
+        description: "p",
+        modelTier: "light",
+        tools: [],
+        permissions: "full",
+        timeoutSeconds: 60,
+        promptContext: [],
+        promptTemplate: () => "pick something",
+      }),
+      "picker",
+    );
+
+    const factoryAgent = withName(
+      defineAgent<{ picker_output: string }>(({ picker_output, today, work_dir }) => ({
+        type: "worker",
+        description: "spec",
+        modelTier: "standard",
+        tools: [],
+        permissions: "full",
+        timeoutSeconds: 60,
+        promptContext: [],
+        promptTemplate: `today=${today}; dir=${work_dir}; picker=${picker_output}`,
+      })),
+      "spec",
+    );
+
+    let pickerOutput = "";
+    const stubRunAgent = async (options: RunOptions): Promise<RunResult> => {
+      const prompt = buildPrompt({
+        agent: options.agent,
+        args: options.args,
+        config: options.config,
+        workDir: options.workDir,
+        stepOutputs: options.stepOutputs,
+        workflowVariables: options.workflowVariables,
+      });
+      const stepId = options.stepId ?? options.agent.name;
+      captured[stepId] = prompt;
+      const output = options.agent.name === "picker" ? "the-picked-thing" : "STATUS: complete";
+      if (options.agent.name === "picker") pickerOutput = output;
+      return { output, metrics: makeMetrics({ agent: options.agent.name }) };
+    };
+
+    const workflow = withName(
+      defineWorkflow({ description: "smoke" })
+        .step("pick", picker)
+        .step("spec", ({ pick }) => factoryAgent({ picker_output: pick }))
+        .build(),
+      "smoke",
+    );
+
+    const result = await runWorkflow(workflow, {}, stubConfig, "/tmp", undefined, {
+      runAgent: stubRunAgent,
+    });
+
+    equal(result.success, true);
+    ok(captured.spec, "spec step captured");
+    ok(
+      captured.spec.includes(`picker=${pickerOutput}`),
+      `picker_output not wired in: ${captured.spec}`,
+    );
+    ok(captured.spec.includes("dir=/tmp"), `work_dir not wired in: ${captured.spec}`);
+    ok(/today=\d{4}-\d{2}-\d{2}/.test(captured.spec), `today not real ISO date: ${captured.spec}`);
+    ok(!captured.spec.includes("__placeholder_"), `sentinel leaked: ${captured.spec}`);
   });
 });

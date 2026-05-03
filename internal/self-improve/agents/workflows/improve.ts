@@ -14,57 +14,30 @@ export default defineWorkflow({
   isolation: worktree({
     sharedPaths: ["IMPROVEMENTS.md", "last-run.md"],
   }),
-  steps: [
-    { id: "pick", agent: itemPicker },
-    {
-      id: "spec",
-      agent: specCreator,
-      args: ({ pick }) => ({ picker_output: pick }),
-    },
-    {
-      id: "plan",
-      agent: planCreator,
-      args: ({ spec }) => ({ spec_creator_output: spec }),
-    },
-    {
-      id: "review-plan",
-      agent: planReviewer,
-      maxRetries: 2,
-      args: ({ spec, plan }) => ({
-        spec_creator_output: spec,
-        plan_creator_output: plan,
-      }),
-    },
-    {
-      id: "code",
-      agent: codeWriter,
-      args: ({ spec, plan }) => ({
-        spec_creator_output: spec,
-        plan_creator_output: plan,
-      }),
-    },
-    {
-      id: "review-code",
-      agent: codeReviewer,
-      maxRetries: 2,
-      args: ({ code, spec, plan }) => ({
+})
+  .step("pick", itemPicker)
+  .step("spec", ({ pick }) => specCreator({ picker_output: pick }))
+  .step("plan", ({ spec }) => planCreator({ spec_creator_output: spec }))
+  .step(
+    "review-plan",
+    ({ spec, plan }) => planReviewer({ spec_creator_output: spec, plan_creator_output: plan }),
+    { maxRetries: 2 },
+  )
+  .step("code", ({ spec, plan }) =>
+    codeWriter({ spec_creator_output: spec, plan_creator_output: plan }),
+  )
+  .step(
+    "review-code",
+    ({ code, spec, plan }) =>
+      codeReviewer({
         code_writer_output: code,
         spec_creator_output: spec,
         plan_creator_output: plan,
       }),
-    },
-    {
-      id: "summarise",
-      agent: changeSummariser,
-      args: ({ pick, code }) => ({
-        picker_output: pick,
-        code_writer_output: code,
-      }),
-    },
-    {
-      id: "ship",
-      agent: shipper,
-      args: ({ summarise }) => ({ summariser_output: summarise }),
-    },
-  ],
-});
+    { maxRetries: 2 },
+  )
+  .step("summarise", ({ pick, code }) =>
+    changeSummariser({ picker_output: pick, code_writer_output: code }),
+  )
+  .step("ship", ({ summarise }) => shipper({ summariser_output: summarise }))
+  .build();

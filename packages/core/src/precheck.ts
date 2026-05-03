@@ -3,6 +3,7 @@ import { resolve } from "path";
 import { BUILTIN_ARGS, LLMAgentDef, StepParams, WorkflowDef } from "./schema.js";
 import { extractPromptParams } from "./context-builder.js";
 import { EnvProfileError, resolveEnvProfile } from "./env-profile.js";
+import { resolveStepShape } from "./step-shape.js";
 
 export interface PrecheckIssue {
   stepId?: string;
@@ -110,7 +111,7 @@ export function precheckWorkflow(
 
   for (let i = 0; i < workflow.steps.length; i++) {
     const step = workflow.steps[i];
-    const agent = step.agent;
+    const { agent } = resolveStepShape(step);
 
     if (agent.type === "planner" && agent.interactive && i !== 0) {
       issues.push({
@@ -130,7 +131,7 @@ export function precheckWorkflow(
       }
       const dep = step.dependsOn === undefined ? workflow.steps[i - 1]?.id : step.dependsOn[0];
       const depStep = dep ? workflow.steps.find((s) => s.id === dep) : undefined;
-      const depAgent = depStep?.agent;
+      const depAgent = depStep ? resolveStepShape(depStep).agent : undefined;
       const retryable =
         depAgent?.type === "worker" || (depAgent?.type === "planner" && !depAgent.interactive);
       if (!retryable) {
@@ -177,7 +178,7 @@ export function precheckWorkflow(
   // params shell bin (see generata/bin/params + RunResult.params in agent-runner.ts).
   // `derive` runs per-step, so it sees these from step 1 onward - add them to the base
   // so derive reads of plan_name/instructions don't trip the precheck.
-  if (workflow.steps[0].agent.type === "planner") {
+  if (resolveStepShape(workflow.steps[0]).agent.type === "planner") {
     base.add("plan_name");
     base.add("instructions");
   }
@@ -196,17 +197,28 @@ export function precheckWorkflow(
 
   for (let i = 0; i < workflow.steps.length; i++) {
     const step = workflow.steps[i];
-    const agent = step.agent;
+    const { agent, args } = resolveStepShape(step);
 
-    // Available set = base + every prior step id (engine spreads all stepOutputs into args).
+    // Available set = base + every prior step id.
     const available = new Set(base);
     for (let j = 0; j < i; j++) available.add(workflow.steps[j].id);
 
+    // For stepFn-form steps, also introspect the stepFn body for unavailable reads
+    // (matches the old behaviour of flagging args fns that read missing keys).
+    if ("stepFn" in step) {
+      const { reads } = introspectFn(step.stepFn);
+      for (const r of reads) {
+        if (!available.has(r)) {
+          issues.push({
+            stepId: step.id,
+            agentName: agent.name,
+            message: `step fn reads ${missingMessage(r, available)}`,
+          });
+        }
+      }
+    }
+
     const argKeys = new Set<string>();
-    const args = step.args as
-      | Record<string, unknown>
-      | ((p: StepParams) => Record<string, unknown>)
-      | undefined;
 
     const checkString = (value: string, label: string) => {
       for (const ref of extractInterpolations(value)) {
@@ -302,11 +314,12 @@ export function precheckWorkflow(
 
   const envByAgent = new Map<string, Set<string>>();
   for (const step of workflow.steps) {
-    const keys = step.agent.envKeys ?? [];
+    const { agent } = resolveStepShape(step);
+    const keys = agent.envKeys ?? [];
     if (keys.length === 0) continue;
-    const bucket = envByAgent.get(step.agent.name) ?? new Set<string>();
+    const bucket = envByAgent.get(agent.name) ?? new Set<string>();
     for (const k of keys) bucket.add(k);
-    envByAgent.set(step.agent.name, bucket);
+    envByAgent.set(agent.name, bucket);
   }
   for (const [agentName, keys] of envByAgent) {
     try {

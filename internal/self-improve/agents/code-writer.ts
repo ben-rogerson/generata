@@ -1,16 +1,17 @@
 import { defineAgent } from "@generata/core";
 import { renderOutOfScopeList } from "./_out-of-scope.js";
 
-export default defineAgent({
-  type: "worker",
-  description:
-    "Implements the plan: edits files, writes tests, runs typecheck/lint/test before declaring success.",
-  modelTier: "heavy",
-  permissions: "full",
-  tools: ["write", "edit", "bash"],
-  timeoutSeconds: 1200,
-  maxRetries: 1,
-  promptTemplate: ({ spec_creator_output, plan_creator_output, work_dir }) => `
+export default defineAgent<{ spec_creator_output: string; plan_creator_output: string }>(
+  ({ spec_creator_output, plan_creator_output, work_dir }) => ({
+    type: "worker",
+    description:
+      "Implements the plan: edits files, writes tests, runs typecheck/lint/test before declaring success.",
+    modelTier: "heavy",
+    permissions: "full",
+    tools: ["write", "edit", "bash"],
+    timeoutSeconds: 1200,
+    maxRetries: 1,
+    promptTemplate: `
 You receive the spec and plan paths:
 
 SPEC CREATOR OUTPUT:
@@ -42,4 +43,5 @@ ${renderOutOfScopeList()}
    - \`STATUS: partial\` is reserved for genuine external blockers (network/auth/missing creds). It is NOT acceptable for "ran out of effort," failing tests, or lint errors. If you hit a tough error, fix it or halt with the failure output - do not declare partial.
 
 Do not commit. Do not run \`git\` for anything destructive (no \`git reset\`, \`git checkout --\`, \`git clean\`, \`git stash drop\`, etc.). Do not run \`gh\`. Read-only git introspection (\`git diff\`, \`git status\`, \`git log\`) is fine. Leave the working tree dirty for the human to inspect and \`/ship\`.`,
-});
+  }),
+);

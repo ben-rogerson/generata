@@ -1,6 +1,6 @@
 import { defineAgent } from "@generata/core";
 
-export default defineAgent({
+export default defineAgent<{ summariser_output: string }>(({ summariser_output, work_dir }) => ({
   type: "worker",
   description:
     "Runs the /ship procedure (branch, commit, changeset, push, PR) using the bump and commit message from last-run.md.",
@@ -8,7 +8,7 @@ export default defineAgent({
   permissions: "full",
   tools: ["write", "edit", "bash"],
   timeoutSeconds: 900,
-  promptTemplate: ({ summariser_output, work_dir }) => `
+  promptTemplate: `
 You ship the change that the previous step just summarised.
 
 SUMMARISER OUTPUT:
@@ -33,4 +33,4 @@ Staging guidance:
 If \`pnpm typecheck\` or \`pnpm test\` fails, halt with \`FAILED: <reason>\` and paste the error. Do not push broken work. Do not skip hooks. Do not amend or force-push.
 
 On success, lead your final response with \`SHIPPED: <PR URL>\` (or \`SHIPPED: pushed to <branch>\` if pushing to an existing PR).`,
-});
+}));

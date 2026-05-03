@@ -67,8 +67,9 @@ import greeter from "./greeter.js";
 export default defineWorkflow({
   description: "Greets the supplied message.",
   required: ["message"], // Supplied via --message flag
-  steps: [{ id: "greet", agent: greeter }],
-});
+})
+  .step("greet", greeter)
+  .build();
 ```
 
 ```ts

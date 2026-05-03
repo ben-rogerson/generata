@@ -1,14 +1,15 @@
 import { defineAgent } from "@generata/core";
 
-export default defineAgent({
-  type: "critic",
-  description:
-    "Verifies the plan covers the spec, scales to the declared SIZE, and stays in scope. Rejects with concrete issues.",
-  modelTier: "standard",
-  permissions: "read-only",
-  tools: [],
-  timeoutSeconds: 240,
-  promptTemplate: ({ spec_creator_output, plan_creator_output }) => `
+export default defineAgent<{ spec_creator_output: string; plan_creator_output: string }>(
+  ({ spec_creator_output, plan_creator_output }) => ({
+    type: "critic",
+    description:
+      "Verifies the plan covers the spec, scales to the declared SIZE, and stays in scope. Rejects with concrete issues.",
+    modelTier: "standard",
+    permissions: "read-only",
+    tools: [],
+    timeoutSeconds: 240,
+    promptTemplate: `
 You have the spec-creator output and the plan-creator output:
 
 SPEC CREATOR OUTPUT:
@@ -31,4 +32,5 @@ Evaluate:
 5. Are dependencies and risks called out for SUBSTANTIAL plans?
 
 Reason through each point in prose, then call the verdict command. When rejecting, list each concrete problem as a separate issue argument anchored to a specific spec line or plan step. Vague flags like "needs more detail" do not qualify.`,
-});
+  }),
+);

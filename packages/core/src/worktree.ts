@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve as resolvePath } from "node:path";
 import type { WorkflowDef, WorktreeConfig } from "./schema.js";
+import { startSpinner } from "./logger.js";
 
 const LOCKFILE_TO_INSTALL: Array<[string, string[]]> = [
   ["pnpm-lock.yaml", ["pnpm", "install", "--frozen-lockfile"]],
@@ -142,9 +143,11 @@ export async function setupWorktree(opts: SetupWorktreeOptions): Promise<SetupWo
   const worktreePath = resolveWorktreePath(opts);
 
   // 1. Fetch origin/main
+  const stopFetch = startSpinner("worktree: fetching origin/main");
   const fetched = await backend.exec(["git", "fetch", "origin", "main"], {
     cwd: opts.mainProjectRoot,
   });
+  stopFetch();
   if (fetched.exitCode !== 0) {
     throw new Error(
       `isolation: "worktree" requires an 'origin' remote with a 'main' branch. ` +
@@ -153,10 +156,14 @@ export async function setupWorktree(opts: SetupWorktreeOptions): Promise<SetupWo
   }
 
   // 2. git worktree add -b <branch> <path> origin/main
+  const stopAdd = startSpinner(
+    `worktree: creating ${relative(opts.mainProjectRoot, worktreePath)}`,
+  );
   const added = await backend.exec(
     ["git", "worktree", "add", "-b", branchName, worktreePath, "origin/main"],
     { cwd: opts.mainProjectRoot },
   );
+  stopAdd();
   if (added.exitCode !== 0) {
     throw new Error(
       `git worktree add failed: ${added.stderr.trim()}. ` +
@@ -201,7 +208,9 @@ export async function setupWorktree(opts: SetupWorktreeOptions): Promise<SetupWo
     // 5. Run worktreeSetup (or detected install)
     const installCmd = opts.config.worktreeSetup ?? detectPackageManager(worktreePath);
     if (installCmd) {
+      const stopInstall = startSpinner(`worktree: ${installCmd.join(" ")}`);
       const installed = await backend.exec(installCmd, { cwd: worktreePath });
+      stopInstall();
       if (installed.exitCode !== 0) {
         throw new Error(
           `worktreeSetup '${installCmd.join(" ")}' failed (exit ${installed.exitCode}): ${installed.stderr.trim()}`,

@@ -9,8 +9,7 @@ import endTidier from "../end-tidier.js";
 import rejectedCodeTidier from "../rejected-code-tidier.js";
 
 export default defineWorkflow({
-  description:
-    "Pick an idea from NOTES.md, spec it, plan it, build it, review it",
+  description: "Pick an idea from NOTES.md, spec it, plan it, build it, review it",
   variables: { output_dir: "projects" },
   derive: ({ output_dir, plan_name }) => ({
     project_dir: `${output_dir}/${plan_name}`,
@@ -18,13 +17,12 @@ export default defineWorkflow({
     plan_filepath: `${output_dir}/${plan_name}/PLAN.md`,
     random_pick: String(Math.floor(Math.random() * 1_000_000)),
   }),
-  steps: [
-    { id: "dream", agent: specCreator },
-    { id: "plan", agent: planCreator },
-    { id: "audit", agent: planReviewer, maxRetries: 2 },
-    { id: "execute", agent: codeWriter },
-    { id: "verify", agent: codeReviewer, onReject: rejectedCodeTidier },
-    { id: "readme", agent: readmeWriter },
-    { id: "tidy", agent: endTidier, dependsOn: ["verify"] },
-  ],
-});
+})
+  .step("dream", specCreator)
+  .step("plan", planCreator)
+  .step("audit", planReviewer, { maxRetries: 2 })
+  .step("execute", codeWriter)
+  .step("verify", codeReviewer, { onReject: rejectedCodeTidier })
+  .step("readme", readmeWriter)
+  .step("tidy", endTidier, { dependsOn: ["verify"] })
+  .build();

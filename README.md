@@ -49,8 +49,9 @@ import greeter from "./greeter.js";
 export default defineWorkflow({
   description: "Greets the supplied message.",
   required: ["message"],
-  steps: [{ id: "greet", agent: greeter }],
-});
+})
+  .step("greet", greeter)
+  .build();
 ```
 
 And the project config - `init` writes one for you, but here's what it looks like:
@@ -80,8 +81,9 @@ export default defineWorkflow({
   isolation: worktree({
     sharedPaths: ["IMPROVEMENTS.md", "last-run.md"],
   }),
-  steps: [/* ... */],
-});
+})
+  .step(/* ... */)
+  .build();
 ```
 
 Run-time overrides: `generata workflow <name> --worktree` forces isolation on, `--local` forces it off. `generata worktree prune` recovers orphan worktrees from crashed runs.
