@@ -147,7 +147,7 @@ Run-time overrides: `generata workflow <name> --worktree` forces isolation on, `
 - **Typed workflow chains** - each agent's `outputs` flow into the next step's params with full type-safety. Steps run in parallel where deps allow; critics retry an upstream step on rejection; agents halt the workflow cleanly with a structured reason.
 - **Runs on the Claude Code CLI you already have** - no separate API key, no provider config.
 - **Zod-validated** end to end. Bad configs and bad step args fail loud at the edges.
-- **Metrics included** - cost, tokens, and duration per agent and per workflow, out of the box.
+- **Metrics included** - cost, tokens, and duration captured per agent and per workflow, written as JSONL. Run `generata metrics today`, `metrics week`, `metrics expensive` (top 10 calls today), or `metrics <agent>` (7-day rollup for one agent) for summaries. The 7-day total auto-prints at the start of each run.
 - **Prompt logs on demand** - flip `logPrompts: true` (or pass `--log-prompts`) and every prompt sent to Claude Code lands in `logs/` so you can replay, diff, or debug what an agent actually saw.
 - **Work/personal env profiles** - pass `--profile work` and required env keys are pulled from `WORK_`-prefixed vars, so the same pipeline can run against a work GitHub token one minute and your personal one the next without `.env` shuffling.
 
