@@ -1,5 +1,5 @@
 import { describe, it } from "node:test";
-import { equal, ok } from "node:assert/strict";
+import { equal, ok, throws } from "node:assert/strict";
 import { defineAgent, defineWorkflow, worktree } from "./define.js";
 
 describe("defineWorkflow chain builder", () => {
@@ -221,5 +221,87 @@ describe("defineWorkflow chain builder", () => {
       ok(String(e).includes("at least one .step()"));
     }
     ok(threw, "expected empty workflow to throw");
+  });
+});
+
+describe("defineWorkflow .step() with sub-workflow", () => {
+  const stub = defineAgent({
+    type: "worker",
+    description: "x",
+    modelTier: "light",
+    tools: [],
+    permissions: "full",
+    timeoutSeconds: 60,
+    promptContext: [],
+    prompt: () => "p",
+  });
+  (stub as any).name = "stub";
+
+  const subWorkflow = defineWorkflow({
+    description: "review one note",
+    required: ["file"],
+  })
+    .step("read", stub)
+    .build();
+  (subWorkflow as any).name = "review-note";
+
+  it("accepts a WorkflowDef as a step value with each.glob + as", () => {
+    const wf = defineWorkflow({ description: "outer" })
+      .step("reviews", subWorkflow, {
+        each: { glob: "notes/*.md" },
+        as: "file",
+      })
+      .build();
+    ok(wf.steps[0]);
+    equal(wf.steps[0].id, "reviews");
+    ok("subWorkflow" in wf.steps[0]);
+  });
+
+  it("accepts each.json without as", () => {
+    const wf = defineWorkflow({ description: "outer" })
+      .step("reviews", subWorkflow, {
+        each: { json: "tasks.json" },
+      })
+      .build();
+    ok("subWorkflow" in wf.steps[0]);
+  });
+
+  it("accepts each.items without as", () => {
+    const wf = defineWorkflow({ description: "outer" })
+      .step("reviews", subWorkflow, {
+        each: { items: () => [{ file: "a.md" }] },
+      })
+      .build();
+    ok("subWorkflow" in wf.steps[0]);
+  });
+
+  it("rejects glob source without as", () => {
+    throws(() =>
+      defineWorkflow({ description: "outer" })
+        .step("reviews", subWorkflow, {
+          each: { glob: "notes/*.md" },
+        } as never)
+        .build(),
+    );
+  });
+
+  it("rejects concurrency: 0", () => {
+    throws(() =>
+      defineWorkflow({ description: "outer" })
+        .step("reviews", subWorkflow, {
+          each: { glob: "notes/*.md" },
+          as: "file",
+          concurrency: 0,
+        })
+        .build(),
+    );
+  });
+
+  it("rejects missing each: when value is a workflow", () => {
+    throws(() =>
+      defineWorkflow({ description: "outer" })
+        .step("reviews", subWorkflow, {} as never)
+        .build(),
+    );
   });
 });
