@@ -10,14 +10,7 @@ import { loadConfig } from "./config.js";
 import { runAgent } from "./agent-runner.js";
 import { runWorkflow } from "./engine.js";
 import { readMetrics, readMetricsRange, summariseMetrics, formatTokenCount } from "./metrics.js";
-import {
-  fmt,
-  logBanner,
-  logWorkflowResult,
-  logStreamEvent,
-  pickTagline,
-  pickWorkflowTagline,
-} from "./logger.js";
+import { fmt, logWorkflowResult, logStreamEvent } from "./logger.js";
 import { formatPrecheckReport, precheckWorkflow, validateAgentArgs } from "./precheck.js";
 import { sendNotification, formatWorkflowNotification, formatAgentNotification } from "./notify.js";
 import { makeRunId } from "./time.js";
@@ -141,7 +134,6 @@ async function main() {
       ? buildPromptLogPath(config.workDir, config.logsDir, "agent", agent.name, runId, siblings)
       : undefined;
 
-    logBanner(pickTagline(agent.type));
     let result: Awaited<ReturnType<typeof runAgent>>;
     try {
       result = await runAgent({
@@ -199,7 +191,6 @@ async function main() {
           ...registry.workflows.keys(),
         ])
       : undefined;
-    logBanner(pickWorkflowTagline());
     const wantsWorktree = flags.worktree === "true";
     const wantsLocal = flags.local === "true";
     if (wantsWorktree && wantsLocal) {
