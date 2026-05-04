@@ -322,6 +322,16 @@ export function defineWorkflow<
             `defineWorkflow: step '${id}' concurrency must be a positive integer (got ${opts.concurrency})`,
           );
         }
+        if (
+          typeof opts.onItemFail === "function" &&
+          (opts.onItemFail as { kind?: unknown }).kind === "agent"
+        ) {
+          const fnName = (opts.onItemFail as { name?: string }).name || "<factory>";
+          throw new Error(
+            `Step '${id}': factory-form agent '${fnName}' cannot be passed bare as onItemFail. ` +
+              `Wrap it in a step fn: onItemFail: ({...}) => ${fnName}({...inputs})`,
+          );
+        }
         const internal: InternalStep = {
           id,
           subWorkflow: value as WorkflowDef,

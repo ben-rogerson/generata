@@ -304,4 +304,63 @@ describe("defineWorkflow .step() with sub-workflow", () => {
         .build(),
     );
   });
+
+  it("threads dependsOn, maxRetries, onFailure, onItemFail through to the built step", () => {
+    const failHandler = defineAgent({
+      type: "worker",
+      description: "h",
+      modelTier: "light",
+      tools: [],
+      permissions: "full",
+      timeoutSeconds: 60,
+      promptContext: [],
+      prompt: () => "p",
+    });
+    (failHandler as any).name = "failHandler";
+
+    const wf = defineWorkflow({ description: "outer" })
+      .step("setup", stub)
+      .step("reviews", subWorkflow, {
+        each: { glob: "notes/*.md" },
+        as: "file",
+        concurrency: 4,
+        onFailure: "continue",
+        onItemFail: failHandler,
+        maxRetries: 2,
+        dependsOn: ["setup"],
+      })
+      .build();
+    const loopStep = wf.steps[1] as Record<string, unknown>;
+    equal(loopStep.concurrency, 4);
+    equal(loopStep.onFailure, "continue");
+    equal(loopStep.maxRetries, 2);
+    ok(Array.isArray(loopStep.dependsOn));
+    equal((loopStep.dependsOn as string[])[0], "setup");
+    ok(loopStep.onItemFail);
+  });
+
+  it("rejects factory-form agent passed bare as onItemFail", () => {
+    // Factory-form: defineAgent called with a callable, returns AgentCallable with kind: "agent"
+    const factory = defineAgent<{ x: string }>(({ x }) => ({
+      type: "worker",
+      description: "f",
+      modelTier: "light",
+      tools: [],
+      permissions: "full",
+      timeoutSeconds: 60,
+      promptContext: [],
+      prompt: () => `f ${x}`,
+    }));
+    (factory as any).name = "factory";
+
+    throws(() =>
+      defineWorkflow({ description: "outer" })
+        .step("reviews", subWorkflow, {
+          each: { glob: "*.md" },
+          as: "file",
+          onItemFail: factory as never,
+        })
+        .build(),
+    );
+  });
 });
