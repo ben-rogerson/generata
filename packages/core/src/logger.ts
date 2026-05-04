@@ -19,19 +19,6 @@ export const fmt = {
 
 const orange = (s: string): string => (pc.isColorSupported ? `\x1b[38;5;208m${s}\x1b[0m` : s);
 
-const BANNER_PLAIN = ["  generata"];
-
-const BANNER_COLOUR = [
-  "  \x1b[31mg\x1b[1;31me\x1b[33mn\x1b[1;33me\x1b[32mr\x1b[36ma\x1b[34mt\x1b[35ma\x1b[0m",
-];
-
-export function logBanner(tagline?: string): void {
-  const lines = pc.isColorSupported ? BANNER_COLOUR : BANNER_PLAIN;
-  for (const line of lines) console.log(line);
-  if (tagline) console.log(`  ${pc.italic(tagline)}`);
-  console.log("");
-}
-
 const TYPE_COLORS: Record<AgentType, (s: string) => string> = {
   worker: pc.cyan,
   planner: pc.magenta,
@@ -70,31 +57,6 @@ export function pickTagline(type: AgentType): string {
   const options = TYPE_TAGLINES[type];
   if (!options?.length) return "Ready...";
   return options[Math.floor(Math.random() * options.length)];
-}
-
-const WORKFLOW_TAGLINES = [
-  "All systems nominal. The voices say otherwise.",
-  "Outcomes decided by blood moon, pure chaos, and one raccoon on ketamine.",
-  "git blame is drunk and telling everyone your secrets.",
-  "Refactoring so hard I achieved ego death and came back wrong.",
-  "Tabs vs spaces ended in a cage match. Only eldritch screams remain.",
-  "Yak shaved. Uncovered an ancient civilization of yaks. They want revenge.",
-  "CI goblin is awake, pissed off, and unionizing.",
-  "Containers spinning so fast they opened a portal to another dimension.",
-  "Bribed the build cache with lies and expired snacks.",
-  "GPU is now a small sun. I'm using it to make toast.",
-  "Sacrificed three branches, a junior dev, and my sleep schedule.",
-  "Production is on fire. We're doing a rain dance... with gasoline.",
-  "Linter is being a little bit**. We're ignoring it.",
-  "Touched legacy code. It whispered my name at 3am.",
-  "git blame now leads to a 2009 Geocities page and a curse.",
-  "Sonnet passed out. Haiku is tweaking balls and writing nonsense.",
-  "This app runs on spite, duct tape, and forbidden knowledge.",
-  "Code somehow works. I’m not touching it. Don’t ask.",
-];
-
-export function pickWorkflowTagline(): string {
-  return WORKFLOW_TAGLINES[Math.floor(Math.random() * WORKFLOW_TAGLINES.length)];
 }
 
 export function startSpinner(label: string): () => void {
