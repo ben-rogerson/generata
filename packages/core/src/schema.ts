@@ -214,6 +214,10 @@ export const WorktreeConfig = z
     sharedPaths: z.array(SharedPathEntry).default([]),
     worktreeDir: z.string().min(1).optional(),
     baseRef: BaseRef.optional(),
+    // When true, the worktree and its generata/wt-<runId> branch are removed
+    // after the workflow finishes (or on SIGINT/SIGTERM). Default false: leave
+    // the worktree on disk for inspection. Setup-failure cleanup is unconditional.
+    cleanup: z.boolean().default(false),
   })
   .strict();
 export type WorktreeConfig = z.infer<typeof WorktreeConfig>;

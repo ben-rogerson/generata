@@ -217,16 +217,20 @@ export async function runWorkflow(
     });
     executionRoot = setupResult.executionRoot;
     worktreePath = setupResult.worktreePath;
-    teardown = setupResult.cleanup;
+    if (isolationConfig.cleanup) {
+      teardown = setupResult.cleanup;
 
-    sigintHandler = () => {
-      void (teardown?.() ?? Promise.resolve()).finally(() => process.kill(process.pid, "SIGINT"));
-    };
-    sigtermHandler = () => {
-      void (teardown?.() ?? Promise.resolve()).finally(() => process.kill(process.pid, "SIGTERM"));
-    };
-    process.once("SIGINT", sigintHandler);
-    process.once("SIGTERM", sigtermHandler);
+      sigintHandler = () => {
+        void (teardown?.() ?? Promise.resolve()).finally(() => process.kill(process.pid, "SIGINT"));
+      };
+      sigtermHandler = () => {
+        void (teardown?.() ?? Promise.resolve()).finally(() =>
+          process.kill(process.pid, "SIGTERM"),
+        );
+      };
+      process.once("SIGINT", sigintHandler);
+      process.once("SIGTERM", sigtermHandler);
+    }
   }
 
   const weeklyMetrics = config.showWeeklyMetrics
@@ -539,6 +543,7 @@ export async function runWorkflow(
     if (teardown) {
       try {
         await teardown();
+        if (worktreePath) console.log(`[worktree] cleaned up ${worktreePath}`);
       } catch (err) {
         // Spec: teardown failure must not change the workflow's exit. The user
         // can recover via `generata worktree prune`.
@@ -546,6 +551,10 @@ export async function runWorkflow(
           `[worktree] teardown failed (run 'generata worktree prune' to recover): ${String(err)}`,
         );
       }
+    } else if (worktreePath) {
+      console.log(
+        `[worktree] preserved at ${worktreePath} (cleanup: false). Run 'generata worktree prune' to remove.`,
+      );
     }
   }
 
