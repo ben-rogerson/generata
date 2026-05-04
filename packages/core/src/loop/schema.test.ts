@@ -64,6 +64,39 @@ describe("LoopWorkflowStep", () => {
       }),
     );
   });
+
+  it("rejects empty as: (min(1) constraint)", () => {
+    throws(() =>
+      LoopWorkflowStep.parse({
+        id: "x",
+        subWorkflow: minimalSubWorkflow,
+        each: { glob: "*.md" },
+        as: "",
+      }),
+    );
+  });
+
+  it("accepts onFailure: continue", () => {
+    const parsed = LoopWorkflowStep.parse({
+      id: "x",
+      subWorkflow: minimalSubWorkflow,
+      each: { glob: "*.md" },
+      as: "f",
+      onFailure: "continue",
+    });
+    equal(parsed.onFailure, "continue");
+  });
+
+  it("rejects subWorkflow with kind: agent (must be a workflow)", () => {
+    throws(() =>
+      LoopWorkflowStep.parse({
+        id: "x",
+        subWorkflow: { kind: "agent", name: "n", type: "worker" } as never,
+        each: { glob: "*.md" },
+        as: "f",
+      }),
+    );
+  });
 });
 
 describe("WorkflowStep union", () => {

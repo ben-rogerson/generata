@@ -1,10 +1,7 @@
 import { readFile, glob as fsGlob } from "node:fs/promises";
-import type { BuiltinPromptArgs } from "../schema.js";
+import type { BuiltinPromptArgs, EachSource } from "../schema.js";
 
-export type EachSource =
-  | { glob: string }
-  | { json: string }
-  | { items: (b: BuiltinPromptArgs) => unknown[] | Promise<unknown[]> };
+export type { EachSource };
 
 export async function materialiseSource(
   source: EachSource,

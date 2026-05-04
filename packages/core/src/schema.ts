@@ -177,19 +177,19 @@ const NonCriticWorkflowStep = z.object({
 export type CriticWorkflowStep = z.infer<typeof CriticWorkflowStep>;
 export type FnWorkflowStep = z.infer<typeof FnWorkflowStep>;
 
-const EachSourceSchema = z.union([
-  z.object({ glob: z.string().min(1) }).strict(),
-  z.object({ json: z.string().min(1) }).strict(),
-  z
-    .object({
-      items: z.custom<(b: BuiltinPromptArgs) => unknown[] | Promise<unknown[]>>(
-        (val) => typeof val === "function",
-        "each.items must be a function",
-      ),
-    })
-    .strict(),
-]);
-export type EachSource = z.infer<typeof EachSourceSchema>;
+const EachGlob = z.object({ glob: z.string().min(1) }).strict();
+const EachJson = z.object({ json: z.string().min(1) }).strict();
+const EachItems = z
+  .object({
+    items: z.custom<(b: BuiltinPromptArgs) => unknown[] | Promise<unknown[]>>(
+      (val) => typeof val === "function",
+      "each.items must be a function",
+    ),
+  })
+  .strict();
+
+export const EachSource = z.union([EachGlob, EachJson, EachItems]);
+export type EachSource = z.infer<typeof EachSource>;
 
 const LoopStepOptionsBase = z.object({
   concurrency: z.number().int().positive().default(1),
@@ -220,22 +220,13 @@ export const LoopWorkflowStep = z.union([
   LoopStepOptionsBase.extend({
     id: z.string(),
     subWorkflow: z.unknown().refine(isWorkflowDef, "subWorkflow must be a WorkflowDef"),
-    each: z.object({ glob: z.string().min(1) }).strict(),
+    each: EachGlob,
     as: z.string().min(1),
   }).strict(),
   LoopStepOptionsBase.extend({
     id: z.string(),
     subWorkflow: z.unknown().refine(isWorkflowDef, "subWorkflow must be a WorkflowDef"),
-    each: z.union([
-      z.object({ json: z.string().min(1) }).strict(),
-      z
-        .object({
-          items: z.custom<(b: BuiltinPromptArgs) => unknown[] | Promise<unknown[]>>(
-            (val) => typeof val === "function",
-          ),
-        })
-        .strict(),
-    ]),
+    each: z.union([EachJson, EachItems]),
     as: z.string().optional(),
   }).strict(),
 ]);
