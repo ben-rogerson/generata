@@ -36,7 +36,7 @@ import {
 } from "./logger.js";
 import { formatPrecheckReport, precheckWorkflow } from "./precheck.js";
 import { resolveEnvProfile, type ResolvedEnv } from "./env-profile.js";
-import { resolveStepShape } from "./step-shape.js";
+import { isLoopStep, resolveStepShape } from "./step-shape.js";
 
 // Workers signal a structural halt by leading their output with `STATUS: halt`.
 // The critic retry loop checks this to short-circuit retries that would re-hit
@@ -99,6 +99,11 @@ function resolveStepForRun(
   params: Record<string, unknown>,
   stepOutputs: Record<string, string>,
 ): { agent: LLMAgentDef; args: Record<string, unknown> } {
+  if (isLoopStep(step)) {
+    throw new Error(
+      `resolveStepForRun called on loop step '${step.id}' - loop step execution is not yet wired in the engine`,
+    );
+  }
   if ("stepFn" in step) {
     const stringParams: StepParams = Object.fromEntries(
       Object.entries({ ...params, ...stepOutputs }).map(([k, v]) => [k, String(v)]),

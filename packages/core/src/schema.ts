@@ -177,7 +177,76 @@ const NonCriticWorkflowStep = z.object({
 export type CriticWorkflowStep = z.infer<typeof CriticWorkflowStep>;
 export type FnWorkflowStep = z.infer<typeof FnWorkflowStep>;
 
-export const WorkflowStep = z.union([CriticWorkflowStep, NonCriticWorkflowStep, FnWorkflowStep]);
+const EachSourceSchema = z.union([
+  z.object({ glob: z.string().min(1) }).strict(),
+  z.object({ json: z.string().min(1) }).strict(),
+  z
+    .object({
+      items: z.custom<(b: BuiltinPromptArgs) => unknown[] | Promise<unknown[]>>(
+        (val) => typeof val === "function",
+        "each.items must be a function",
+      ),
+    })
+    .strict(),
+]);
+export type EachSource = z.infer<typeof EachSourceSchema>;
+
+const LoopStepOptionsBase = z.object({
+  concurrency: z.number().int().positive().default(1),
+  onFailure: z.enum(["halt", "continue"]).default("halt"),
+  onItemFail: z
+    .custom<LLMAgentDef | ((inputs: Record<string, string>) => StepInvocation)>((val) => {
+      if (val === null || val === undefined) return false;
+      if (typeof val === "function") return true;
+      return (
+        typeof val === "object" &&
+        "type" in val &&
+        ["worker", "planner", "critic"].includes((val as { type: unknown }).type as string)
+      );
+    }, "onItemFail must be an LLM agent definition or a function returning a StepInvocation")
+    .optional(),
+  maxRetries: z.number().int().nonnegative().optional(),
+  dependsOn: z.array(z.string()).optional(),
+});
+
+// Runtime predicate for subWorkflow shape - we validate `kind === "workflow"`
+// only, since fully recursing into WorkflowDef here would create a TS circular
+// reference (WorkflowDef -> WorkflowStep -> LoopWorkflowStep -> WorkflowDef).
+const isWorkflowDef = (val: unknown): boolean =>
+  typeof val === "object" && val !== null && (val as { kind?: unknown }).kind === "workflow";
+
+// Discriminated by source so glob requires `as:` and json/items reject it at parse time.
+export const LoopWorkflowStep = z.union([
+  LoopStepOptionsBase.extend({
+    id: z.string(),
+    subWorkflow: z.unknown().refine(isWorkflowDef, "subWorkflow must be a WorkflowDef"),
+    each: z.object({ glob: z.string().min(1) }).strict(),
+    as: z.string().min(1),
+  }).strict(),
+  LoopStepOptionsBase.extend({
+    id: z.string(),
+    subWorkflow: z.unknown().refine(isWorkflowDef, "subWorkflow must be a WorkflowDef"),
+    each: z.union([
+      z.object({ json: z.string().min(1) }).strict(),
+      z
+        .object({
+          items: z.custom<(b: BuiltinPromptArgs) => unknown[] | Promise<unknown[]>>(
+            (val) => typeof val === "function",
+          ),
+        })
+        .strict(),
+    ]),
+    as: z.string().optional(),
+  }).strict(),
+]);
+export type LoopWorkflowStep = z.infer<typeof LoopWorkflowStep>;
+
+export const WorkflowStep = z.union([
+  CriticWorkflowStep,
+  NonCriticWorkflowStep,
+  FnWorkflowStep,
+  LoopWorkflowStep,
+]);
 export type WorkflowStep = z.infer<typeof WorkflowStep>;
 
 export type DeriveFn = (args: Record<string, string>) => Record<string, string>;
