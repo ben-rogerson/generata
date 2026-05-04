@@ -3,11 +3,11 @@ import { deepEqual, rejects } from "node:assert/strict";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { materializeSource } from "./sources.js";
+import { materialiseSource } from "./sources.js";
 
 const builtins = { work_dir: "/tmp", today: "2026-05-04", time: "10:00:00" };
 
-describe("materializeSource", () => {
+describe("materialiseSource", () => {
   describe("glob", () => {
     it("returns matched files lex-sorted by full path", async () => {
       const dir = mkdtempSync(join(tmpdir(), "loop-sources-"));
@@ -15,7 +15,7 @@ describe("materializeSource", () => {
         writeFileSync(join(dir, "zebra.md"), "");
         writeFileSync(join(dir, "Apple.md"), "");
         writeFileSync(join(dir, "banana.md"), "");
-        const result = await materializeSource(
+        const result = await materialiseSource(
           { glob: `${dir}/*.md` },
           { ...builtins, work_dir: dir },
         );
@@ -28,7 +28,7 @@ describe("materializeSource", () => {
     it("returns empty array when nothing matches", async () => {
       const dir = mkdtempSync(join(tmpdir(), "loop-sources-"));
       try {
-        const result = await materializeSource(
+        const result = await materialiseSource(
           { glob: `${dir}/*.md` },
           { ...builtins, work_dir: dir },
         );
@@ -44,7 +44,7 @@ describe("materializeSource", () => {
         writeFileSync(join(dir, "banana.md"), "");
         mkdirSync(join(dir, "sub"));
         writeFileSync(join(dir, "sub", "alpha.md"), "");
-        const result = await materializeSource(
+        const result = await materialiseSource(
           { glob: `${dir}/**/*.md` },
           { ...builtins, work_dir: dir },
         );
@@ -61,7 +61,7 @@ describe("materializeSource", () => {
       try {
         const path = join(dir, "tasks.json");
         writeFileSync(path, JSON.stringify([{ id: "1" }, { id: "2" }]));
-        const result = await materializeSource({ json: path }, { ...builtins, work_dir: dir });
+        const result = await materialiseSource({ json: path }, { ...builtins, work_dir: dir });
         deepEqual(result, [{ id: "1" }, { id: "2" }]);
       } finally {
         rmSync(dir, { recursive: true, force: true });
@@ -70,7 +70,7 @@ describe("materializeSource", () => {
 
     it("rejects when file is missing", async () => {
       await rejects(
-        () => materializeSource({ json: "/nonexistent/tasks.json" }, builtins),
+        () => materialiseSource({ json: "/nonexistent/tasks.json" }, builtins),
         /tasks\.json/,
       );
     });
@@ -80,7 +80,7 @@ describe("materializeSource", () => {
       try {
         const path = join(dir, "obj.json");
         writeFileSync(path, JSON.stringify({ not: "array" }));
-        await rejects(() => materializeSource({ json: path }, builtins), /must parse to an array/);
+        await rejects(() => materialiseSource({ json: path }, builtins), /must parse to an array/);
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
@@ -89,7 +89,7 @@ describe("materializeSource", () => {
 
   describe("items", () => {
     it("invokes the function with builtins and returns its array", async () => {
-      const result = await materializeSource(
+      const result = await materialiseSource(
         { items: ({ work_dir }) => [`${work_dir}/a`, `${work_dir}/b`] },
         builtins,
       );
@@ -97,13 +97,13 @@ describe("materializeSource", () => {
     });
 
     it("awaits async functions", async () => {
-      const result = await materializeSource({ items: async () => [1, 2, 3] }, builtins);
+      const result = await materialiseSource({ items: async () => [1, 2, 3] }, builtins);
       deepEqual(result, [1, 2, 3]);
     });
 
     it("rejects when the function returns a non-array", async () => {
       await rejects(
-        () => materializeSource({ items: () => "not an array" as never }, builtins),
+        () => materialiseSource({ items: () => "not an array" as never }, builtins),
         /must return an array/,
       );
     });
@@ -111,7 +111,7 @@ describe("materializeSource", () => {
     it("propagates errors thrown by the function", async () => {
       await rejects(
         () =>
-          materializeSource(
+          materialiseSource(
             {
               items: () => {
                 throw new Error("boom");

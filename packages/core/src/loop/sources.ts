@@ -1,5 +1,4 @@
-import { readFile } from "node:fs/promises";
-import { glob as fsGlob } from "node:fs/promises";
+import { readFile, glob as fsGlob } from "node:fs/promises";
 import type { BuiltinPromptArgs } from "../schema.js";
 
 export type EachSource =
@@ -7,13 +6,15 @@ export type EachSource =
   | { json: string }
   | { items: (b: BuiltinPromptArgs) => unknown[] | Promise<unknown[]> };
 
-export async function materializeSource(
+export async function materialiseSource(
   source: EachSource,
   builtins: BuiltinPromptArgs,
 ): Promise<unknown[]> {
   if ("glob" in source) {
     const matches: string[] = [];
-    for await (const path of fsGlob(source.glob)) matches.push(path as string);
+    // node:fs/promises glob is experimental on Node 22 (stable from Node 24).
+    // Emits an ExperimentalWarning at first use - acceptable until v24 is the floor.
+    for await (const path of fsGlob(source.glob)) matches.push(path);
     return matches.sort();
   }
   if ("json" in source) {
