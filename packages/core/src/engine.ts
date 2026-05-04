@@ -37,6 +37,7 @@ import {
 import { formatPrecheckReport, precheckWorkflow } from "./precheck.js";
 import { resolveEnvProfile, type ResolvedEnv } from "./env-profile.js";
 import { isLoopStep, resolveStepShape } from "./step-shape.js";
+import { runLoopStep } from "./loop/runner.js";
 
 // Workers signal a structural halt by leading their output with `STATUS: halt`.
 // The critic retry loop checks this to short-circuit retries that would re-hit
@@ -173,7 +174,11 @@ export async function runWorkflow(
 
   // Precheck confirmed env keys are resolvable; now materialise them.
   const requiredEnvKeys = [
-    ...new Set(workflow.steps.flatMap((s) => resolveStepShape(s).agent.envKeys ?? [])),
+    ...new Set(
+      workflow.steps
+        .filter((s) => !isLoopStep(s))
+        .flatMap((s) => resolveStepShape(s).agent.envKeys ?? []),
+    ),
   ];
   const resolvedEnv: ResolvedEnv = resolveEnvProfile(requiredEnvKeys, profile);
 
@@ -288,6 +293,61 @@ export async function runWorkflow(
       await Promise.all(
         runnable.map(async (step) => {
           pending.delete(step.id);
+
+          if (isLoopStep(step)) {
+            const stepIndex = workflow.steps.findIndex((s) => s.id === step.id) + 1;
+            logStepStart(stepIndex, totalSteps, step.id);
+            const { today: _t, time: _ti } = getTodayAndTime();
+            const result = await runLoopStep(
+              {
+                outerWorkflowName: workflow.name,
+                outerRunId: workflowId,
+                step: {
+                  id: step.id,
+                  // schema validates subWorkflow shape via runtime refine, but the
+                  // type is `unknown` to avoid a TS circular reference. Cast here.
+                  subWorkflow: step.subWorkflow as WorkflowDef,
+                  each: step.each,
+                  as: step.as,
+                  concurrency: step.concurrency ?? 1,
+                  onFailure: step.onFailure ?? "halt",
+                  onItemFail: step.onItemFail,
+                  maxRetries: step.maxRetries,
+                },
+                outerParams: params,
+                builtins: { work_dir: executionRoot, today: _t, time: _ti },
+                config,
+                workDir,
+              },
+              { runWorkflow },
+            );
+            params = { ...params, [`${step.id}_manifest`]: result.manifest_path };
+            stepOutputs[step.id] = result.manifest_path;
+            stepResults.push({
+              stepId: step.id,
+              output: result.manifest_path,
+              metrics: {
+                agent: "<loop>",
+                model: "",
+                model_tier: "",
+                workflow_id: workflow.name,
+                step_id: step.id,
+                started_at: new Date().toISOString(),
+                completed_at: new Date().toISOString(),
+                duration_ms: 0,
+                input_tokens: 0,
+                output_tokens: 0,
+                cache_read_tokens: 0,
+                cache_write_tokens: 0,
+                estimated_cost_usd: 0,
+                cost_was_reported: false,
+                status: "success",
+                exit_code: 0,
+              },
+            });
+            completed.add(step.id);
+            return;
+          }
 
           const stepIndex = workflow.steps.findIndex((s) => s.id === step.id) + 1;
 
