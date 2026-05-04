@@ -42,6 +42,17 @@ describe("WorkflowDef worktree fields", () => {
     deepEqual(parsed.isolation.sharedPaths, ["IMPROVEMENTS.md", "logs/"]);
     equal(parsed.isolation.worktreeDir, "../wt");
     equal(parsed.isolation.baseRef, undefined);
+    equal(parsed.isolation.cleanup, false);
+  });
+
+  it("accepts cleanup: true in isolation config", () => {
+    const parsed = WorkflowDef.parse({
+      description: "d",
+      isolation: { cleanup: true },
+      steps: [baseStep],
+    });
+    if (parsed.isolation === "none") throw new Error("expected config");
+    equal(parsed.isolation.cleanup, true);
   });
 
   it("accepts baseRef as remote/branch or bare local branch", () => {
