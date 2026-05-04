@@ -112,7 +112,7 @@ export async function runLoopStep(
           break;
         } catch (err) {
           if (attempts < maxAttempts) continue;
-          const msg = (err as Error).message ?? String(err);
+          const msg = err instanceof Error ? err.message : String(err);
           manifestItems[i] = {
             index: i,
             vars,
@@ -121,18 +121,25 @@ export async function runLoopStep(
             error: msg,
             attempts,
           };
-          if (step.onItemFail && typeof step.onItemFail === "function") {
-            try {
-              await (
-                step.onItemFail as (args: Record<string, string> & { error: string }) => unknown
-              )({ ...vars, error: msg });
-            } catch {
-              // onItemFail is side-effecting; swallow its errors.
+          if (step.onItemFail) {
+            if (typeof step.onItemFail === "function") {
+              const fn = step.onItemFail;
+              try {
+                await fn({ ...vars, error: msg });
+              } catch (handlerErr) {
+                console.warn(
+                  `Loop step '${step.id}': onItemFail handler threw: ${handlerErr instanceof Error ? handlerErr.message : String(handlerErr)}`,
+                );
+              }
+            } else {
+              throw new Error(
+                `Loop step '${step.id}': onItemFail bare-agent form is not yet supported by the runner - wrap in a step fn`,
+              );
             }
           }
           if (step.onFailure === "halt") {
             halted = true;
-            haltError = err as Error;
+            if (!haltError) haltError = err as Error;
           }
           break;
         }
@@ -145,7 +152,7 @@ export async function runLoopStep(
   await Promise.all(workers);
 
   const finishedAt = new Date().toISOString();
-  // Compact the array (some slots may be empty if halt fired before they ran).
+  // Compact the array: slots remain `undefined` if halt fired before they ran.
   const items_out = manifestItems.filter((m) => m !== undefined);
   const manifest: LoopManifest = {
     workflow: outerWorkflowName,

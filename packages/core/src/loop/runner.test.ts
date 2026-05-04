@@ -232,4 +232,71 @@ describe("runLoopStep", () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it("propagates the FIRST failure under concurrency > 1 with halt", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "loop-runner-"));
+    try {
+      const delays: Record<string, number> = { "a.md": 5, "b.md": 15, "c.md": 25 };
+      const errors: Record<string, string> = {
+        "a.md": "first-fail",
+        "b.md": "second-fail",
+        "c.md": "third-fail",
+      };
+      const fakeRun = async (_wf: WorkflowDef, params: Record<string, unknown>) => {
+        await new Promise((r) => setTimeout(r, delays[params.file as string]));
+        throw new Error(errors[params.file as string]);
+      };
+      const input: LoopStepInput = {
+        outerWorkflowName: "outer",
+        outerRunId: "run-6",
+        step: {
+          id: "reviews",
+          subWorkflow: fakeSubWorkflow("sub", ["file"]),
+          each: { items: () => ["a.md", "b.md", "c.md"] },
+          as: "file",
+          concurrency: 3,
+          onFailure: "halt",
+        },
+        outerParams: {},
+        builtins: { work_dir: dir, today: "2026-05-04", time: "10:00:00" },
+        config: minimalConfig,
+        workDir: dir,
+      };
+      await rejects(() => runLoopStep(input, { runWorkflow: fakeRun }), /first-fail/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects bare-agent onItemFail with a clear error", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "loop-runner-"));
+    try {
+      const fakeRun = async () => {
+        throw new Error("iteration failed");
+      };
+      const input: LoopStepInput = {
+        outerWorkflowName: "outer",
+        outerRunId: "run-7",
+        step: {
+          id: "reviews",
+          subWorkflow: fakeSubWorkflow("sub", ["file"]),
+          each: { items: () => ["a.md"] },
+          as: "file",
+          concurrency: 1,
+          onFailure: "continue",
+          onItemFail: { type: "worker", name: "h", kind: "agent" } as never,
+        },
+        outerParams: {},
+        builtins: { work_dir: dir, today: "2026-05-04", time: "10:00:00" },
+        config: minimalConfig,
+        workDir: dir,
+      };
+      await rejects(
+        () => runLoopStep(input, { runWorkflow: fakeRun }),
+        /onItemFail bare-agent form is not yet supported/,
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
