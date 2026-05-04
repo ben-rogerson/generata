@@ -24,17 +24,25 @@ export interface LoopManifest {
   items: LoopManifestItem[];
 }
 
+function flatten(s: string): string {
+  return s.replace(/\//g, "-");
+}
+
 export function loopManifestPath(
   workDir: string,
   workflowName: string,
   stepId: string,
   runId: string,
 ): string {
-  const safeWorkflow = workflowName.replace(/\//g, "-");
-  return resolve(workDir, ".generata", "loops", `${safeWorkflow}-${stepId}-${runId}.json`);
+  return resolve(
+    workDir,
+    ".generata",
+    "loops",
+    `${flatten(workflowName)}-${flatten(stepId)}-${flatten(runId)}.json`,
+  );
 }
 
 export function writeManifest(path: string, manifest: LoopManifest): void {
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, JSON.stringify(manifest, null, 2), "utf8");
+  writeFileSync(path, JSON.stringify(manifest, null, 2) + "\n", "utf8");
 }

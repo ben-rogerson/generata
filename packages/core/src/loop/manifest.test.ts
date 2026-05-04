@@ -49,4 +49,37 @@ describe("writeManifest", () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it("round-trips a failed item with error + attempts", () => {
+    const dir = mkdtempSync(join(tmpdir(), "loop-manifest-"));
+    try {
+      const path = join(dir, ".generata", "loops", "wf-step-rid.json");
+      const manifest: LoopManifest = {
+        workflow: "wf",
+        step: "step",
+        subWorkflow: "sub",
+        runId: "rid",
+        startedAt: "2026-05-04T10:00:00Z",
+        finishedAt: "2026-05-04T10:01:00Z",
+        source: { kind: "items", spec: "<function>", count: 1 },
+        concurrency: 1,
+        onFailure: "continue",
+        items: [
+          {
+            index: 0,
+            vars: { id: "1" },
+            status: "failed",
+            runId: "rid-0",
+            error: "rate limit exceeded",
+            attempts: 3,
+          },
+        ],
+      };
+      writeManifest(path, manifest);
+      const round = JSON.parse(readFileSync(path, "utf8"));
+      deepEqual(round, manifest);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
