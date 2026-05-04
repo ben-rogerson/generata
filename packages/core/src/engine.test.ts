@@ -422,7 +422,7 @@ describe("runWorkflow isolation: worktree", () => {
     const workflow = withName(
       defineWorkflow({
         description: "wt",
-        isolation: worktree({}),
+        isolation: worktree({ cleanup: true }),
       })
         .step("code", worker)
         .build(),
@@ -440,6 +440,43 @@ describe("runWorkflow isolation: worktree", () => {
     equal(result.success, true);
     equal(observed[0], "/tmp/wt/abc/self-improve");
     equal(getCleanupCalls(), 1);
+  });
+
+  it("preserves the worktree when cleanup is false (default)", async () => {
+    const stubRunAgent = async (options: RunOptions): Promise<RunResult> => ({
+      output: "ok",
+      metrics: makeMetrics({ agent: options.agent.name }),
+    });
+    const worker = withName(
+      defineAgent({
+        type: "worker",
+        description: "x",
+        modelTier: "light",
+        tools: [],
+        permissions: "none",
+        timeoutSeconds: 60,
+        promptContext: [],
+        prompt: () => "p",
+      }),
+      "code",
+    );
+    const workflow = withName(
+      defineWorkflow({
+        description: "wt-keep",
+        isolation: worktree({}),
+      })
+        .step("code", worker)
+        .build(),
+      "wt-keep",
+    );
+    const { stubSetup, getCleanupCalls } = makeStubSetup();
+    const result = await runWorkflow(workflow, {}, stubConfig, "/repo/x", undefined, {
+      runAgent: stubRunAgent,
+      setupWorktree: stubSetup,
+      mainProjectRoot: "/repo",
+    });
+    equal(result.success, true);
+    equal(getCleanupCalls(), 0);
   });
 
   it("calls cleanup even when a step fails", async () => {
@@ -462,7 +499,7 @@ describe("runWorkflow isolation: worktree", () => {
     const workflow = withName(
       defineWorkflow({
         description: "wt-fail",
-        isolation: worktree({}),
+        isolation: worktree({ cleanup: true }),
       })
         .step("code", worker)
         .build(),

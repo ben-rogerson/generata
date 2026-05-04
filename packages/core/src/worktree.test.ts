@@ -83,7 +83,11 @@ describe("setupWorktree", () => {
     const backend = makeStubBackend();
     const result = await setupWorktree({
       workflow: makeWorkflow(),
-      config: { worktreeSetup: ["pnpm", "install", "--frozen-lockfile"], sharedPaths: [] },
+      config: {
+        worktreeSetup: ["pnpm", "install", "--frozen-lockfile"],
+        sharedPaths: [],
+        cleanup: false,
+      },
       mainProjectRoot: "/repo",
       workDir: "/repo/internal/self-improve",
       runId: "abc123",
@@ -113,6 +117,7 @@ describe("setupWorktree", () => {
         worktreeSetup: ["pnpm", "install"],
         sharedPaths: [],
         baseRef: "upstream/develop",
+        cleanup: false,
       },
       mainProjectRoot: "/repo",
       workDir: "/repo",
@@ -129,7 +134,12 @@ describe("setupWorktree", () => {
     const backend = makeStubBackend();
     await setupWorktree({
       workflow: makeWorkflow(),
-      config: { worktreeSetup: ["pnpm", "install"], sharedPaths: [], baseRef: "main" },
+      config: {
+        worktreeSetup: ["pnpm", "install"],
+        sharedPaths: [],
+        baseRef: "main",
+        cleanup: false,
+      },
       mainProjectRoot: "/repo",
       workDir: "/repo",
       runId: "r1",
@@ -150,7 +160,7 @@ describe("setupWorktree", () => {
     try {
       await setupWorktree({
         workflow: makeWorkflow(),
-        config: { sharedPaths: [] },
+        config: { sharedPaths: [], cleanup: false },
         mainProjectRoot: "/repo",
         workDir: "/repo/internal/self-improve",
         runId: "x",
@@ -174,7 +184,11 @@ describe("setupWorktree", () => {
     try {
       await setupWorktree({
         workflow: makeWorkflow(),
-        config: { worktreeSetup: ["pnpm", "install", "--frozen-lockfile"], sharedPaths: [] },
+        config: {
+          worktreeSetup: ["pnpm", "install", "--frozen-lockfile"],
+          sharedPaths: [],
+          cleanup: false,
+        },
         mainProjectRoot: "/repo",
         workDir: "/repo/internal/self-improve",
         runId: "x",
@@ -209,7 +223,7 @@ describe("setupWorktree", () => {
     // detectPackageManager unit test plus the integration test in Task 11.
     await setupWorktree({
       workflow: makeWorkflow(),
-      config: { worktreeSetup: ["pnpm", "install"], sharedPaths: [] },
+      config: { worktreeSetup: ["pnpm", "install"], sharedPaths: [], cleanup: false },
       mainProjectRoot: "/repo",
       workDir: "/repo",
       runId: "x",
@@ -224,7 +238,7 @@ describe("setupWorktree", () => {
     const backend = makeStubBackend();
     const result = await setupWorktree({
       workflow: makeWorkflow(),
-      config: { sharedPaths: ["IMPROVEMENTS.md", "subdir/state/"] },
+      config: { sharedPaths: ["IMPROVEMENTS.md", "subdir/state/"], cleanup: false },
       mainProjectRoot: "/repo",
       workDir: "/repo/internal/self-improve",
       runId: "abc",
@@ -261,7 +275,7 @@ describe("setupWorktree", () => {
     const backend = makeStubBackend();
     const result = await setupWorktree({
       workflow: makeWorkflow(),
-      config: { worktreeSetup: ["pnpm", "install"], sharedPaths: [] },
+      config: { worktreeSetup: ["pnpm", "install"], sharedPaths: [], cleanup: false },
       mainProjectRoot: "/repo",
       workDir: "/repo",
       runId: "abc",
@@ -281,7 +295,7 @@ describe("setupWorktree", () => {
     const backend = makeStubBackend();
     const result = await setupWorktree({
       workflow: makeWorkflow(),
-      config: { worktreeSetup: ["pnpm", "install"], sharedPaths: [] },
+      config: { worktreeSetup: ["pnpm", "install"], sharedPaths: [], cleanup: false },
       mainProjectRoot: "/repo",
       workDir: "/repo",
       runId: "abc",
