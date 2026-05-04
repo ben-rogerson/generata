@@ -77,6 +77,16 @@ describe("bindItems", () => {
     deepEqual(result.errors[0].includes("title"), true);
   });
 
+  it("treats undefined values as missing required keys", () => {
+    const result = bindItems([{ id: "1", title: undefined }], {
+      as: undefined,
+      required: ["id", "title"],
+    });
+    deepEqual(result.vars, []);
+    deepEqual(result.errors.length, 1);
+    deepEqual(result.errors[0].includes("title"), true);
+  });
+
   it("returns empty vars and no errors for empty input", () => {
     const result = bindItems([], { as: "file", required: ["file"] });
     deepEqual(result.vars, []);
