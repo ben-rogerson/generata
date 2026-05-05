@@ -298,6 +298,13 @@ export async function runWorkflow(
             const stepIndex = workflow.steps.findIndex((s) => s.id === step.id) + 1;
             logStepStart(stepIndex, totalSteps, step.id);
             const { today: _t, time: _ti } = getTodayAndTime();
+            const startedAt = new Date().toISOString();
+            const startTs = Date.now();
+            // builtins.work_dir uses executionRoot (worktree-aware path) so the loop's
+            // source materialisation reads from inside the worktree. The runWorkflow
+            // call below receives the OUTER workDir so the sub-workflow's own isolation
+            // declaration anchors at the user-supplied root, not nested-inside-a-worktree
+            // (git doesn't support nested worktrees anyway).
             const result = await runLoopStep(
               {
                 outerWorkflowName: workflow.name,
@@ -309,8 +316,8 @@ export async function runWorkflow(
                   subWorkflow: step.subWorkflow as WorkflowDef,
                   each: step.each,
                   as: step.as,
-                  concurrency: step.concurrency ?? 1,
-                  onFailure: step.onFailure ?? "halt",
+                  concurrency: step.concurrency,
+                  onFailure: step.onFailure,
                   onItemFail: step.onItemFail,
                   maxRetries: step.maxRetries,
                 },
@@ -321,8 +328,20 @@ export async function runWorkflow(
               },
               { runWorkflow },
             );
+            const completedAt = new Date().toISOString();
+            const durationMs = Date.now() - startTs;
             params = { ...params, [`${step.id}_manifest`]: result.manifest_path };
             stepOutputs[step.id] = result.manifest_path;
+            logStepDone(
+              step.id,
+              durationMs,
+              0, // estimated cost
+              "<loop>", // model label
+              undefined, // verdict
+              false, // costWasReported
+              0, // tokens
+              config.showPricing,
+            );
             stepResults.push({
               stepId: step.id,
               output: result.manifest_path,
@@ -332,9 +351,9 @@ export async function runWorkflow(
                 model_tier: "",
                 workflow_id: workflow.name,
                 step_id: step.id,
-                started_at: new Date().toISOString(),
-                completed_at: new Date().toISOString(),
-                duration_ms: 0,
+                started_at: startedAt,
+                completed_at: completedAt,
+                duration_ms: durationMs,
                 input_tokens: 0,
                 output_tokens: 0,
                 cache_read_tokens: 0,
