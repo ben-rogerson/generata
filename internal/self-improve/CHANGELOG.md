@@ -1,5 +1,13 @@
 # @generata/self-improve
 
+## 0.0.2
+
+### Patch Changes
+
+- Updated dependencies [2686c7b]
+- Updated dependencies [27e4f47]
+  - @generata/core@1.3.0
+
 ## 0.0.1
 
 ### Patch Changes

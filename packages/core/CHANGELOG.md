@@ -1,5 +1,15 @@
 # @generata/core changelog
 
+## 1.3.0
+
+### Minor Changes
+
+- 27e4f47: `worktree({...})` now accepts a `cleanup` field (default `false`). When `false`, the worktree and its `generata/wt-<runId>` branch are kept on disk after the workflow finishes so you can inspect the run; pass `cleanup: true` to restore the previous teardown-on-exit behaviour. The engine logs `[worktree] cleaned up <path>` or `[worktree] preserved at <path>` at end of run. Setup-failure cleanup is unchanged - half-built worktrees are still torn down. Use `generata worktree prune` to clear preserved worktrees.
+
+### Patch Changes
+
+- 2686c7b: Drop the `generata` ASCII banner and randomised tagline from the start of `generata agent` and `generata workflow` runs. The workflow start header (name, isolation, prompt log) is now the first thing printed. Removes the `logBanner` and `pickWorkflowTagline` exports from `@generata/core/logger`.
+
 ## 1.2.0
 
 ### Minor Changes
