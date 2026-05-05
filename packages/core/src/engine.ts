@@ -111,12 +111,13 @@ function resolveIsolation(
   override: "none" | "worktree" | WorktreeConfig | undefined,
   declared: "none" | WorktreeConfig,
 ): "none" | WorktreeConfig {
+  if (override === undefined) return declared;
   if (override === "none") return "none";
   if (override === "worktree") {
     return declared === "none" ? WorktreeConfig.parse({}) : declared;
   }
-  if (override && typeof override === "object") return override;
-  return declared;
+  // override is a WorktreeConfig object
+  return override;
 }
 
 function findGitRoot(start: string): string {
@@ -198,6 +199,18 @@ export async function executeWorkflow(
   } catch {}
 
   const isolationConfig = resolveIsolation(deps.isolationOverride, workflow.isolation ?? "none");
+  {
+    const declared = workflow.isolation ?? "none";
+    const overrodeToNone = isolationConfig === "none" && declared !== "none";
+    const overrodeToWorktree = isolationConfig !== "none" && declared === "none";
+    const overrodeToOther =
+      typeof isolationConfig === "object" &&
+      typeof declared === "object" &&
+      isolationConfig !== declared;
+    if (overrodeToNone || overrodeToWorktree || overrodeToOther) {
+      sink({ type: "isolation-overridden", declared, used: isolationConfig });
+    }
+  }
   let executionRoot = resolve(workDir);
   let worktreePath: string | undefined;
   let teardown: (() => Promise<void>) | undefined;

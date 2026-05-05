@@ -1,7 +1,7 @@
 // packages/core/src/run-workflow.test.ts
 import { equal, ok } from "node:assert/strict";
 import { describe, it } from "node:test";
-import { defineAgent, defineWorkflow } from "./define.js";
+import { defineAgent, defineWorkflow, worktree } from "./define.js";
 import { runWorkflow } from "./run.js";
 import type { GlobalConfig, AgentMetrics } from "./schema.js";
 import type { RunOptions, RunResult } from "./agent-runner.js";
@@ -133,5 +133,41 @@ describe("runWorkflow (public)", () => {
     equal(events.indexOf("workflow-start") < events.indexOf("step-start"), true);
     equal(events.indexOf("step-start") < events.indexOf("step-done"), true);
     equal(events.indexOf("step-done") < events.indexOf("workflow-done"), true);
+  });
+});
+
+describe("isolation override", () => {
+  it("emits isolation-overridden when caller passes 'none' over declared worktree", async () => {
+    const a = defineAgent({
+      type: "worker",
+      description: "",
+      modelTier: "light",
+      tools: [],
+      timeoutSeconds: 60,
+      maxRetries: 1,
+      prompt: "do",
+    });
+    (a as unknown as { name: string }).name = "a";
+    const w = defineWorkflow({
+      description: "",
+      isolation: worktree({}),
+    })
+      .step("only", a)
+      .build();
+    (w as unknown as { name: string }).name = "wf";
+
+    const events: string[] = [];
+    await runWorkflow(
+      w,
+      {},
+      {
+        config: stubConfig,
+        cwd: "/tmp",
+        isolation: "none",
+        onEvent: (e) => events.push(e.type),
+        deps: { runAgent: stubRunAgent },
+      },
+    );
+    ok(events.includes("isolation-overridden"));
   });
 });
