@@ -34,6 +34,7 @@ import { type EventSink, noopSink } from "./event-sink.js";
 import { formatPrecheckReport, precheckWorkflow } from "./precheck.js";
 import { resolveEnvProfile, type ResolvedEnv } from "./env-profile.js";
 import { resolveStepShape } from "./step-shape.js";
+import { GenerataPrecheckError } from "./errors.js";
 
 // Workers signal a structural halt by leading their output with `STATUS: halt`.
 // The critic retry loop checks this to short-circuit retries that would re-hit
@@ -161,10 +162,13 @@ export async function executeWorkflow(
   // and env-key issues. Any issue aborts the run with zero LLM calls.
   const precheckIssues = precheckWorkflow(workflow, params, { profile, workDir });
   if (precheckIssues.length > 0) {
+    sink({ type: "precheck-fail", workflow: workflow.name, issues: precheckIssues });
+    // CLI consoleSink subscribes to precheck-fail and prints the formatted report.
+    // We still print here as a backstop for any sink that ignores the event - the
+    // engine's primary job is to surface the failure clearly. Programmatic callers
+    // can introspect err.issues; the formatted text is for humans.
     console.error(formatPrecheckReport(workflow.name, precheckIssues));
-    throw new Error(
-      `Precheck failed for workflow '${workflow.name}' - ${precheckIssues.length} problem${precheckIssues.length === 1 ? "" : "s"}`,
-    );
+    throw new GenerataPrecheckError(workflow.name, precheckIssues);
   }
 
   // Precheck confirmed env keys are resolvable; now materialise them.
