@@ -11,7 +11,7 @@ import {
   StepParams,
   WorktreeConfig,
 } from "./schema.js";
-import { runAgent as defaultRunAgent, RunResult, RunOptions } from "./agent-runner.js";
+import { runAgent as defaultRunAgent, RunResult, RunOptions, resolveModel } from "./agent-runner.js";
 import { formatWeeklyMetricsLine } from "./metrics.js";
 import { setupWorktree as defaultSetupWorktree } from "./worktree.js";
 import type { SetupWorktreeOptions, SetupWorktreeResult } from "./worktree.js";
@@ -22,18 +22,14 @@ export interface EngineDeps {
   // Tests can pre-resolve the git root rather than walking up from workDir.
   // Production CLI leaves this undefined and lets findGitRoot do the walk.
   mainProjectRoot?: string;
-  isolationOverride?: "none" | "worktree";
+  isolationOverride?: "none" | "worktree" | WorktreeConfig;
+  sink?: EventSink;
+  signal?: AbortSignal;
 }
 import { buildRetryPreamble } from "./context-builder.js";
 import { getTodayAndTime } from "./time.js";
-import {
-  logWorkflowStart,
-  logStepStart,
-  logStepDone,
-  logStepRetry,
-  logStreamEvent,
-  type WorkflowIsolation,
-} from "./logger.js";
+import { type WorkflowIsolation } from "./logger.js";
+import { type EventSink, noopSink } from "./event-sink.js";
 import { formatPrecheckReport, precheckWorkflow } from "./precheck.js";
 import { resolveEnvProfile, type ResolvedEnv } from "./env-profile.js";
 import { resolveStepShape } from "./step-shape.js";
@@ -110,13 +106,14 @@ function resolveStepForRun(
 }
 
 function resolveIsolation(
-  override: "none" | "worktree" | undefined,
+  override: "none" | "worktree" | WorktreeConfig | undefined,
   declared: "none" | WorktreeConfig,
 ): "none" | WorktreeConfig {
   if (override === "none") return "none";
   if (override === "worktree") {
     return declared === "none" ? WorktreeConfig.parse({}) : declared;
   }
+  if (override && typeof override === "object") return override;
   return declared;
 }
 
@@ -134,7 +131,7 @@ function findGitRoot(start: string): string {
   }
 }
 
-export async function runWorkflow(
+export async function executeWorkflow(
   workflow: WorkflowDef,
   params: Record<string, unknown>,
   config: GlobalConfig,
@@ -143,6 +140,7 @@ export async function runWorkflow(
   deps: EngineDeps = {},
 ): Promise<WorkflowResult> {
   const runAgent = deps.runAgent ?? defaultRunAgent;
+  const sink = deps.sink ?? noopSink;
   // Workflow names may contain `/` (path-derived from nested agents dirs). Strip
   // it so tmp-file paths built from this id stay flat, not nested subdirs.
   const workflowId = `${workflow.name.replace(/\//g, "-")}-${Date.now()}`;
@@ -239,13 +237,14 @@ export async function runWorkflow(
   const isolationInfo: WorkflowIsolation = worktreePath
     ? { mode: "worktree", path: worktreePath }
     : { mode: "local" };
-  logWorkflowStart(
-    workflow.name,
-    workflow.steps.length,
+  sink({
+    type: "workflow-start",
+    workflow: workflow.name,
+    stepCount: workflow.steps.length,
+    isolation: isolationInfo,
     promptLogFile,
     weeklyMetrics,
-    isolationInfo,
-  );
+  });
 
   // Execute DAG
   const pending = new Map(workflow.steps.map((s) => [s.id, s]));
@@ -300,7 +299,15 @@ export async function runWorkflow(
             ...Object.fromEntries(Object.entries(resolvedArgs).map(([k, v]) => [k, String(v)])),
           });
 
-          logStepStart(stepIndex, totalSteps, step.id);
+          sink({
+            type: "step-start",
+            stepIndex,
+            stepCount: totalSteps,
+            stepId: step.id,
+            agent: stepAgent.name,
+            agentType: stepAgent.type,
+            model: resolveModel(stepAgent, resolvedArgs, config),
+          });
 
           // Helper: run an agent step with error-retry, log metrics, update stepOutputs.
           // Used for both the initial run and critic-triggered retries.
@@ -327,7 +334,7 @@ export async function runWorkflow(
                   // (agent-runner starts the spinner when onEvent is undefined). Caveat:
                   // parallel runnable steps will fight over the same TTY line - acceptable
                   // for now since most workflows are sequential.
-                  onEvent: config.verboseOutput ? (event) => logStreamEvent(event) : undefined,
+                  onEvent: config.verboseOutput ? (event) => sink({ type: "agent-stream", stepId: targetStep.id, event }) : undefined,
                   promptLogFile,
                   retryPreamble,
                   workflowVariables,
@@ -351,22 +358,20 @@ export async function runWorkflow(
                     `Step '${targetStep.id}' failed after ${attempt} attempts: ${String(err)}`,
                   );
                 }
-                logStepRetry(targetStep.id, attempt);
+                sink({ type: "step-retry", stepId: targetStep.id, attempt });
               }
             }
             // Failures throw above and are reported via the workflow-level
-            // error path, so logStepDone is only ever reached for a non-failure
+            // error path, so sink step-done is only ever reached for a non-failure
             // status here.
-            logStepDone(
-              targetStep.id,
-              r!.metrics.duration_ms,
-              r!.metrics.estimated_cost_usd,
-              r!.metrics.model,
-              r!.verdict,
-              r!.metrics.cost_was_reported,
-              r!.metrics.input_tokens + r!.metrics.output_tokens,
-              config.showPricing,
-            );
+            sink({
+              type: "step-done",
+              stepId: targetStep.id,
+              output: r!.output,
+              metrics: r!.metrics,
+              verdict: r!.verdict,
+              showPricing: config.showPricing,
+            });
             return r!;
           };
 
@@ -430,7 +435,7 @@ export async function runWorkflow(
               let retryAttempt = 0;
               while (retryAttempt < maxAttempts && !result.verdict) {
                 retryAttempt++;
-                logStepRetry(step.id, retryAttempt);
+                sink({ type: "step-retry", stepId: step.id, attempt: retryAttempt });
                 const reResolved = resolveStepForRun(step, params, stepOutputs);
                 result = await runAgentStep(step, reResolved.agent, reResolved.args);
                 stepOutputs[step.id] = result.output;
@@ -454,7 +459,7 @@ export async function runWorkflow(
 
                 while (retryAttempt < maxAttempts && result.verdict?.verdict !== "approve") {
                   retryAttempt++;
-                  logStepRetry(executorStep.id, retryAttempt);
+                  sink({ type: "step-retry", stepId: executorStep.id, attempt: retryAttempt });
 
                   const preamble = buildRetryPreamble({
                     summary: result.verdict?.summary ?? "",
@@ -567,7 +572,7 @@ export async function runWorkflow(
   const durationMs = Date.now() - startTime;
   const success = stepResults.every((r) => r.skipped || r.metrics?.status === "success");
 
-  return {
+  const result: WorkflowResult = {
     workflowName: workflow.name,
     steps: stepResults,
     success: success && !haltSignal,
@@ -578,4 +583,22 @@ export async function runWorkflow(
     costWasReported,
     durationMs,
   };
+
+  sink({
+    type: "workflow-done",
+    workflow: workflow.name,
+    result: {
+      workflowName: result.workflowName,
+      success: result.success,
+      totalCost: result.totalCost,
+      totalTokens: result.totalTokens,
+      costWasReported: result.costWasReported,
+      durationMs: result.durationMs,
+      halted: result.halted,
+      haltReason: result.haltReason,
+      stepCount: stepResults.length,
+    },
+  });
+
+  return result;
 }

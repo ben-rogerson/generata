@@ -14,7 +14,8 @@ const TOOL_NAME_MAP: Partial<Record<Tool, string>> = {
 };
 import { buildPrompt } from "./context-builder.js";
 import { writeMetrics, formatWeeklyMetricsLine } from "./metrics.js";
-import { logAgentModel, logAgentWelcome, startSpinner, pickTagline } from "./logger.js";
+import { startSpinner, pickTagline } from "./logger.js";
+import { type EventSink, noopSink } from "./event-sink.js";
 
 export interface RunOptions {
   agent: LLMAgentDef;
@@ -30,6 +31,8 @@ export interface RunOptions {
   retryPreamble?: string;
   workflowVariables?: Record<string, string>;
   resolvedEnv?: Record<string, string>;
+  sink?: EventSink;
+  signal?: AbortSignal;
 }
 
 export interface RunResult {
@@ -45,7 +48,7 @@ export interface RunResult {
   halt?: { reason: string };
 }
 
-function resolveModel(
+export function resolveModel(
   agent: LLMAgentDef,
   args: Record<string, unknown>,
   config: GlobalConfig,
@@ -83,15 +86,17 @@ async function runInteractive(options: RunOptions): Promise<RunResult> {
   const weeklyMetrics = config.showWeeklyMetrics
     ? formatWeeklyMetricsLine(resolve(workDir, config.metricsDir), config.showPricing)
     : undefined;
-  logAgentWelcome(
-    agent.name,
-    agent.type,
-    agent.description,
-    `${interactiveModel} (interactive)`,
+  const sink = options.sink ?? noopSink;
+  sink({
+    type: "agent-welcome",
+    agent: agent.name,
+    agentType: agent.type,
+    description: agent.description,
+    model: `${interactiveModel} (interactive)`,
     args,
-    options.promptLogFile,
+    promptLogFile: options.promptLogFile,
     weeklyMetrics,
-  );
+  });
 
   // Set up params file for interactive planners - same mechanism as non-interactive
   let paramsFile: string | null = null;
@@ -119,10 +124,15 @@ async function runInteractive(options: RunOptions): Promise<RunResult> {
         env: spawnEnv,
         stdio: "inherit",
         cwd: options.cwd,
+        signal: options.signal,
       },
     );
 
     proc.on("close", async (code: number | null) => {
+      if (options.signal?.aborted) {
+        reject(new DOMException("Aborted", "AbortError"));
+        return;
+      }
       const completedAt = new Date().toISOString();
       const durationMs = Date.now() - startTime;
       const exitCode = code ?? 0;
@@ -189,21 +199,21 @@ export async function runAgent(options: RunOptions): Promise<RunResult> {
   const startedAt = new Date().toISOString();
   const startTime = Date.now();
 
+  const sink = options.sink ?? noopSink;
   if (!options.workflowId) {
     const weeklyMetrics = config.showWeeklyMetrics
       ? formatWeeklyMetricsLine(resolve(workDir, config.metricsDir), config.showPricing)
       : undefined;
-    logAgentWelcome(
-      agent.name,
-      agent.type,
-      agent.description,
+    sink({
+      type: "agent-welcome",
+      agent: agent.name,
+      agentType: agent.type,
+      description: agent.description,
       model,
       args,
-      options.promptLogFile,
+      promptLogFile: options.promptLogFile,
       weeklyMetrics,
-    );
-  } else {
-    logAgentModel(agent.name, agent.type, model);
+    });
   }
 
   const { onEvent } = options;
@@ -308,7 +318,11 @@ export async function runAgent(options: RunOptions): Promise<RunResult> {
   }
 
   return new Promise((resolve_p, reject) => {
-    const proc = spawn("claude", claudeArgs, { env: spawnEnv, cwd: options.cwd });
+    const proc = spawn("claude", claudeArgs, {
+      env: spawnEnv,
+      cwd: options.cwd,
+      signal: options.signal,
+    });
 
     // Two-stage timeout: SIGTERM at timeoutSeconds, SIGKILL 10s later if it
     // hasn't exited. Node's built-in spawn timeout only sends SIGTERM, which
@@ -372,6 +386,11 @@ export async function runAgent(options: RunOptions): Promise<RunResult> {
     });
 
     proc.on("close", async (code: number | null) => {
+      if (options.signal?.aborted) {
+        stopSpinner();
+        reject(new DOMException("Aborted", "AbortError"));
+        return;
+      }
       stopSpinner();
       // Flush any remaining buffered content
       if (stdoutBuffer.trim()) processLine(stdoutBuffer);

@@ -8,9 +8,10 @@ import {
 } from "./registry.js";
 import { loadConfig } from "./config.js";
 import { runAgent } from "./agent-runner.js";
-import { runWorkflow } from "./engine.js";
+import { executeWorkflow } from "./engine.js";
 import { readMetrics, readMetricsRange, summariseMetrics, formatTokenCount } from "./metrics.js";
-import { fmt, logWorkflowResult, logStreamEvent } from "./logger.js";
+import { fmt } from "./logger.js";
+import { consoleSink } from "./event-sink.js";
 import { formatPrecheckReport, precheckWorkflow, validateAgentArgs } from "./precheck.js";
 import { sendNotification, formatWorkflowNotification, formatAgentNotification } from "./notify.js";
 import { makeRunId } from "./time.js";
@@ -141,8 +142,9 @@ async function main() {
         args: flags,
         config,
         workDir: config.workDir,
-        onEvent: (event) => logStreamEvent(event),
+        onEvent: (event) => consoleSink({ type: "agent-stream", stepId: null, event }),
         promptLogFile,
+        sink: consoleSink,
       });
     } catch (err) {
       await sendNotification(`❌ ${agent.name} failed: ${String(err)}`, config);
@@ -204,27 +206,19 @@ async function main() {
         : undefined;
     delete flags.worktree;
     delete flags.local;
-    const result = await runWorkflow(workflow, flags, config, config.workDir, promptLogFile, {
+    const result = await executeWorkflow(workflow, flags, config, config.workDir, promptLogFile, {
       isolationOverride,
+      sink: consoleSink,
     });
 
     const printable = pickPrintableFinalOutput(result.steps, workflow);
     if (printable) console.log(`\n${printable}\n`);
 
-    const models = [
-      ...new Set(result.steps.flatMap((s) => (s.metrics?.model ? [s.metrics.model] : []))),
-    ].join(", ");
-    logWorkflowResult(
-      result.workflowName,
-      result.success,
-      result.totalCost,
-      result.durationMs,
-      models || undefined,
-      result.haltReason,
-      result.costWasReported,
-      result.totalTokens,
-      config.showPricing,
-    );
+    if (config.showPricing && result.costWasReported) {
+      console.log(
+        `  ${fmt.dim("cost:")} ${fmt.cost(result.totalCost)}`,
+      );
+    }
     await sendNotification(formatWorkflowNotification(result, config.showPricing), config);
     return;
   }
