@@ -1,4 +1,4 @@
-import { equal, ok, rejects } from "node:assert/strict";
+import { deepEqual, equal, ok, rejects } from "node:assert/strict";
 import { describe, it } from "node:test";
 import { defineAgent, defineWorkflow } from "./define.js";
 import { GenerataPrecheckError } from "./errors.js";
@@ -43,6 +43,37 @@ describe("error contract: precheck", () => {
       if (err.issues.length === 0) return false;
       return true;
     });
+  });
+
+  it("does not write to stderr when silent (no onEvent)", async () => {
+    const a = defineAgent({
+      type: "worker",
+      description: "",
+      modelTier: "light",
+      tools: [],
+      timeoutSeconds: 60,
+      maxRetries: 1,
+      prompt: "uses {{missing_arg}}",
+    });
+    (a as unknown as { name: string }).name = "a";
+    const w = defineWorkflow({ description: "", required: ["missing_arg"] as const })
+      .step("only", a)
+      .build();
+    (w as unknown as { name: string }).name = "wf";
+
+    const stderrCaptured: string[] = [];
+    const origErr = console.error;
+    console.error = (...parts: unknown[]) => {
+      stderrCaptured.push(parts.map(String).join(" "));
+    };
+    try {
+      await runWorkflow(w, {}, { config: stubConfig, cwd: "/tmp" }).catch(() => {
+        /* expected throw */
+      });
+    } finally {
+      console.error = origErr;
+    }
+    deepEqual(stderrCaptured, [], `expected silent stderr, got: ${stderrCaptured.join("\n")}`);
   });
 });
 

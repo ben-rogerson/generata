@@ -18,7 +18,7 @@ function makeMetrics(
   return {
     agent: "test-agent",
     model: overrides.model ?? "claude-test",
-    model_tier: "mini" as const,
+    model_tier: "light" as const,
     workflow_id: null,
     step_id: null,
     started_at: new Date().toISOString(),

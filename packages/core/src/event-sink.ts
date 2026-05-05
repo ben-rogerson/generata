@@ -2,6 +2,7 @@ import { basename, relative } from "node:path";
 import pc from "picocolors";
 import type { AgentMetrics, AgentStreamEvent, AgentType, WorktreeConfig } from "./schema.js";
 import type { PrecheckIssue } from "./precheck.js";
+import { formatPrecheckReport } from "./precheck.js";
 import { fmt, agentColor } from "./logger.js";
 import type { WorkflowIsolation } from "./logger.js";
 import type { WorkflowResult } from "./engine.js";
@@ -242,10 +243,7 @@ export const consoleSink: EventSink = (event) => {
       return;
     }
     case "precheck-fail": {
-      // Engine prints the formatted report directly via formatPrecheckReport before
-      // throwing GenerataPrecheckError (Task 12). The sink event is emitted in
-      // parallel for programmatic subscribers; consoleSink intentionally renders
-      // nothing extra to avoid a duplicate print.
+      console.error(formatPrecheckReport(event.workflow, event.issues));
       return;
     }
     case "isolation-overridden": {

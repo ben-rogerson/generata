@@ -36,7 +36,7 @@ import { buildRetryPreamble } from "./context-builder.js";
 import { getTodayAndTime } from "./time.js";
 import { type WorkflowIsolation } from "./logger.js";
 import { type EventSink, noopSink } from "./event-sink.js";
-import { formatPrecheckReport, precheckWorkflow } from "./precheck.js";
+import { precheckWorkflow } from "./precheck.js";
 import { resolveEnvProfile, type ResolvedEnv } from "./env-profile.js";
 import { resolveStepShape } from "./step-shape.js";
 import { GenerataPrecheckError } from "./errors.js";
@@ -168,11 +168,6 @@ export async function executeWorkflow(
   const precheckIssues = precheckWorkflow(workflow, params, { profile, workDir });
   if (precheckIssues.length > 0) {
     sink({ type: "precheck-fail", workflow: workflow.name, issues: precheckIssues });
-    // CLI consoleSink subscribes to precheck-fail and prints the formatted report.
-    // We still print here as a backstop for any sink that ignores the event - the
-    // engine's primary job is to surface the failure clearly. Programmatic callers
-    // can introspect err.issues; the formatted text is for humans.
-    console.error(formatPrecheckReport(workflow.name, precheckIssues));
     throw new GenerataPrecheckError(workflow.name, precheckIssues);
   }
 
