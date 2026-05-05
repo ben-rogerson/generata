@@ -36,7 +36,8 @@ import {
 } from "./logger.js";
 import { formatPrecheckReport, precheckWorkflow } from "./precheck.js";
 import { resolveEnvProfile, type ResolvedEnv } from "./env-profile.js";
-import { resolveStepShape } from "./step-shape.js";
+import { isLoopStep, resolveStepShape } from "./step-shape.js";
+import { runLoopStep } from "./loop/runner.js";
 
 // Workers signal a structural halt by leading their output with `STATUS: halt`.
 // The critic retry loop checks this to short-circuit retries that would re-hit
@@ -99,6 +100,11 @@ function resolveStepForRun(
   params: Record<string, unknown>,
   stepOutputs: Record<string, string>,
 ): { agent: LLMAgentDef; args: Record<string, unknown> } {
+  if (isLoopStep(step)) {
+    throw new Error(
+      `resolveStepForRun called on loop step '${step.id}' - loop step execution is not yet wired in the engine`,
+    );
+  }
   if ("stepFn" in step) {
     const stringParams: StepParams = Object.fromEntries(
       Object.entries({ ...params, ...stepOutputs }).map(([k, v]) => [k, String(v)]),
@@ -168,7 +174,11 @@ export async function runWorkflow(
 
   // Precheck confirmed env keys are resolvable; now materialise them.
   const requiredEnvKeys = [
-    ...new Set(workflow.steps.flatMap((s) => resolveStepShape(s).agent.envKeys ?? [])),
+    ...new Set(
+      workflow.steps
+        .filter((s) => !isLoopStep(s))
+        .flatMap((s) => resolveStepShape(s).agent.envKeys ?? []),
+    ),
   ];
   const resolvedEnv: ResolvedEnv = resolveEnvProfile(requiredEnvKeys, profile);
 
@@ -283,6 +293,87 @@ export async function runWorkflow(
       await Promise.all(
         runnable.map(async (step) => {
           pending.delete(step.id);
+
+          if (isLoopStep(step)) {
+            const stepIndex = workflow.steps.findIndex((s) => s.id === step.id) + 1;
+            logStepStart(stepIndex, totalSteps, step.id);
+            const { today: _t, time: _ti } = getTodayAndTime();
+            const startedAt = new Date().toISOString();
+            const startTs = Date.now();
+            // builtins.work_dir uses executionRoot (worktree-aware path) so the loop's
+            // source materialisation reads from inside the worktree. The runWorkflow
+            // call below receives the OUTER workDir so the sub-workflow's own isolation
+            // declaration anchors at the user-supplied root, not nested-inside-a-worktree
+            // (git doesn't support nested worktrees anyway).
+            const result = await runLoopStep(
+              {
+                outerWorkflowName: workflow.name,
+                outerRunId: workflowId,
+                step: {
+                  id: step.id,
+                  // schema validates subWorkflow shape via runtime refine, but the
+                  // type is `unknown` to avoid a TS circular reference. Cast here.
+                  subWorkflow: step.subWorkflow as WorkflowDef,
+                  each: step.each,
+                  as: step.as,
+                  concurrency: step.concurrency,
+                  onFailure: step.onFailure,
+                  onItemFail: step.onItemFail,
+                  maxRetries: step.maxRetries,
+                },
+                outerParams: params,
+                builtins: { work_dir: executionRoot, today: _t, time: _ti },
+                config,
+                workDir,
+              },
+              {
+                // Forward engine deps (e.g. test-mocked runAgent) so the
+                // sub-workflow honours the same wiring. Without this, the
+                // outer call's mock runAgent is dropped on entry to the
+                // sub-run and the real CLI is invoked.
+                runWorkflow: (subWf, subParams, subConfig, subWorkDir) =>
+                  runWorkflow(subWf, subParams, subConfig, subWorkDir, promptLogFile, deps),
+              },
+            );
+            const completedAt = new Date().toISOString();
+            const durationMs = Date.now() - startTs;
+            params = { ...params, [`${step.id}_manifest`]: result.manifest_path };
+            stepOutputs[step.id] = result.manifest_path;
+            logStepDone(
+              step.id,
+              durationMs,
+              0, // estimated cost
+              "<loop>", // model label
+              undefined, // verdict
+              false, // costWasReported
+              0, // tokens
+              config.showPricing,
+            );
+            stepResults.push({
+              stepId: step.id,
+              output: result.manifest_path,
+              metrics: {
+                agent: "<loop>",
+                model: "",
+                model_tier: "",
+                workflow_id: workflow.name,
+                step_id: step.id,
+                started_at: startedAt,
+                completed_at: completedAt,
+                duration_ms: durationMs,
+                input_tokens: 0,
+                output_tokens: 0,
+                cache_read_tokens: 0,
+                cache_write_tokens: 0,
+                estimated_cost_usd: 0,
+                cost_was_reported: false,
+                status: "success",
+                exit_code: 0,
+              },
+            });
+            completed.add(step.id);
+            return;
+          }
 
           const stepIndex = workflow.steps.findIndex((s) => s.id === step.id) + 1;
 

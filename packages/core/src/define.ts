@@ -161,6 +161,27 @@ type StepValue<TParams> =
   | (AgentDef & { readonly [_factoryBrand]?: never })
   | ((params: TParams) => StepInvocation<Record<string, string>>);
 
+// Loop-form step options. Glob source requires `as:` (it streams strings); json
+// and items sources can omit `as:` (each item is already an object record).
+type LoopStepOptions = {
+  each:
+    | { glob: string }
+    | { json: string }
+    | { items: (b: BuiltinPromptArgs) => unknown[] | Promise<unknown[]> };
+  as?: string;
+  concurrency?: number;
+  onFailure?: "halt" | "continue";
+  onItemFail?:
+    | (LLMAgentDef & { readonly [_factoryBrand]?: never })
+    | ((params: Record<string, string> & { error: string }) => StepInvocation);
+  maxRetries?: number;
+  dependsOn?: string[];
+};
+
+// Loop-form step value: a workflow definition. Discriminated by `kind: "workflow"`
+// (stamped by defineWorkflow().build() before the def reaches a consumer).
+type LoopStepValue = WorkflowDef;
+
 // Pulls the declared output keys back out of a step value's type.
 // - Bare AgentDef: the value's `outputs` field (if declared) carries the keys.
 // - stepFn: the StepInvocation it returns is generic on TOutputs (set by
@@ -203,6 +224,13 @@ type InternalStep = {
   // Stored loose because either an object agent or a callable factory may be
   // passed; the engine narrows by `typeof === "function"` at rejection time.
   onReject?: LLMAgentDef | ((inputs: Record<string, string>) => StepInvocation);
+  // Loop-form fields. Set when `value` was a WorkflowDef and `each:` was provided.
+  subWorkflow?: WorkflowDef;
+  each?: LoopStepOptions["each"];
+  as?: string;
+  concurrency?: number;
+  onFailure?: "halt" | "continue";
+  onItemFail?: LLMAgentDef | ((inputs: Record<string, string>) => StepInvocation);
 };
 
 type WorkflowConfigInput<
@@ -220,12 +248,27 @@ type WorkflowConfigInput<
 // Each .step() returns a Builder with TPrior expanded by the new step's id and
 // TBaseParams extended with any `outputs` declared on the step's agent. The
 // agent's emit values reach downstream stepFns as named string params.
+//
+// Two overloads:
+//  - Agent-form (existing): bare agent or stepFn, threads declared `outputs`
+//    keys into downstream params.
+//  - Loop-form (new): WorkflowDef value with `each:`, emits `<id>_manifest`
+//    into downstream params (a path to the per-item run manifest).
+//
+// Order matters: the agent-form overload must come first so TS picks it for
+// non-WorkflowDef values; the loop-form overload requires `LoopStepOptions`,
+// so a missing/empty options bag won't accidentally match it.
 export type WorkflowBuilder<TBaseParams, TPrior extends string> = {
   step<const Id extends string, V extends StepValue<TBaseParams & Record<TPrior, string>>>(
     id: Id,
     value: V,
     options?: StepOptions<TBaseParams & Record<TPrior, string>>,
   ): WorkflowBuilder<TBaseParams & StepValueOutputs<V>, TPrior | Id>;
+  step<const Id extends string>(
+    id: Id,
+    value: LoopStepValue,
+    options: LoopStepOptions,
+  ): WorkflowBuilder<TBaseParams & Record<`${Id}_manifest`, string>, TPrior | Id>;
   build(): WorkflowDef;
 };
 
@@ -247,13 +290,64 @@ export function defineWorkflow<
   const builder = {
     step(
       id: string,
-      value: AgentDef | ((p: Record<string, string>) => StepInvocation),
-      options?: StepOptions,
+      value: AgentDef | WorkflowDef | ((p: Record<string, string>) => StepInvocation),
+      options?: StepOptions | LoopStepOptions,
     ) {
       if (steps.some((s) => s.id === id)) {
         throw new Error(`defineWorkflow: duplicate step id '${id}'`);
       }
-      const internal: InternalStep = { id, ...options };
+      // Loop-form: value is a built workflow (stamped kind: "workflow"). This
+      // branch must run before the agent-form branch since a WorkflowDef is
+      // also a plain object. AgentCallables are callable AND carry kind:
+      // "agent" (not "workflow"), so the `kind === "workflow"` check cleanly
+      // separates the two.
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        (value as { kind?: unknown }).kind === "workflow"
+      ) {
+        const opts = options as LoopStepOptions | undefined;
+        if (!opts || !opts.each) {
+          throw new Error(
+            `defineWorkflow: step '${id}' has a sub-workflow value but no 'each:' option`,
+          );
+        }
+        if ("glob" in opts.each && !opts.as) {
+          throw new Error(
+            `defineWorkflow: step '${id}' has each.glob but no 'as:' (required for string items)`,
+          );
+        }
+        if (opts.concurrency !== undefined && opts.concurrency < 1) {
+          throw new Error(
+            `defineWorkflow: step '${id}' concurrency must be a positive integer (got ${opts.concurrency})`,
+          );
+        }
+        if (
+          typeof opts.onItemFail === "function" &&
+          (opts.onItemFail as { kind?: unknown }).kind === "agent"
+        ) {
+          const fnName = (opts.onItemFail as { name?: string }).name || "<factory>";
+          throw new Error(
+            `Step '${id}': factory-form agent '${fnName}' cannot be passed bare as onItemFail. ` +
+              `Wrap it in a step fn: onItemFail: ({...}) => ${fnName}({...inputs})`,
+          );
+        }
+        const internal: InternalStep = {
+          id,
+          subWorkflow: value as WorkflowDef,
+          each: opts.each,
+          as: opts.as,
+          concurrency: opts.concurrency ?? 1,
+          onFailure: opts.onFailure ?? "halt",
+          onItemFail: opts.onItemFail as InternalStep["onItemFail"],
+          maxRetries: opts.maxRetries,
+          dependsOn: opts.dependsOn,
+        };
+        steps.push(internal);
+        return builder;
+      }
+      // Agent-form / stepFn-form (existing).
+      const internal: InternalStep = { id, ...(options as StepOptions) };
       if (typeof value === "function") {
         // Factory-form agents are callable AND carry kind: "agent". Passing one
         // bare would skip the input mapping and run with a sentinel template.
