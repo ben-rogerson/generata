@@ -1,4 +1,4 @@
-import { deepStrictEqual, ok, strictEqual } from "node:assert/strict";
+import { deepEqual, deepStrictEqual, ok, strictEqual } from "node:assert/strict";
 import { describe, it } from "node:test";
 import { defineAgent, defineWorkflow } from "./define.js";
 import { formatPrecheckReport, precheckWorkflow } from "./precheck.js";
@@ -332,6 +332,63 @@ describe("precheckWorkflow", () => {
       {},
     );
     deepStrictEqual(issues, []);
+  });
+});
+
+describe("precheckWorkflow with loop steps", () => {
+  it("threads <step-id>_manifest into the available set for downstream stepFns", () => {
+    const stub = {
+      type: "worker" as const,
+      name: "stub",
+      kind: "agent" as const,
+      description: "x",
+      modelTier: "light" as const,
+      tools: [],
+      permissions: "full" as const,
+      timeoutSeconds: 60,
+      promptContext: [],
+      prompt: () => "p",
+      maxRetries: 1,
+      envKeys: [],
+    };
+    const subWorkflow = {
+      kind: "workflow" as const,
+      name: "sub",
+      description: "x",
+      required: ["file"],
+      variables: {},
+      isolation: "none" as const,
+      steps: [{ id: "noop", agent: stub }],
+    };
+    const workflow = {
+      kind: "workflow" as const,
+      name: "outer",
+      description: "x",
+      required: [],
+      variables: {},
+      isolation: "none" as const,
+      steps: [
+        {
+          id: "reviews",
+          subWorkflow,
+          each: { glob: "*.md" },
+          as: "file",
+          concurrency: 1,
+          onFailure: "halt" as const,
+        },
+        {
+          id: "summary",
+          stepFn: ({ reviews_manifest }: Record<string, string>) => ({
+            kind: "step-invocation",
+            agent: stub,
+            args: { manifest_path: reviews_manifest },
+          }),
+        },
+      ],
+    } as never;
+
+    const issues = precheckWorkflow(workflow, {});
+    deepEqual(issues, []);
   });
 });
 

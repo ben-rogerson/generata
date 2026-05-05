@@ -3,7 +3,7 @@ import { resolve } from "path";
 import { BUILTIN_ARGS, LLMAgentDef, WorkflowDef } from "./schema.js";
 import { extractPromptParams } from "./context-builder.js";
 import { EnvProfileError, resolveEnvProfile } from "./env-profile.js";
-import { resolveStepShape } from "./step-shape.js";
+import { isLoopStep, resolveStepShape } from "./step-shape.js";
 
 export interface PrecheckIssue {
   stepId?: string;
@@ -111,6 +111,17 @@ export function precheckWorkflow(
 
   for (let i = 0; i < workflow.steps.length; i++) {
     const step = workflow.steps[i];
+    if (isLoopStep(step)) {
+      // Loop-specific structural checks (each shape, as: requirements,
+      // concurrency) ran at workflow build time. Validate dependsOn
+      // references here for symmetry with the regular branch.
+      for (const dep of step.dependsOn ?? []) {
+        if (!stepIds.has(dep)) {
+          issues.push({ stepId: step.id, message: `dependsOn references unknown step '${dep}'` });
+        }
+      }
+      continue;
+    }
     const { agent } = resolveStepShape(step);
 
     if (agent.type === "planner" && agent.interactive && i !== 0) {
@@ -131,7 +142,10 @@ export function precheckWorkflow(
       }
       const dep = step.dependsOn === undefined ? workflow.steps[i - 1]?.id : step.dependsOn[0];
       const depStep = dep ? workflow.steps.find((s) => s.id === dep) : undefined;
-      const depAgent = depStep ? resolveStepShape(depStep).agent : undefined;
+      // A critic depending on a loop step is non-retryable - loop iterations
+      // can't be safely re-run as a single upstream invocation.
+      const depAgent =
+        depStep && !isLoopStep(depStep) ? resolveStepShape(depStep).agent : undefined;
       const retryable =
         depAgent?.type === "worker" || (depAgent?.type === "planner" && !depAgent.interactive);
       if (!retryable) {
@@ -178,7 +192,10 @@ export function precheckWorkflow(
   // params shell bin (see generata/bin/params + RunResult.params in agent-runner.ts).
   // `derive` runs per-step, so it sees these from step 1 onward - add them to the base
   // so derive reads of plan_name/instructions don't trip the precheck.
-  if (resolveStepShape(workflow.steps[0]).agent.type === "planner") {
+  if (
+    !isLoopStep(workflow.steps[0]) &&
+    resolveStepShape(workflow.steps[0]).agent.type === "planner"
+  ) {
     base.add("plan_name");
     base.add("instructions");
   }
@@ -197,16 +214,29 @@ export function precheckWorkflow(
 
   for (let i = 0; i < workflow.steps.length; i++) {
     const step = workflow.steps[i];
-    const { agent, args } = resolveStepShape(step);
 
     // Available set = base + every prior step id + every prior step's declared
     // outputs keys (the engine merges those into the params bag at runtime).
+    // For prior loop steps, expose `<id>_manifest` instead - that's the only
+    // output a loop step contributes to the params bag.
     const available = new Set(base);
     for (let j = 0; j < i; j++) {
-      available.add(workflow.steps[j].id);
-      const priorAgent = resolveStepShape(workflow.steps[j]).agent;
+      const prior = workflow.steps[j];
+      available.add(prior.id);
+      if (isLoopStep(prior)) {
+        available.add(`${prior.id}_manifest`);
+        continue;
+      }
+      const priorAgent = resolveStepShape(prior).agent;
       if (priorAgent.outputs) for (const k of Object.keys(priorAgent.outputs)) available.add(k);
     }
+
+    // Loop steps have no readable prompt/args at this layer - the sub-workflow
+    // is prechecked when each iteration fires (each iteration is its own
+    // runWorkflow call which runs its own precheck).
+    if (isLoopStep(step)) continue;
+
+    const { agent, args } = resolveStepShape(step);
 
     // For stepFn-form steps, also introspect the stepFn body for unavailable reads
     // (matches the old behaviour of flagging args fns that read missing keys).
@@ -319,6 +349,7 @@ export function precheckWorkflow(
 
   const envByAgent = new Map<string, Set<string>>();
   for (const step of workflow.steps) {
+    if (isLoopStep(step)) continue;
     const { agent } = resolveStepShape(step);
     const keys = agent.envKeys ?? [];
     if (keys.length === 0) continue;
