@@ -7,15 +7,14 @@ import {
   resolveAgentName,
 } from "./registry.js";
 import { loadConfig } from "./config.js";
-import { runAgent } from "./agent-runner.js";
-import { executeWorkflow } from "./engine.js";
+import { runAgent, runWorkflow } from "./run.js";
+import { WorktreeConfig } from "./schema.js";
 import { readMetrics, readMetricsRange, summariseMetrics, formatTokenCount } from "./metrics.js";
 import { fmt } from "./logger.js";
 import { consoleSink } from "./event-sink.js";
 import { formatPrecheckReport, precheckWorkflow, validateAgentArgs } from "./precheck.js";
 import { sendNotification, formatWorkflowNotification, formatAgentNotification } from "./notify.js";
 import { makeRunId } from "./time.js";
-import { pickPrintableFinalOutput } from "./cli/workflow-output.js";
 import { parseArgs } from "./cli/parse-args.js";
 import { resolveCommand } from "./cli/resolve-command.js";
 import { buildPromptLogPath } from "./cli/prompt-log-path.js";
@@ -137,14 +136,11 @@ async function main() {
 
     let result: Awaited<ReturnType<typeof runAgent>>;
     try {
-      result = await runAgent({
-        agent,
-        args: flags,
+      result = await runAgent(agent, flags as Record<string, string>, {
         config,
-        workDir: config.workDir,
-        onEvent: (event) => consoleSink({ type: "agent-stream", stepId: null, event }),
+        cwd: config.workDir,
         promptLogFile,
-        sink: consoleSink,
+        onEvent: consoleSink,
       });
     } catch (err) {
       await sendNotification(`❌ ${agent.name} failed: ${String(err)}`, config);
@@ -206,13 +202,22 @@ async function main() {
         : undefined;
     delete flags.worktree;
     delete flags.local;
-    const result = await executeWorkflow(workflow, flags, config, config.workDir, promptLogFile, {
-      isolationOverride,
-      sink: consoleSink,
+    const result = await runWorkflow(workflow, flags as Record<string, string>, {
+      config,
+      cwd: config.workDir,
+      promptLogFile,
+      isolation:
+        isolationOverride === undefined
+          ? "inherit"
+          : isolationOverride === "worktree"
+            ? typeof workflow.isolation === "object"
+              ? workflow.isolation
+              : WorktreeConfig.parse({})
+            : "none",
+      onEvent: consoleSink,
     });
 
-    const printable = pickPrintableFinalOutput(result.steps, workflow);
-    if (printable) console.log(`\n${printable}\n`);
+    if (result.output) console.log(`\n${result.output}\n`);
 
     if (config.showPricing && result.costWasReported) {
       console.log(
