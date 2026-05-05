@@ -326,7 +326,14 @@ export async function runWorkflow(
                 config,
                 workDir,
               },
-              { runWorkflow },
+              {
+                // Forward engine deps (e.g. test-mocked runAgent) so the
+                // sub-workflow honours the same wiring. Without this, the
+                // outer call's mock runAgent is dropped on entry to the
+                // sub-run and the real CLI is invoked.
+                runWorkflow: (subWf, subParams, subConfig, subWorkDir) =>
+                  runWorkflow(subWf, subParams, subConfig, subWorkDir, promptLogFile, deps),
+              },
             );
             const completedAt = new Date().toISOString();
             const durationMs = Date.now() - startTs;
