@@ -11,10 +11,16 @@ import {
   StepParams,
   WorktreeConfig,
 } from "./schema.js";
-import { runAgent as defaultRunAgent, RunResult, RunOptions } from "./agent-runner.js";
+import {
+  runAgent as defaultRunAgent,
+  RunResult,
+  RunOptions,
+  resolveModel,
+} from "./agent-runner.js";
 import { formatWeeklyMetricsLine } from "./metrics.js";
 import { setupWorktree as defaultSetupWorktree } from "./worktree.js";
 import type { SetupWorktreeOptions, SetupWorktreeResult } from "./worktree.js";
+import { pickPrintableFinalOutput } from "./result.js";
 
 export interface EngineDeps {
   runAgent?: (options: RunOptions) => Promise<RunResult>;
@@ -22,21 +28,18 @@ export interface EngineDeps {
   // Tests can pre-resolve the git root rather than walking up from workDir.
   // Production CLI leaves this undefined and lets findGitRoot do the walk.
   mainProjectRoot?: string;
-  isolationOverride?: "none" | "worktree";
+  isolationOverride?: "none" | "worktree" | WorktreeConfig;
+  sink?: EventSink;
+  signal?: AbortSignal;
 }
 import { buildRetryPreamble } from "./context-builder.js";
 import { getTodayAndTime } from "./time.js";
-import {
-  logWorkflowStart,
-  logStepStart,
-  logStepDone,
-  logStepRetry,
-  logStreamEvent,
-  type WorkflowIsolation,
-} from "./logger.js";
-import { formatPrecheckReport, precheckWorkflow } from "./precheck.js";
+import { type WorkflowIsolation } from "./logger.js";
+import { type EventSink, noopSink } from "./event-sink.js";
+import { precheckWorkflow } from "./precheck.js";
 import { resolveEnvProfile, type ResolvedEnv } from "./env-profile.js";
 import { resolveStepShape } from "./step-shape.js";
+import { GenerataPrecheckError } from "./errors.js";
 
 // Workers signal a structural halt by leading their output with `STATUS: halt`.
 // The critic retry loop checks this to short-circuit retries that would re-hit
@@ -74,6 +77,7 @@ export interface WorkflowResult {
   durationMs: number;
   halted?: boolean;
   haltReason?: string;
+  output: string;
 }
 
 function resolveArgs(
@@ -110,14 +114,16 @@ function resolveStepForRun(
 }
 
 function resolveIsolation(
-  override: "none" | "worktree" | undefined,
+  override: "none" | "worktree" | WorktreeConfig | undefined,
   declared: "none" | WorktreeConfig,
 ): "none" | WorktreeConfig {
+  if (override === undefined) return declared;
   if (override === "none") return "none";
   if (override === "worktree") {
     return declared === "none" ? WorktreeConfig.parse({}) : declared;
   }
-  return declared;
+  // override is a WorktreeConfig object
+  return override;
 }
 
 function findGitRoot(start: string): string {
@@ -134,7 +140,7 @@ function findGitRoot(start: string): string {
   }
 }
 
-export async function runWorkflow(
+export async function executeWorkflow(
   workflow: WorkflowDef,
   params: Record<string, unknown>,
   config: GlobalConfig,
@@ -143,6 +149,12 @@ export async function runWorkflow(
   deps: EngineDeps = {},
 ): Promise<WorkflowResult> {
   const runAgent = deps.runAgent ?? defaultRunAgent;
+  const sink = deps.sink ?? noopSink;
+  // Pre-abort: short-circuit before precheck/worktree setup so callers see
+  // AbortError without observable side effects (no events, no spawn, no fs).
+  if (deps.signal?.aborted) {
+    throw new DOMException("Aborted", "AbortError");
+  }
   // Workflow names may contain `/` (path-derived from nested agents dirs). Strip
   // it so tmp-file paths built from this id stay flat, not nested subdirs.
   const workflowId = `${workflow.name.replace(/\//g, "-")}-${Date.now()}`;
@@ -160,10 +172,8 @@ export async function runWorkflow(
   // and env-key issues. Any issue aborts the run with zero LLM calls.
   const precheckIssues = precheckWorkflow(workflow, params, { profile, workDir });
   if (precheckIssues.length > 0) {
-    console.error(formatPrecheckReport(workflow.name, precheckIssues));
-    throw new Error(
-      `Precheck failed for workflow '${workflow.name}' - ${precheckIssues.length} problem${precheckIssues.length === 1 ? "" : "s"}`,
-    );
+    sink({ type: "precheck-fail", workflow: workflow.name, issues: precheckIssues });
+    throw new GenerataPrecheckError(workflow.name, precheckIssues);
   }
 
   // Precheck confirmed env keys are resolvable; now materialise them.
@@ -198,6 +208,18 @@ export async function runWorkflow(
   } catch {}
 
   const isolationConfig = resolveIsolation(deps.isolationOverride, workflow.isolation ?? "none");
+  {
+    const declared = workflow.isolation ?? "none";
+    const overrodeToNone = isolationConfig === "none" && declared !== "none";
+    const overrodeToWorktree = isolationConfig !== "none" && declared === "none";
+    const overrodeToOther =
+      typeof isolationConfig === "object" &&
+      typeof declared === "object" &&
+      isolationConfig !== declared;
+    if (overrodeToNone || overrodeToWorktree || overrodeToOther) {
+      sink({ type: "isolation-overridden", declared, used: isolationConfig });
+    }
+  }
   let executionRoot = resolve(workDir);
   let worktreePath: string | undefined;
   let teardown: (() => Promise<void>) | undefined;
@@ -239,13 +261,15 @@ export async function runWorkflow(
   const isolationInfo: WorkflowIsolation = worktreePath
     ? { mode: "worktree", path: worktreePath }
     : { mode: "local" };
-  logWorkflowStart(
-    workflow.name,
-    workflow.steps.length,
+  sink({
+    type: "workflow-start",
+    workflow: workflow.name,
+    runId: workflowId,
+    stepCount: workflow.steps.length,
+    isolation: isolationInfo,
     promptLogFile,
     weeklyMetrics,
-    isolationInfo,
-  );
+  });
 
   // Execute DAG
   const pending = new Map(workflow.steps.map((s) => [s.id, s]));
@@ -300,7 +324,15 @@ export async function runWorkflow(
             ...Object.fromEntries(Object.entries(resolvedArgs).map(([k, v]) => [k, String(v)])),
           });
 
-          logStepStart(stepIndex, totalSteps, step.id);
+          sink({
+            type: "step-start",
+            stepIndex,
+            stepCount: totalSteps,
+            stepId: step.id,
+            agent: stepAgent.name,
+            agentType: stepAgent.type,
+            model: resolveModel(stepAgent, resolvedArgs, config),
+          });
 
           // Helper: run an agent step with error-retry, log metrics, update stepOutputs.
           // Used for both the initial run and critic-triggered retries.
@@ -312,6 +344,7 @@ export async function runWorkflow(
           ): Promise<RunResult> => {
             let r: RunResult | undefined;
             let attempt = 0;
+            let lastErr: unknown = null;
             while (true) {
               try {
                 r = await runAgent({
@@ -327,11 +360,14 @@ export async function runWorkflow(
                   // (agent-runner starts the spinner when onEvent is undefined). Caveat:
                   // parallel runnable steps will fight over the same TTY line - acceptable
                   // for now since most workflows are sequential.
-                  onEvent: config.verboseOutput ? (event) => logStreamEvent(event) : undefined,
+                  onEvent: config.verboseOutput
+                    ? (event) => sink({ type: "agent-stream", stepId: targetStep.id, event })
+                    : undefined,
                   promptLogFile,
                   retryPreamble,
                   workflowVariables,
                   resolvedEnv,
+                  signal: deps.signal,
                 });
                 // runAgent resolves even when the underlying claude call failed
                 // or declared outputs were not emitted (status="failure" set in
@@ -345,32 +381,69 @@ export async function runWorkflow(
                 }
                 break;
               } catch (err) {
+                // AbortError bypasses the retry loop: a cancelled run must not
+                // burn further attempts after the caller's signal has fired.
+                if ((err as { name?: string })?.name === "AbortError") throw err;
                 attempt++;
+                lastErr = err;
                 if (attempt >= targetAgent.maxRetries) {
-                  throw new Error(
-                    `Step '${targetStep.id}' failed after ${attempt} attempts: ${String(err)}`,
-                  );
+                  // New contract: surface retry exhaustion as a failed StepResult
+                  // instead of throwing. The outer loop sees status="failure" and
+                  // bubbles it into success=false without disrupting other steps.
+                  const failureMetrics: AgentMetrics = {
+                    agent: targetAgent.name,
+                    model: resolveModel(targetAgent, targetArgs, config),
+                    model_tier: targetAgent.modelTier,
+                    workflow_id: workflowId,
+                    step_id: targetStep.id,
+                    started_at: new Date(Date.now() - 1).toISOString(),
+                    completed_at: new Date().toISOString(),
+                    duration_ms: 0,
+                    input_tokens: 0,
+                    output_tokens: 0,
+                    cache_read_tokens: 0,
+                    cache_write_tokens: 0,
+                    estimated_cost_usd: 0,
+                    cost_was_reported: false,
+                    status: "failure",
+                    error: `Step '${targetStep.id}' failed after ${attempt} attempts: ${String(lastErr)}`,
+                    exit_code: 1,
+                  };
+                  sink({
+                    type: "step-done",
+                    stepId: targetStep.id,
+                    output: "",
+                    metrics: failureMetrics,
+                    showPricing: config.showPricing,
+                  });
+                  return { output: "", metrics: failureMetrics };
                 }
-                logStepRetry(targetStep.id, attempt);
+                sink({ type: "step-retry", stepId: targetStep.id, attempt });
               }
             }
-            // Failures throw above and are reported via the workflow-level
-            // error path, so logStepDone is only ever reached for a non-failure
-            // status here.
-            logStepDone(
-              targetStep.id,
-              r!.metrics.duration_ms,
-              r!.metrics.estimated_cost_usd,
-              r!.metrics.model,
-              r!.verdict,
-              r!.metrics.cost_was_reported,
-              r!.metrics.input_tokens + r!.metrics.output_tokens,
-              config.showPricing,
-            );
+            sink({
+              type: "step-done",
+              stepId: targetStep.id,
+              output: r!.output,
+              metrics: r!.metrics,
+              verdict: r!.verdict,
+              showPricing: config.showPricing,
+            });
             return r!;
           };
 
           let result = await runAgentStep(step, stepAgent, resolvedArgs);
+
+          if (result.metrics.status === "failure") {
+            stepOutputs[step.id] = result.output;
+            stepResults.push({
+              stepId: step.id,
+              output: result.output,
+              metrics: result.metrics,
+            });
+            haltSignal = result.metrics.error || `step ${step.id} failed`;
+            return; // exits the per-step async block; outer loop sees haltSignal
+          }
 
           stepOutputs[step.id] = result.output;
           stepResults.push({
@@ -381,8 +454,11 @@ export async function runWorkflow(
 
           // First-class halt: agent emitted `--halt "<reason>"` via the emit bin.
           // Set the workflow halt signal and skip remaining steps cleanly. No
-          // metric failure - this is a deliberate, structured stop.
+          // metric failure - this is a deliberate, structured stop. The halt
+          // event lets programmatic subscribers act on the structured stop;
+          // workflow-done still carries haltReason for the legacy summary path.
           if (result.halt) {
+            sink({ type: "halt", stepId: step.id, reason: result.halt.reason });
             haltSignal = `${step.id} halted: ${result.halt.reason}`;
           }
 
@@ -430,7 +506,7 @@ export async function runWorkflow(
               let retryAttempt = 0;
               while (retryAttempt < maxAttempts && !result.verdict) {
                 retryAttempt++;
-                logStepRetry(step.id, retryAttempt);
+                sink({ type: "step-retry", stepId: step.id, attempt: retryAttempt });
                 const reResolved = resolveStepForRun(step, params, stepOutputs);
                 result = await runAgentStep(step, reResolved.agent, reResolved.args);
                 stepOutputs[step.id] = result.output;
@@ -454,7 +530,7 @@ export async function runWorkflow(
 
                 while (retryAttempt < maxAttempts && result.verdict?.verdict !== "approve") {
                   retryAttempt++;
-                  logStepRetry(executorStep.id, retryAttempt);
+                  sink({ type: "step-retry", stepId: executorStep.id, attempt: retryAttempt });
 
                   const preamble = buildRetryPreamble({
                     summary: result.verdict?.summary ?? "",
@@ -567,7 +643,8 @@ export async function runWorkflow(
   const durationMs = Date.now() - startTime;
   const success = stepResults.every((r) => r.skipped || r.metrics?.status === "success");
 
-  return {
+  const output = pickPrintableFinalOutput(stepResults, workflow) ?? "";
+  const result: WorkflowResult = {
     workflowName: workflow.name,
     steps: stepResults,
     success: success && !haltSignal,
@@ -577,5 +654,28 @@ export async function runWorkflow(
     totalTokens,
     costWasReported,
     durationMs,
+    output,
   };
+
+  const doneModels = [
+    ...new Set(stepResults.flatMap((s) => (s.metrics?.model ? [s.metrics.model] : []))),
+  ];
+  sink({
+    type: "workflow-done",
+    workflow: workflow.name,
+    result: {
+      workflowName: result.workflowName,
+      success: result.success,
+      totalCost: result.totalCost,
+      totalTokens: result.totalTokens,
+      costWasReported: result.costWasReported,
+      durationMs: result.durationMs,
+      halted: result.halted,
+      haltReason: result.haltReason,
+      stepCount: stepResults.length,
+      models: doneModels.length > 0 ? doneModels : undefined,
+    },
+  });
+
+  return result;
 }

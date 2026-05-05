@@ -10,21 +10,113 @@ npx @generata/core init @generata/starter ~/Projects/hello-generata
 ## Public API
 
 ```ts
-import { defineAgent, defineWorkflow, defineConfig } from "@generata/core";
+import {
+  defineAgent,
+  defineWorkflow,
+  defineConfig,
+  runWorkflow,
+  runAgent,
+  worktree,
+} from "@generata/core";
 ```
 
-That's all you need to author agents, workflows, and a project config.
-
-For workflows that need git-worktree isolation, also import `worktree`:
+`defineAgent` / `defineWorkflow` / `defineConfig` author agents, workflows, and a project config. `runWorkflow` / `runAgent` drive them from your own TypeScript without going through the CLI. `worktree(...)` declares git-worktree isolation:
 
 ```ts
-import { defineWorkflow, worktree } from "@generata/core";
-
 defineWorkflow({
   isolation: worktree({ sharedPaths: ["state.md"] }),
   // ...
 });
 ```
+
+## Running workflows from code
+
+`@generata/core` exposes `runWorkflow` and `runAgent` so you can drive any workflow or agent from your own TypeScript without going through the CLI. This is the primitive for loops, batch jobs, or wrapping generata in a larger script.
+
+### Basic call
+
+```ts
+import { runWorkflow } from "@generata/core";
+import reviewNote from "./workflows/review-note.js";
+
+const result = await runWorkflow(reviewNote, { file: "notes/aardvark.md" });
+console.log(result.output);
+if (!result.success) process.exit(1);
+```
+
+### Looping over a folder
+
+```ts
+import { glob } from "node:fs/promises";
+import { runWorkflow } from "@generata/core";
+import reviewNote from "./workflows/review-note.js";
+
+for await (const file of glob("notes/*.md")) {
+  const result = await runWorkflow(reviewNote, { file });
+  if (!result.success) {
+    console.error(`Failed on ${file}:`, result.steps.at(-1)?.output);
+    continue;
+  }
+  console.log(`Reviewed ${file}: ${result.output}`);
+}
+```
+
+### Sharing a single worktree across many runs
+
+When a workflow declares `isolation: worktree(...)`, every `runWorkflow` call by default sets up and tears down its own worktree. If you want one shared worktree across an iteration, set it up yourself, pass `isolation: "none"` to disable per-run setup, and point `cwd` at the worktree path:
+
+```ts
+import { runWorkflow } from "@generata/core";
+import processItem from "./workflows/process-item.js";
+
+// Replace with whatever produces a worktree path - your own helper, an
+// existing checkout, etc. The point is: one path, many iterations.
+const worktreePath = await setupSharedWorktree();
+
+for (const item of items) {
+  await runWorkflow(processItem, { id: item.id }, { isolation: "none", cwd: worktreePath });
+}
+```
+
+### Subscribing to progress events
+
+By default, programmatic runs are silent. Pass `onEvent` to receive structured events (workflow-start, step-start, step-done, etc.):
+
+```ts
+await runWorkflow(
+  processItem,
+  { id: "42" },
+  {
+    onEvent: (e) => {
+      if (e.type === "step-done") process.stderr.write(".");
+    },
+  },
+);
+```
+
+### Cancellation via `AbortSignal`
+
+```ts
+const ac = new AbortController();
+process.once("SIGINT", () => ac.abort());
+await runWorkflow(longRun, { input }, { signal: ac.signal });
+```
+
+### Error contract
+
+`runWorkflow` throws for:
+
+- `GenerataPrecheckError` - workflow misconfigured (introspect `err.issues` for diagnostics).
+- `AbortError` - caller cancelled via `AbortSignal`.
+- Infra errors (cannot spawn `claude`, etc.).
+
+It returns `success: false` for:
+
+- A step that hits its `maxRetries` limit. Inspect `result.steps.at(-1).output` and `result.steps.at(-1).metrics.error` for diagnostics.
+
+It returns `halted: true, success: false` for:
+
+- A worker that emits `--halt "<reason>"` via the emit bin. `result.haltReason` carries the reason; this is a clean structured stop, not a failure.
 
 ## CLI
 

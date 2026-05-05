@@ -32,6 +32,7 @@ const baseWorkflow: WorkflowResult = {
   costWasReported: true,
   durationMs: 2000,
   haltReason: undefined,
+  output: "",
 };
 
 describe("formatAgentNotification", () => {
