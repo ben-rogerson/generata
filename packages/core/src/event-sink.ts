@@ -1,3 +1,5 @@
+import { basename, relative } from "node:path";
+import pc from "picocolors";
 import type {
   AgentMetrics,
   AgentStreamEvent,
@@ -5,11 +7,14 @@ import type {
   WorktreeConfig,
 } from "./schema.js";
 import type { PrecheckIssue } from "./precheck.js";
+import { fmt, agentColor } from "./logger.js";
 import type { WorkflowIsolation } from "./logger.js";
 import type { WorkflowResult } from "./engine.js";
+import { formatTokenCount } from "./metrics.js";
 
 export type WorkflowResultSummary = Omit<WorkflowResult, "output" | "steps"> & {
   stepCount: number;
+  models?: string[];
 };
 
 export type EngineEvent =
@@ -63,11 +68,6 @@ export type EngineEvent =
 export type EventSink = (event: EngineEvent) => void;
 
 export const noopSink: EventSink = () => {};
-
-import { basename, relative } from "node:path";
-import pc from "picocolors";
-import { fmt, agentColor } from "./logger.js";
-import { formatTokenCount } from "./metrics.js";
 
 function formatPromptLogPath(promptLogFile: string): string {
   const rel = relative(process.cwd(), promptLogFile);
@@ -238,7 +238,9 @@ export const consoleSink: EventSink = (event) => {
       // not the engine. The engine emits raw figures; the CLI either appends a
       // pricing line via its own onEvent or doesn't. Here we always show tokens.
       const usage = `tokens: ${pc.cyan(formatTokenCount(r.totalTokens))}`;
-      console.log(`  ${usage}  time: ${pc.dim(`${(r.durationMs / 1000).toFixed(1)}s`)}`);
+      const parts = [`  ${usage}  time: ${pc.dim(`${(r.durationMs / 1000).toFixed(1)}s`)}`];
+      if (r.models && r.models.length > 0) parts.push(pc.dim(r.models.join(", ")));
+      console.log(parts.join("  "));
       if (r.haltReason) console.log(`  ${pc.red("✗")} ${pc.dim(r.haltReason)}`);
       return;
     }
@@ -248,9 +250,10 @@ export const consoleSink: EventSink = (event) => {
       return;
     }
     case "precheck-fail": {
-      // Formatting reuses formatPrecheckReport so output stays identical.
-      // Imported lazily to avoid a circular dep with precheck.ts.
-      void event; // formatted by the engine before emitting; kept here as a no-op summary stub
+      // Engine prints the formatted report directly via formatPrecheckReport before
+      // throwing GenerataPrecheckError (Task 12). The sink event is emitted in
+      // parallel for programmatic subscribers; consoleSink intentionally renders
+      // nothing extra to avoid a duplicate print.
       return;
     }
     case "isolation-overridden": {

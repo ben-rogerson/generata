@@ -1,6 +1,7 @@
 import { ok } from "node:assert/strict";
 import { describe, it } from "node:test";
 import { consoleSink } from "./event-sink.js";
+import type { AgentMetrics } from "./schema.js";
 
 // Minimal AgentMetrics factory for consoleSink tests
 function makeMetrics(overrides: Partial<{
@@ -11,7 +12,7 @@ function makeMetrics(overrides: Partial<{
   input_tokens: number;
   output_tokens: number;
   status: string;
-}> = {}): Parameters<typeof consoleSink>[0] & { type: "step-done" } extends never ? never : any {
+}> = {}): AgentMetrics {
   return {
     agent: "test-agent",
     model: overrides.model ?? "claude-test",

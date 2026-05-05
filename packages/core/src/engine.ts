@@ -584,6 +584,9 @@ export async function executeWorkflow(
     durationMs,
   };
 
+  const doneModels = [
+    ...new Set(stepResults.flatMap((s) => (s.metrics?.model ? [s.metrics.model] : []))),
+  ];
   sink({
     type: "workflow-done",
     workflow: workflow.name,
@@ -597,6 +600,7 @@ export async function executeWorkflow(
       halted: result.halted,
       haltReason: result.haltReason,
       stepCount: stepResults.length,
+      models: doneModels.length > 0 ? doneModels : undefined,
     },
   });
 
