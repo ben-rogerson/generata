@@ -63,11 +63,15 @@ for await (const file of glob("notes/*.md")) {
 By default, programmatic runs are silent. Pass `onEvent` to receive structured events (workflow-start, step-start, step-done, etc.):
 
 ```ts
-await runWorkflow(processItem, { id: "42" }, {
-  onEvent: (e) => {
-    if (e.type === "step-done") process.stderr.write(".");
+await runWorkflow(
+  processItem,
+  { id: "42" },
+  {
+    onEvent: (e) => {
+      if (e.type === "step-done") process.stderr.write(".");
+    },
   },
-});
+);
 ```
 
 ### Cancellation via `AbortSignal`

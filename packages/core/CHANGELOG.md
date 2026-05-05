@@ -15,7 +15,6 @@
 - 372554b: Show isolation mode (`local` or `worktree: <path>`) in the workflow start header so the run environment is visible at a glance and the worktree location is discoverable. Adds an optional `isolation` parameter to `logWorkflowStart` and exports a new `WorkflowIsolation` type.
 - 45d9593: Add `showPricing` config option (default `false`). When off, runtime logs and notifications hide USD costs and show token counts instead. The `generata metrics` subcommand still surfaces cost as before. Set `showPricing: true` in `defineConfig` to restore the previous behaviour.
 - d24a3b1: Typed outputs, first-class halts, and surgical bin permissions.
-
   - New `outputs: Record<string, string>` field on agents (key → LLM-facing description). Engine wires a per-agent emit bin with surgical `Bash(<bin>:*)` permission, parses the captured values, and merges them into the runtime params bag. Chain builder threads the literal output keys through `TBaseParams` so downstream stepFns destructure them with full type-safety.
   - First-class halts: agents call `--halt "<reason>"` via the emit bin to stop the workflow cleanly (no metric failure, downstream steps skipped, `haltReason` set). Replaces text-sentinel patterns (`STATUS: halt`, `NO_ITEMS`, etc.).
   - Factory-form `onReject`: `StepOptions.onReject` accepts a typed stepFn `(params) => StepInvocation` with the same contextual typing as `.step()`. Wrap factories in a stepFn to use them as rejection handlers.
@@ -67,7 +66,6 @@
   - Coding template manifest: dropped `WORKDIR` from `requiredEnv` (the working directory is now set in `generata.config.ts`, no longer prompted as an env var). Tidied bin hints and rewrote `postInstall` to match the current init flow.
   - Coding README: updated the env table and added a note about configuring `workdir` in `generata.config.ts`.
 - d0792d8: `@generata/coding` template overhaul: replaced the 13-agent / 4-workflow pipeline with a single spec-driven `build-project` workflow built from 8 flat agents.
-
   - New flow: `dream` (spec-creator) -> `plan` (plan-creator) -> `audit` (plan-reviewer, retries plan up to 2x with feedback) -> `execute` (code-writer) -> `verify` (code-reviewer, archives the project on reject) -> `readme` -> `tidy` (plucks the used idea from NOTES.md).
   - Each project is self-contained under `projects/<plan_name>/` with `SPEC.md`, `PLAN.md`, `README.md`, and code as siblings. The legacy `code/` subdir convention is gone.
   - Reject path archives the failed project to `projects/_archive/<plan_name>/` with a generated `REASON.md`.
@@ -83,7 +81,6 @@
 - 184d89f: `generata init` now writes a default `generata.config.ts` if one doesn't already exist in the destination. Previously, init scaffolded `agents/`, `package.json`, `.env`, and slash commands but no anchor file, so subsequent commands like `generata help workflows` would fail with "No generata.config.ts found". The default config sets sensible Claude model tiers and points `workdir` at the destination directory; users can edit it freely. Existing config files are preserved.
 - 0bd93ab: Make `workDir` optional in `defineConfig`. `loadConfig` now back-fills it from the directory containing `generata.config.ts`, so user configs no longer need to repeat the path.
 - 70d6533: Added two new catalog templates alongside `@generata/coding`:
-
   - **`@generata/starter`** - bare-minimum scaffold (one worker agent, one workflow). Designed to be edited or thrown away as users build their own pipeline. Good for learning the model without inheriting a use case.
   - **`@generata/standup`** - daily standup generator. Reads yesterday's git activity and drafts a 3-section update (yesterday / today / blockers). Two agents demonstrating two-step composition.
 

@@ -219,9 +219,8 @@ export async function runAgent(options: RunOptions): Promise<RunResult> {
   const { onEvent } = options;
   // Spinner only when not streaming and sink is the real consoleSink (CLI mode).
   // Programmatic callers using noopSink (silent default) must not get a TTY spinner.
-  const stopSpinner = onEvent || sink === noopSink
-    ? () => {}
-    : startSpinner(pickTagline(agent.type));
+  const stopSpinner =
+    onEvent || sink === noopSink ? () => {} : startSpinner(pickTagline(agent.type));
 
   // Per-agent emission bins. Each gets its own tmp file (read+unlinked post-run)
   // and a surgical Bash(<bin>:*) permission so the LLM can call exactly that

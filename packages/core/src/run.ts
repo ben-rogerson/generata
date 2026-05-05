@@ -92,19 +92,12 @@ export async function runWorkflow(
     isolationOverride = options.isolation;
   }
 
-  const result = await executeWorkflow(
-    workflow,
-    args,
-    config,
-    cwd,
-    options.promptLogFile,
-    {
-      ...options.deps,
-      sink,
-      signal: options.signal,
-      isolationOverride,
-    },
-  );
+  const result = await executeWorkflow(workflow, args, config, cwd, options.promptLogFile, {
+    ...options.deps,
+    sink,
+    signal: options.signal,
+    isolationOverride,
+  });
 
   return result;
 }

@@ -11,7 +11,12 @@ import {
   StepParams,
   WorktreeConfig,
 } from "./schema.js";
-import { runAgent as defaultRunAgent, RunResult, RunOptions, resolveModel } from "./agent-runner.js";
+import {
+  runAgent as defaultRunAgent,
+  RunResult,
+  RunOptions,
+  resolveModel,
+} from "./agent-runner.js";
 import { formatWeeklyMetricsLine } from "./metrics.js";
 import { setupWorktree as defaultSetupWorktree } from "./worktree.js";
 import type { SetupWorktreeOptions, SetupWorktreeResult } from "./worktree.js";
@@ -354,7 +359,9 @@ export async function executeWorkflow(
                   // (agent-runner starts the spinner when onEvent is undefined). Caveat:
                   // parallel runnable steps will fight over the same TTY line - acceptable
                   // for now since most workflows are sequential.
-                  onEvent: config.verboseOutput ? (event) => sink({ type: "agent-stream", stepId: targetStep.id, event }) : undefined,
+                  onEvent: config.verboseOutput
+                    ? (event) => sink({ type: "agent-stream", stepId: targetStep.id, event })
+                    : undefined,
                   promptLogFile,
                   retryPreamble,
                   workflowVariables,

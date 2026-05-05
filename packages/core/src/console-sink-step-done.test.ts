@@ -4,15 +4,17 @@ import { consoleSink } from "./event-sink.js";
 import type { AgentMetrics } from "./schema.js";
 
 // Minimal AgentMetrics factory for consoleSink tests
-function makeMetrics(overrides: Partial<{
-  duration_ms: number;
-  estimated_cost_usd: number;
-  model: string;
-  cost_was_reported: boolean;
-  input_tokens: number;
-  output_tokens: number;
-  status: string;
-}> = {}): AgentMetrics {
+function makeMetrics(
+  overrides: Partial<{
+    duration_ms: number;
+    estimated_cost_usd: number;
+    model: string;
+    cost_was_reported: boolean;
+    input_tokens: number;
+    output_tokens: number;
+    status: string;
+  }> = {},
+): AgentMetrics {
   return {
     agent: "test-agent",
     model: overrides.model ?? "claude-test",
@@ -57,7 +59,12 @@ describe("consoleSink step-done", () => {
         type: "step-done",
         stepId: "step-1",
         output: "",
-        metrics: makeMetrics({ estimated_cost_usd: 0.0234, cost_was_reported: true, input_tokens: 3000, output_tokens: 2000 }),
+        metrics: makeMetrics({
+          estimated_cost_usd: 0.0234,
+          cost_was_reported: true,
+          input_tokens: 3000,
+          output_tokens: 2000,
+        }),
         showPricing: true,
       }),
     );
@@ -71,7 +78,12 @@ describe("consoleSink step-done", () => {
         type: "step-done",
         stepId: "step-1",
         output: "",
-        metrics: makeMetrics({ estimated_cost_usd: 0.0234, cost_was_reported: true, input_tokens: 3000, output_tokens: 2000 }),
+        metrics: makeMetrics({
+          estimated_cost_usd: 0.0234,
+          cost_was_reported: true,
+          input_tokens: 3000,
+          output_tokens: 2000,
+        }),
         showPricing: false,
       }),
     );
@@ -303,17 +315,28 @@ describe("consoleSink agent-stream (formatBinInvocation)", () => {
 
   it("formats emit --halt as a halt phrase", () => {
     const out = streamOut('/abs/packages/core/bin/emit --halt "no unbuilt ideas in NOTES.md"');
-    ok(out.includes('Halted with reason: "no unbuilt ideas in NOTES.md"'), `expected halt phrase, got: ${out}`);
+    ok(
+      out.includes('Halted with reason: "no unbuilt ideas in NOTES.md"'),
+      `expected halt phrase, got: ${out}`,
+    );
   });
 
   it("formats emit success outputs as key=value pairs", () => {
-    const out = streamOut('/abs/bin/emit --spec_filepath "/tmp/SPEC.md" --instructions "build a thing"');
-    ok(out.includes('Outputs emitted: spec_filepath="/tmp/SPEC.md", instructions="build a thing"'), `expected outputs line, got: ${out}`);
+    const out = streamOut(
+      '/abs/bin/emit --spec_filepath "/tmp/SPEC.md" --instructions "build a thing"',
+    );
+    ok(
+      out.includes('Outputs emitted: spec_filepath="/tmp/SPEC.md", instructions="build a thing"'),
+      `expected outputs line, got: ${out}`,
+    );
   });
 
   it("formats no-arg emit as a step-complete phrase", () => {
     const out = streamOut("/abs/bin/emit");
-    ok(out.includes("Step complete (no outputs declared)"), `expected step-complete phrase, got: ${out}`);
+    ok(
+      out.includes("Step complete (no outputs declared)"),
+      `expected step-complete phrase, got: ${out}`,
+    );
   });
 
   it("formats verdict approve", () => {
@@ -322,13 +345,21 @@ describe("consoleSink agent-stream (formatBinInvocation)", () => {
   });
 
   it("formats verdict reject", () => {
-    const out = streamOut('/abs/bin/verdict reject "missing tests" "no test for X" "no test for Y"');
-    ok(out.includes('Verdict: reject - "missing tests" (2 issues)'), `expected reject phrase, got: ${out}`);
+    const out = streamOut(
+      '/abs/bin/verdict reject "missing tests" "no test for X" "no test for Y"',
+    );
+    ok(
+      out.includes('Verdict: reject - "missing tests" (2 issues)'),
+      `expected reject phrase, got: ${out}`,
+    );
   });
 
   it("formats params with plan name and instructions", () => {
     const out = streamOut('/abs/bin/params "ship-it" "open a PR for the work"');
-    ok(out.includes('Plan params: ship-it - "open a PR for the work"'), `expected params phrase, got: ${out}`);
+    ok(
+      out.includes('Plan params: ship-it - "open a PR for the work"'),
+      `expected params phrase, got: ${out}`,
+    );
   });
 
   it("truncates very long emit values", () => {

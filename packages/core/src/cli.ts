@@ -220,9 +220,7 @@ async function main() {
     if (result.output) console.log(`\n${result.output}\n`);
 
     if (config.showPricing && result.costWasReported) {
-      console.log(
-        `  ${fmt.dim("cost:")} ${fmt.cost(result.totalCost)}`,
-      );
+      console.log(`  ${fmt.dim("cost:")} ${fmt.cost(result.totalCost)}`);
     }
     await sendNotification(formatWorkflowNotification(result, config.showPricing), config);
     if (!result.success) {

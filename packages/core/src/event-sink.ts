@@ -1,11 +1,6 @@
 import { basename, relative } from "node:path";
 import pc from "picocolors";
-import type {
-  AgentMetrics,
-  AgentStreamEvent,
-  AgentType,
-  WorktreeConfig,
-} from "./schema.js";
+import type { AgentMetrics, AgentStreamEvent, AgentType, WorktreeConfig } from "./schema.js";
 import type { PrecheckIssue } from "./precheck.js";
 import { fmt, agentColor } from "./logger.js";
 import type { WorkflowIsolation } from "./logger.js";
@@ -165,9 +160,7 @@ export const consoleSink: EventSink = (event) => {
       return;
     }
     case "step-start": {
-      console.log(
-        `${pc.dim(`[${event.stepIndex}/${event.stepCount}]`)} ${pc.white(event.stepId)}`,
-      );
+      console.log(`${pc.dim(`[${event.stepIndex}/${event.stepCount}]`)} ${pc.white(event.stepId)}`);
       const color = agentColor(event.agentType);
       console.log(`  ${pc.dim("↳")} ${color(event.agent)} ${pc.dim(event.model)}`);
       return;
@@ -201,8 +194,7 @@ export const consoleSink: EventSink = (event) => {
     case "agent-welcome": {
       const extras: string[] = [pc.dim(event.model)];
       if (event.args?.plan_name) extras.push(pc.dim(`plan: ${String(event.args.plan_name)}`));
-      if (event.args?.goal)
-        extras.push(pc.dim(`goal: ${String(event.args.goal).slice(0, 60)}`));
+      if (event.args?.goal) extras.push(pc.dim(`goal: ${String(event.args.goal).slice(0, 60)}`));
       const color = agentColor(event.agentType);
       console.log(`  ${pc.bold(color(event.agent))} ${pc.dim(`[${event.agentType}]`)}`);
       console.log(`  ${pc.dim(event.description)}`);

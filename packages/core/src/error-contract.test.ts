@@ -37,15 +37,12 @@ describe("error contract: precheck", () => {
       .build();
     (w as unknown as { name: string }).name = "wf";
 
-    await rejects(
-      runWorkflow(w, {}, { config: stubConfig, cwd: "/tmp" }),
-      (err: Error) => {
-        if (!(err instanceof GenerataPrecheckError)) return false;
-        if (err.workflow !== "wf") return false;
-        if (err.issues.length === 0) return false;
-        return true;
-      },
-    );
+    await rejects(runWorkflow(w, {}, { config: stubConfig, cwd: "/tmp" }), (err: Error) => {
+      if (!(err instanceof GenerataPrecheckError)) return false;
+      if (err.workflow !== "wf") return false;
+      if (err.issues.length === 0) return false;
+      return true;
+    });
   });
 });
 
