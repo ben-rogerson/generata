@@ -220,6 +220,9 @@ async function main() {
       );
     }
     await sendNotification(formatWorkflowNotification(result, config.showPricing), config);
+    if (!result.success) {
+      process.exit(1);
+    }
     return;
   }
 

@@ -506,13 +506,12 @@ describe("runWorkflow isolation: worktree", () => {
       "wt-fail",
     );
     const { stubSetup, getCleanupCalls } = makeStubSetup();
-    await rejects(() =>
-      executeWorkflow(workflow, {}, stubConfig, "/repo/x", undefined, {
-        runAgent: stubRunAgent,
-        setupWorktree: stubSetup,
-        mainProjectRoot: "/repo",
-      }),
-    );
+    const result = await executeWorkflow(workflow, {}, stubConfig, "/repo/x", undefined, {
+      runAgent: stubRunAgent,
+      setupWorktree: stubSetup,
+      mainProjectRoot: "/repo",
+    });
+    equal(result.success, false);
     equal(getCleanupCalls(), 1);
   });
 
@@ -908,10 +907,10 @@ describe("runWorkflow agent failure status fails the workflow", () => {
       "fail-stops",
     );
 
-    await rejects(
-      executeWorkflow(workflow, {}, stubConfig, "/tmp", undefined, { runAgent: stubRunAgent }),
-      /emit missing keys: spec_filepath/,
-    );
+    const result = await executeWorkflow(workflow, {}, stubConfig, "/tmp", undefined, {
+      runAgent: stubRunAgent,
+    });
+    equal(result.success, false);
     equal(secondCalled, false);
   });
 });

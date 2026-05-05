@@ -338,6 +338,7 @@ export async function executeWorkflow(
           ): Promise<RunResult> => {
             let r: RunResult | undefined;
             let attempt = 0;
+            let lastErr: unknown = null;
             while (true) {
               try {
                 r = await runAgent({
@@ -372,17 +373,42 @@ export async function executeWorkflow(
                 break;
               } catch (err) {
                 attempt++;
+                lastErr = err;
                 if (attempt >= targetAgent.maxRetries) {
-                  throw new Error(
-                    `Step '${targetStep.id}' failed after ${attempt} attempts: ${String(err)}`,
-                  );
+                  // New contract: surface retry exhaustion as a failed StepResult
+                  // instead of throwing. The outer loop sees status="failure" and
+                  // bubbles it into success=false without disrupting other steps.
+                  const failureMetrics: AgentMetrics = {
+                    agent: targetAgent.name,
+                    model: resolveModel(targetAgent, targetArgs, config),
+                    model_tier: targetAgent.modelTier,
+                    workflow_id: workflowId,
+                    step_id: targetStep.id,
+                    started_at: new Date(Date.now() - 1).toISOString(),
+                    completed_at: new Date().toISOString(),
+                    duration_ms: 0,
+                    input_tokens: 0,
+                    output_tokens: 0,
+                    cache_read_tokens: 0,
+                    cache_write_tokens: 0,
+                    estimated_cost_usd: 0,
+                    cost_was_reported: false,
+                    status: "failure",
+                    error: `Step '${targetStep.id}' failed after ${attempt} attempts: ${String(lastErr)}`,
+                    exit_code: 1,
+                  };
+                  sink({
+                    type: "step-done",
+                    stepId: targetStep.id,
+                    output: "",
+                    metrics: failureMetrics,
+                    showPricing: config.showPricing,
+                  });
+                  return { output: "", metrics: failureMetrics };
                 }
                 sink({ type: "step-retry", stepId: targetStep.id, attempt });
               }
             }
-            // Failures throw above and are reported via the workflow-level
-            // error path, so sink step-done is only ever reached for a non-failure
-            // status here.
             sink({
               type: "step-done",
               stepId: targetStep.id,
@@ -395,6 +421,17 @@ export async function executeWorkflow(
           };
 
           let result = await runAgentStep(step, stepAgent, resolvedArgs);
+
+          if (result.metrics.status === "failure") {
+            stepOutputs[step.id] = result.output;
+            stepResults.push({
+              stepId: step.id,
+              output: result.output,
+              metrics: result.metrics,
+            });
+            haltSignal = result.metrics.error || `step ${step.id} failed`;
+            return; // exits the per-step async block; outer loop sees haltSignal
+          }
 
           stepOutputs[step.id] = result.output;
           stepResults.push({
