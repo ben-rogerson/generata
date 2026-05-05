@@ -10,11 +10,8 @@ import { runAgent as internalRunAgent, type RunResult, type RunOptions } from ".
 import { type EngineEvent, type EventSink, noopSink } from "./event-sink.js";
 import { findProjectRoot } from "./find-project-root.js";
 import { loadConfig } from "./config.js";
-import { pickPrintableFinalOutput } from "./result.js";
 
-export interface WorkflowResult extends InternalWorkflowResult {
-  output: string;
-}
+export type WorkflowResult = InternalWorkflowResult;
 
 export type { InternalStepResult as StepResult };
 
@@ -109,8 +106,7 @@ export async function runWorkflow(
     },
   );
 
-  const output = pickPrintableFinalOutput(result.steps, workflow) ?? "";
-  return { ...result, output };
+  return result;
 }
 
 export async function runAgent(

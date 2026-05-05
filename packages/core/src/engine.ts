@@ -15,6 +15,7 @@ import { runAgent as defaultRunAgent, RunResult, RunOptions, resolveModel } from
 import { formatWeeklyMetricsLine } from "./metrics.js";
 import { setupWorktree as defaultSetupWorktree } from "./worktree.js";
 import type { SetupWorktreeOptions, SetupWorktreeResult } from "./worktree.js";
+import { pickPrintableFinalOutput } from "./result.js";
 
 export interface EngineDeps {
   runAgent?: (options: RunOptions) => Promise<RunResult>;
@@ -70,6 +71,7 @@ export interface WorkflowResult {
   durationMs: number;
   halted?: boolean;
   haltReason?: string;
+  output: string;
 }
 
 function resolveArgs(
@@ -572,6 +574,7 @@ export async function executeWorkflow(
   const durationMs = Date.now() - startTime;
   const success = stepResults.every((r) => r.skipped || r.metrics?.status === "success");
 
+  const output = pickPrintableFinalOutput(stepResults, workflow) ?? "";
   const result: WorkflowResult = {
     workflowName: workflow.name,
     steps: stepResults,
@@ -582,6 +585,7 @@ export async function executeWorkflow(
     totalTokens,
     costWasReported,
     durationMs,
+    output,
   };
 
   const doneModels = [
