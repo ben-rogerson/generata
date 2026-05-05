@@ -310,3 +310,16 @@ export type {
   StepParams,
   StepInvocation,
 } from "./schema.js";
+
+export { runWorkflow, runAgent } from "./run.js";
+export type {
+  RunWorkflowOptions,
+  RunAgentOptions,
+  WorkflowResult,
+  StepResult,
+  AgentResult,
+} from "./run.js";
+export { GenerataPrecheckError } from "./errors.js";
+export type { PrecheckIssue } from "./precheck.js";
+export type { EngineEvent, EventSink } from "./event-sink.js";
+export type { AgentMetrics, AgentStreamEvent } from "./schema.js";
