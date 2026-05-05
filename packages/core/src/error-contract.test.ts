@@ -107,6 +107,84 @@ describe("error contract: critic max-retries", () => {
   });
 });
 
+describe("error contract: abort signal", () => {
+  it("rejects pre-aborted signal with AbortError before any step runs", async () => {
+    const a = defineAgent({
+      type: "worker",
+      description: "",
+      modelTier: "light",
+      tools: [],
+      timeoutSeconds: 60,
+      maxRetries: 1,
+      prompt: "do",
+    });
+    (a as unknown as { name: string }).name = "a";
+    const w = defineWorkflow({ description: "" }).step("only", a).build();
+    (w as unknown as { name: string }).name = "wf";
+
+    let called = 0;
+    const stubRunAgent = async (_opts: RunOptions): Promise<RunResult> => {
+      called++;
+      throw new Error("should not be called when pre-aborted");
+    };
+
+    const ac = new AbortController();
+    ac.abort();
+
+    await rejects(
+      runWorkflow(
+        w,
+        {},
+        {
+          config: stubConfig,
+          cwd: "/tmp",
+          signal: ac.signal,
+          deps: { runAgent: stubRunAgent },
+        },
+      ),
+      (err: Error) => err.name === "AbortError",
+    );
+    equal(called, 0, "pre-abort must short-circuit before invoking runAgent");
+  });
+
+  it("propagates AbortError when signal fires mid-step", async () => {
+    const a = defineAgent({
+      type: "worker",
+      description: "",
+      modelTier: "light",
+      tools: [],
+      timeoutSeconds: 60,
+      maxRetries: 1,
+      prompt: "do",
+    });
+    (a as unknown as { name: string }).name = "a";
+    const w = defineWorkflow({ description: "" }).step("only", a).build();
+    (w as unknown as { name: string }).name = "wf";
+
+    const ac = new AbortController();
+    const stubRunAgent = async (_opts: RunOptions): Promise<RunResult> => {
+      // Simulate the worker noticing the signal and rejecting with AbortError,
+      // mirroring how agent-runner's spawn handler behaves on abort.
+      ac.abort();
+      throw new DOMException("Aborted", "AbortError");
+    };
+
+    await rejects(
+      runWorkflow(
+        w,
+        {},
+        {
+          config: stubConfig,
+          cwd: "/tmp",
+          signal: ac.signal,
+          deps: { runAgent: stubRunAgent },
+        },
+      ),
+      (err: Error) => err.name === "AbortError",
+    );
+  });
+});
+
 describe("error contract: halt", () => {
   it("returns halted:true with reason (no throw)", async () => {
     const a = defineAgent({
@@ -146,13 +224,24 @@ describe("error contract: halt", () => {
       halt: { reason: "blocked by missing input" },
     });
 
+    const events: { type: string; stepId?: string; reason?: string }[] = [];
     const result = await runWorkflow(
       w,
       {},
-      { config: stubConfig, cwd: "/tmp", deps: { runAgent: stubRunAgent } },
+      {
+        config: stubConfig,
+        cwd: "/tmp",
+        onEvent: (e) => {
+          if (e.type === "halt") events.push({ type: e.type, stepId: e.stepId, reason: e.reason });
+        },
+        deps: { runAgent: stubRunAgent },
+      },
     );
     equal(result.halted, true);
     ok(result.haltReason?.includes("blocked by missing input"));
     equal(result.success, false); // halted runs are not "successful" in the engine's sense
+    equal(events.length, 1, "halt event must fire once when worker emits --halt");
+    equal(events[0].stepId, "only");
+    equal(events[0].reason, "blocked by missing input");
   });
 });

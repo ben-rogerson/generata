@@ -17,6 +17,7 @@ export type EngineEvent =
   | {
       type: "workflow-start";
       workflow: string;
+      runId: string;
       stepCount: number;
       isolation: WorkflowIsolation;
       promptLogFile?: string;
@@ -238,8 +239,9 @@ export const consoleSink: EventSink = (event) => {
       return;
     }
     case "halt": {
-      // Stand-alone halt event isn't printed; the workflow-done summary above
-      // shows haltReason. Kept on the union for programmatic subscribers.
+      // Halt is also surfaced in the workflow-done summary's haltReason; this
+      // case keeps consoleSink output unchanged so the snapshot tests still
+      // pass while programmatic subscribers see a discrete halt event.
       return;
     }
     case "precheck-fail": {

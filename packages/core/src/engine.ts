@@ -150,6 +150,11 @@ export async function executeWorkflow(
 ): Promise<WorkflowResult> {
   const runAgent = deps.runAgent ?? defaultRunAgent;
   const sink = deps.sink ?? noopSink;
+  // Pre-abort: short-circuit before precheck/worktree setup so callers see
+  // AbortError without observable side effects (no events, no spawn, no fs).
+  if (deps.signal?.aborted) {
+    throw new DOMException("Aborted", "AbortError");
+  }
   // Workflow names may contain `/` (path-derived from nested agents dirs). Strip
   // it so tmp-file paths built from this id stay flat, not nested subdirs.
   const workflowId = `${workflow.name.replace(/\//g, "-")}-${Date.now()}`;
@@ -259,6 +264,7 @@ export async function executeWorkflow(
   sink({
     type: "workflow-start",
     workflow: workflow.name,
+    runId: workflowId,
     stepCount: workflow.steps.length,
     isolation: isolationInfo,
     promptLogFile,
@@ -361,6 +367,7 @@ export async function executeWorkflow(
                   retryPreamble,
                   workflowVariables,
                   resolvedEnv,
+                  signal: deps.signal,
                 });
                 // runAgent resolves even when the underlying claude call failed
                 // or declared outputs were not emitted (status="failure" set in
@@ -374,6 +381,9 @@ export async function executeWorkflow(
                 }
                 break;
               } catch (err) {
+                // AbortError bypasses the retry loop: a cancelled run must not
+                // burn further attempts after the caller's signal has fired.
+                if ((err as { name?: string })?.name === "AbortError") throw err;
                 attempt++;
                 lastErr = err;
                 if (attempt >= targetAgent.maxRetries) {
@@ -444,8 +454,11 @@ export async function executeWorkflow(
 
           // First-class halt: agent emitted `--halt "<reason>"` via the emit bin.
           // Set the workflow halt signal and skip remaining steps cleanly. No
-          // metric failure - this is a deliberate, structured stop.
+          // metric failure - this is a deliberate, structured stop. The halt
+          // event lets programmatic subscribers act on the structured stop;
+          // workflow-done still carries haltReason for the legacy summary path.
           if (result.halt) {
+            sink({ type: "halt", stepId: step.id, reason: result.halt.reason });
             haltSignal = `${step.id} halted: ${result.halt.reason}`;
           }
 

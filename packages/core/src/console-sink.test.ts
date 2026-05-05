@@ -54,6 +54,7 @@ describe("consoleSink", () => {
       consoleSink({
         type: "workflow-start",
         workflow: "demo-flow",
+        runId: "demo-flow-1",
         stepCount: 3,
         isolation: { mode: "local" },
       });

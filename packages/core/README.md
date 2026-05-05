@@ -10,16 +10,19 @@ npx @generata/core init @generata/starter ~/Projects/hello-generata
 ## Public API
 
 ```ts
-import { defineAgent, defineWorkflow, defineConfig } from "@generata/core";
+import {
+  defineAgent,
+  defineWorkflow,
+  defineConfig,
+  runWorkflow,
+  runAgent,
+  worktree,
+} from "@generata/core";
 ```
 
-That's all you need to author agents, workflows, and a project config.
-
-For workflows that need git-worktree isolation, also import `worktree`:
+`defineAgent` / `defineWorkflow` / `defineConfig` author agents, workflows, and a project config. `runWorkflow` / `runAgent` drive them from your own TypeScript without going through the CLI. `worktree(...)` declares git-worktree isolation:
 
 ```ts
-import { defineWorkflow, worktree } from "@generata/core";
-
 defineWorkflow({
   isolation: worktree({ sharedPaths: ["state.md"] }),
   // ...
@@ -55,6 +58,23 @@ for await (const file of glob("notes/*.md")) {
     continue;
   }
   console.log(`Reviewed ${file}: ${result.output}`);
+}
+```
+
+### Sharing a single worktree across many runs
+
+When a workflow declares `isolation: worktree(...)`, every `runWorkflow` call by default sets up and tears down its own worktree. If you want one shared worktree across an iteration, set it up yourself, pass `isolation: "none"` to disable per-run setup, and point `cwd` at the worktree path:
+
+```ts
+import { runWorkflow } from "@generata/core";
+import processItem from "./workflows/process-item.js";
+
+// Replace with whatever produces a worktree path - your own helper, an
+// existing checkout, etc. The point is: one path, many iterations.
+const worktreePath = await setupSharedWorktree();
+
+for (const item of items) {
+  await runWorkflow(processItem, { id: item.id }, { isolation: "none", cwd: worktreePath });
 }
 ```
 

@@ -1,10 +1,11 @@
 // packages/core/src/run-workflow.test.ts
-import { equal, ok } from "node:assert/strict";
+import { deepEqual, equal, ok } from "node:assert/strict";
 import { describe, it } from "node:test";
 import { defineAgent, defineWorkflow, worktree } from "./define.js";
 import { runWorkflow } from "./run.js";
 import type { GlobalConfig, AgentMetrics } from "./schema.js";
 import type { RunOptions, RunResult } from "./agent-runner.js";
+import type { SetupWorktreeOptions, SetupWorktreeResult } from "./worktree.js";
 
 const stubConfig: GlobalConfig = {
   modelTiers: { heavy: "x", standard: "y", light: "z" },
@@ -136,8 +137,11 @@ describe("runWorkflow (public)", () => {
   });
 });
 
-describe("isolation override", () => {
-  it("emits isolation-overridden when caller passes 'none' over declared worktree", async () => {
+// Resolution table from spec: every row is exercised here. The setup stub
+// records whether worktree machinery ran, so each test asserts the engine
+// picked the right branch for the (caller, declared) pair.
+describe("isolation resolution matrix", () => {
+  function makeWorker() {
     const a = defineAgent({
       type: "worker",
       description: "",
@@ -148,14 +152,77 @@ describe("isolation override", () => {
       prompt: "do",
     });
     (a as unknown as { name: string }).name = "a";
-    const w = defineWorkflow({
-      description: "",
-      isolation: worktree({}),
-    })
-      .step("only", a)
+    return a;
+  }
+
+  function makeStubSetup() {
+    let calls = 0;
+    let lastConfig: SetupWorktreeOptions["config"] | undefined;
+    const stubSetup = async (opts: SetupWorktreeOptions): Promise<SetupWorktreeResult> => {
+      calls++;
+      lastConfig = opts.config;
+      return {
+        worktreePath: "/tmp/wt/test",
+        executionRoot: "/tmp/wt/test",
+        cleanup: async () => {},
+      };
+    };
+    return { stubSetup, getCalls: () => calls, getLastConfig: () => lastConfig };
+  }
+
+  it("omitted + declared none → none (no setup call, no override event)", async () => {
+    const w = defineWorkflow({ description: "" }).step("only", makeWorker()).build();
+    (w as unknown as { name: string }).name = "wf";
+    const { stubSetup, getCalls } = makeStubSetup();
+    const events: string[] = [];
+    const r = await runWorkflow(
+      w,
+      {},
+      {
+        config: stubConfig,
+        cwd: "/tmp",
+        onEvent: (e) => events.push(e.type),
+        deps: { runAgent: stubRunAgent, setupWorktree: stubSetup },
+      },
+    );
+    equal(getCalls(), 0);
+    equal(events.includes("isolation-overridden"), false);
+    equal(r.success, true);
+  });
+
+  it("omitted + declared worktree → declared WorktreeConfig used", async () => {
+    const declared = worktree({ cleanup: false });
+    const w = defineWorkflow({ description: "", isolation: declared })
+      .step("only", makeWorker())
       .build();
     (w as unknown as { name: string }).name = "wf";
+    const { stubSetup, getCalls, getLastConfig } = makeStubSetup();
+    const events: string[] = [];
+    await runWorkflow(
+      w,
+      {},
+      {
+        config: stubConfig,
+        cwd: "/tmp",
+        onEvent: (e) => events.push(e.type),
+        deps: {
+          runAgent: stubRunAgent,
+          setupWorktree: stubSetup,
+          mainProjectRoot: "/tmp",
+        },
+      },
+    );
+    equal(getCalls(), 1);
+    // defineWorkflow re-parses the isolation config via Zod, so the engine sees
+    // a structural copy of the declared config rather than the same reference.
+    deepEqual(getLastConfig(), { ...declared });
+    equal(events.includes("isolation-overridden"), false);
+  });
 
+  it("'none' + declared none → none (no override event since nothing changed)", async () => {
+    const w = defineWorkflow({ description: "" }).step("only", makeWorker()).build();
+    (w as unknown as { name: string }).name = "wf";
+    const { stubSetup, getCalls } = makeStubSetup();
     const events: string[] = [];
     await runWorkflow(
       w,
@@ -165,9 +232,84 @@ describe("isolation override", () => {
         cwd: "/tmp",
         isolation: "none",
         onEvent: (e) => events.push(e.type),
-        deps: { runAgent: stubRunAgent },
+        deps: { runAgent: stubRunAgent, setupWorktree: stubSetup },
       },
     );
+    equal(getCalls(), 0);
+    equal(events.includes("isolation-overridden"), false);
+  });
+
+  it("'none' + declared worktree → none + isolation-overridden event", async () => {
+    const w = defineWorkflow({ description: "", isolation: worktree({}) })
+      .step("only", makeWorker())
+      .build();
+    (w as unknown as { name: string }).name = "wf";
+    const { stubSetup, getCalls } = makeStubSetup();
+    const events: string[] = [];
+    await runWorkflow(
+      w,
+      {},
+      {
+        config: stubConfig,
+        cwd: "/tmp",
+        isolation: "none",
+        onEvent: (e) => events.push(e.type),
+        deps: { runAgent: stubRunAgent, setupWorktree: stubSetup },
+      },
+    );
+    equal(getCalls(), 0);
     ok(events.includes("isolation-overridden"));
+  });
+
+  it("WorktreeConfig + declared none → use passed config + isolation-overridden", async () => {
+    const w = defineWorkflow({ description: "" }).step("only", makeWorker()).build();
+    (w as unknown as { name: string }).name = "wf";
+    const passed = worktree({ cleanup: true });
+    const { stubSetup, getCalls, getLastConfig } = makeStubSetup();
+    const events: string[] = [];
+    await runWorkflow(
+      w,
+      {},
+      {
+        config: stubConfig,
+        cwd: "/tmp",
+        isolation: passed,
+        onEvent: (e) => events.push(e.type),
+        deps: {
+          runAgent: stubRunAgent,
+          setupWorktree: stubSetup,
+          mainProjectRoot: "/tmp",
+        },
+      },
+    );
+    equal(getCalls(), 1);
+    equal(getLastConfig(), passed);
+    ok(events.includes("isolation-overridden"));
+  });
+
+  it("WorktreeConfig + declared worktree → caller's config wins", async () => {
+    const declared = worktree({ cleanup: false });
+    const passed = worktree({ cleanup: true });
+    const w = defineWorkflow({ description: "", isolation: declared })
+      .step("only", makeWorker())
+      .build();
+    (w as unknown as { name: string }).name = "wf";
+    const { stubSetup, getCalls, getLastConfig } = makeStubSetup();
+    await runWorkflow(
+      w,
+      {},
+      {
+        config: stubConfig,
+        cwd: "/tmp",
+        isolation: passed,
+        deps: {
+          runAgent: stubRunAgent,
+          setupWorktree: stubSetup,
+          mainProjectRoot: "/tmp",
+        },
+      },
+    );
+    equal(getCalls(), 1);
+    equal(getLastConfig(), passed);
   });
 });

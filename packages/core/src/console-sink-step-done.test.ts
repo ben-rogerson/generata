@@ -176,6 +176,7 @@ describe("consoleSink workflow-start", () => {
       consoleSink({
         type: "workflow-start",
         workflow: "flow-1",
+        runId: "flow-1-1",
         stepCount: 3,
         isolation: { mode: "local" },
         weeklyMetrics: "7d · 12 calls · 250k tok",
@@ -190,6 +191,7 @@ describe("consoleSink workflow-start", () => {
       consoleSink({
         type: "workflow-start",
         workflow: "special/improve",
+        runId: "special-improve-1",
         stepCount: 3,
         isolation: { mode: "local" },
       }),
@@ -203,6 +205,7 @@ describe("consoleSink workflow-start", () => {
       consoleSink({
         type: "workflow-start",
         workflow: "improve",
+        runId: "improve-1",
         stepCount: 3,
         isolation: { mode: "local" },
       }),
@@ -215,6 +218,7 @@ describe("consoleSink workflow-start", () => {
       consoleSink({
         type: "workflow-start",
         workflow: "workflows/improve",
+        runId: "workflows-improve-1",
         stepCount: 3,
         isolation: { mode: "local" },
       }),
@@ -229,6 +233,7 @@ describe("consoleSink workflow-start", () => {
       consoleSink({
         type: "workflow-start",
         workflow: "flow-1",
+        runId: "flow-1-1",
         stepCount: 3,
         isolation: { mode: "local" },
         promptLogFile: "/tmp/abs/prompts.log",
@@ -243,6 +248,7 @@ describe("consoleSink workflow-start", () => {
       consoleSink({
         type: "workflow-start",
         workflow: "flow-1",
+        runId: "flow-1-1",
         stepCount: 3,
         isolation: { mode: "local" },
       }),
@@ -256,6 +262,7 @@ describe("consoleSink workflow-start", () => {
       consoleSink({
         type: "workflow-start",
         workflow: "flow-1",
+        runId: "flow-1-1",
         stepCount: 3,
         isolation: { mode: "local" },
       }),
@@ -269,6 +276,7 @@ describe("consoleSink workflow-start", () => {
       consoleSink({
         type: "workflow-start",
         workflow: "flow-1",
+        runId: "flow-1-1",
         stepCount: 3,
         isolation: { mode: "worktree", path: "/tmp/repo-worktrees/wt-123" },
       }),
