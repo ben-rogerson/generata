@@ -55,9 +55,9 @@ describe("runWorkflow (public)", () => {
       maxRetries: 1,
       prompt: "do",
     });
-    (a as { name: string }).name = "a";
+    (a as unknown as { name: string }).name = "a";
     const w = defineWorkflow({ description: "" }).step("only", a).build();
-    (w as { name: string }).name = "wf";
+    (w as unknown as { name: string }).name = "wf";
 
     const result = await runWorkflow(
       w,
@@ -80,9 +80,9 @@ describe("runWorkflow (public)", () => {
       maxRetries: 1,
       prompt: "do",
     });
-    (a as { name: string }).name = "a";
+    (a as unknown as { name: string }).name = "a";
     const w = defineWorkflow({ description: "" }).step("only", a).build();
-    (w as { name: string }).name = "wf";
+    (w as unknown as { name: string }).name = "wf";
 
     const captured: string[] = [];
     const origLog = console.log;
@@ -111,9 +111,9 @@ describe("runWorkflow (public)", () => {
       maxRetries: 1,
       prompt: "do",
     });
-    (a as { name: string }).name = "a";
+    (a as unknown as { name: string }).name = "a";
     const w = defineWorkflow({ description: "" }).step("only", a).build();
-    (w as { name: string }).name = "wf";
+    (w as unknown as { name: string }).name = "wf";
 
     const events: string[] = [];
     await runWorkflow(

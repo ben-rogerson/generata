@@ -53,6 +53,8 @@ async function resolveConfigAndCwd(opts: {
     return { config, cwd: opts.cwd ?? config.workDir };
   } catch {
     const cwd = opts.cwd ?? process.cwd();
+    // Fallback for callers running outside a generata project. Keep these defaults
+    // aligned with GlobalConfig's schema when fields are added/changed.
     const fallback: GlobalConfig = {
       modelTiers: {
         heavy: "claude-opus-4-7",
