@@ -1,11 +1,17 @@
 // packages/core/src/run-workflow.test.ts
 import { deepEqual, equal, ok } from "node:assert/strict";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
 import { defineAgent, defineWorkflow, worktree } from "./define.js";
 import { runWorkflow } from "./run.js";
+import { loadRegistry } from "./registry.js";
 import type { GlobalConfig, AgentMetrics } from "./schema.js";
+import type { EngineEvent } from "./event-sink.js";
 import type { RunOptions, RunResult } from "./agent-runner.js";
 import type { SetupWorktreeOptions, SetupWorktreeResult } from "./worktree.js";
+
+const HERE = dirname(fileURLToPath(import.meta.url));
 
 const stubConfig: GlobalConfig = {
   modelTiers: { heavy: "x", standard: "y", light: "z" },
@@ -285,6 +291,109 @@ describe("isolation resolution matrix", () => {
     equal(getCalls(), 1);
     equal(getLastConfig(), passed);
     ok(events.includes("isolation-overridden"));
+  });
+
+  it("does not crash when caller skips manual name-stamping (programmatic default)", async () => {
+    // Regression: programmatic callers import a workflow built by
+    // defineWorkflow(...).build() and pass it straight to runWorkflow. The
+    // CLI registry isn't in play, so the engine used to crash on
+    // `workflow.name.replace(...)` because name was never stamped.
+    const a = defineAgent({
+      type: "worker",
+      description: "",
+      modelTier: "light",
+      tools: [],
+      timeoutSeconds: 60,
+      maxRetries: 1,
+      prompt: "do",
+    });
+    const w = defineWorkflow({ description: "" }).step("only", a).build();
+    // Note: no `(w as ...).name = "wf"` here.
+
+    const result = await runWorkflow(
+      w,
+      {},
+      { config: stubConfig, cwd: "/tmp", deps: { runAgent: stubRunAgent } },
+    );
+
+    equal(result.success, true);
+    ok(w.name && w.name.length > 0, `expected non-empty name, got '${w.name}'`);
+    ok(result.workflowName.length > 0);
+  });
+
+  it("auto-derived names surface in EngineEvent payloads", async () => {
+    // The fix has to plumb through to the public event surface, not just sit
+    // on the def. Subscribe to onEvent for a fixture-built workflow (no manual
+    // name stamps anywhere) and assert workflow-start/-done/step-start carry
+    // the auto-derived basename, not "" or undefined.
+    const path = "../test/fixtures/programmatic-naming/standup-fixture.js";
+    const fix = (await import(path)) as {
+      fixtureWorkflow: import("./schema.js").WorkflowDef;
+    };
+
+    const events: EngineEvent[] = [];
+    await runWorkflow(
+      fix.fixtureWorkflow,
+      {},
+      {
+        config: stubConfig,
+        cwd: "/tmp",
+        onEvent: (e) => events.push(e),
+        deps: { runAgent: stubRunAgent },
+      },
+    );
+
+    const start = events.find((e) => e.type === "workflow-start");
+    const stepStart = events.find((e) => e.type === "step-start");
+    const done = events.find((e) => e.type === "workflow-done");
+    ok(start && start.type === "workflow-start");
+    ok(stepStart && stepStart.type === "step-start");
+    ok(done && done.type === "workflow-done");
+    equal(start.workflow, "standup-fixture");
+    equal(stepStart.agent, "standup-fixture");
+    equal(done.workflow, "standup-fixture");
+  });
+
+  it("registry-stamped name wins over programmatic auto-derive", async () => {
+    // The CLI flow loads workflows/agents via loadRegistry, which post-stamps
+    // `name` from path-relative-to-agentsDir. The auto-derive default must not
+    // shadow that stamp - otherwise the CLI surface (agent lookup, event
+    // payloads, log paths) silently degrades to flat basenames.
+    const projectRoot = resolve(HERE, "../test/fixtures/registry-naming");
+    const reg = await loadRegistry({ projectRoot, agentsDir: "agents" });
+
+    // The fixture file's basename is `registry-agent` / `registry-wf`. The
+    // registry derives `sub/registry-agent` / `workflows/registry-wf` from the
+    // path-relative-to-agentsDir. Auto-derive would have given the basename;
+    // assert the registry's path-derived name wins.
+    ok(
+      reg.has("sub/registry-agent"),
+      "expected registry to key the agent by its path-derived name",
+    );
+    ok(
+      reg.hasWorkflow("workflows/registry-wf"),
+      "expected registry to key the workflow by its path-derived name",
+    );
+    equal(reg.get("sub/registry-agent").name, "sub/registry-agent");
+    equal(reg.getWorkflow("workflows/registry-wf").name, "workflows/registry-wf");
+  });
+
+  it("WorkflowResult.workflowName carries the auto-derived name", async () => {
+    // Programmatic callers use `result.workflowName` for logging / log
+    // routing (see programmatic-example.ts:33). Confirm the result-shape
+    // contract holds when no manual name is stamped.
+    const path = "../test/fixtures/programmatic-naming/standup-fixture.js";
+    const fix = (await import(path)) as {
+      fixtureWorkflow: import("./schema.js").WorkflowDef;
+    };
+
+    const result = await runWorkflow(
+      fix.fixtureWorkflow,
+      {},
+      { config: stubConfig, cwd: "/tmp", deps: { runAgent: stubRunAgent } },
+    );
+
+    equal(result.workflowName, "standup-fixture");
   });
 
   it("WorktreeConfig + declared worktree → caller's config wins", async () => {

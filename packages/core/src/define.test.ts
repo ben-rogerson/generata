@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import { equal, ok } from "node:assert/strict";
-import { defineAgent, defineWorkflow, worktree } from "./define.js";
+import { defineAgent, defineConfig, defineWorkflow, worktree } from "./define.js";
 
 describe("defineWorkflow chain builder", () => {
   const stub = defineAgent({
@@ -221,5 +221,62 @@ describe("defineWorkflow chain builder", () => {
       ok(String(e).includes("at least one .step()"));
     }
     ok(threw, "expected empty workflow to throw");
+  });
+
+  it("defaults workflow.name and agent.name from caller's filename for programmatic callers", async () => {
+    // Fixture lives outside src/ (so its stack frame is the first non-internal
+    // one and callerName resolves to its basename). Loaded via a runtime path
+    // so tsc doesn't pull it under src/'s rootDir.
+    const path = "../test/fixtures/programmatic-naming/standup-fixture.js";
+    const fix = (await import(path)) as {
+      fixtureWorkflow: { name: string };
+      fixtureAgent: { name: string };
+      fixtureFactoryAgent: { name: string };
+    };
+    equal(fix.fixtureWorkflow.name, "standup-fixture");
+    equal(fix.fixtureAgent.name, "standup-fixture");
+    equal(fix.fixtureFactoryAgent.name, "standup-fixture");
+  });
+
+  it("falls back to a stable default when called from inside the framework", () => {
+    // This test file is under src/, so callerName treats it as internal and
+    // falls back. The point: programmatic callers never see an empty name.
+    const wf = defineWorkflow({ description: "d" }).step("only", stub).build();
+    ok(wf.name && wf.name.length > 0, `expected non-empty workflow.name, got '${wf.name}'`);
+  });
+});
+
+describe("defineConfig", () => {
+  it("back-fills workDir and applies schema defaults", () => {
+    const cfg = defineConfig({
+      modelTiers: { heavy: "h", standard: "s", light: "l" },
+      logPrompts: true,
+    });
+    ok(cfg.workDir.length > 0, "expected workDir to be back-filled");
+    equal(cfg.agentsDir, "agents");
+    equal(cfg.metricsDir, "metrics");
+    equal(cfg.logsDir, "logs");
+    equal(cfg.notifications, true);
+    equal(cfg.maxCriticRetries, 3);
+    equal(cfg.logPrompts, true);
+  });
+
+  it("preserves explicit workDir over the caller-derived default", () => {
+    const cfg = defineConfig({
+      modelTiers: { heavy: "h", standard: "s", light: "l" },
+      workDir: "/custom/work/dir",
+    });
+    equal(cfg.workDir, "/custom/work/dir");
+  });
+
+  it("validates - bad shape throws at config-define time", () => {
+    let threw = false;
+    try {
+      // @ts-expect-error - missing required modelTiers
+      defineConfig({ logPrompts: true });
+    } catch {
+      threw = true;
+    }
+    ok(threw, "expected validation to throw on bad config shape");
   });
 });
