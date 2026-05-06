@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import type { RunOptions, RunResult } from "./agent-runner.js";
 import { buildPrompt } from "./context-builder.js";
 import { defineAgent, defineWorkflow, worktree } from "./define.js";
-import { isStructuralHalt, runWorkflow } from "./engine.js";
+import { isStructuralHalt, executeWorkflow } from "./engine.js";
 import { EnvProfileError } from "./env-profile.js";
 import type { AgentMetrics, GlobalConfig } from "./schema.js";
 import type { SetupWorktreeOptions, SetupWorktreeResult } from "./worktree.js";
@@ -113,7 +113,7 @@ describe("runWorkflow critic retry short-circuit", () => {
       "halt-loop",
     );
 
-    const result = await runWorkflow(workflow, {}, stubConfig, "/tmp", undefined, {
+    const result = await executeWorkflow(workflow, {}, stubConfig, "/tmp", undefined, {
       runAgent: stubRunAgent,
     });
 
@@ -186,7 +186,7 @@ describe("runWorkflow critic no-verdict retry", () => {
       };
     };
 
-    const result = await runWorkflow(buildWorkflow(3), {}, stubConfig, "/tmp", undefined, {
+    const result = await executeWorkflow(buildWorkflow(3), {}, stubConfig, "/tmp", undefined, {
       runAgent: stubRunAgent,
     });
 
@@ -210,7 +210,7 @@ describe("runWorkflow critic no-verdict retry", () => {
       return { output: "", metrics: makeMetrics({ agent: options.agent.name }) };
     };
 
-    const result = await runWorkflow(buildWorkflow(2), {}, stubConfig, "/tmp", undefined, {
+    const result = await executeWorkflow(buildWorkflow(2), {}, stubConfig, "/tmp", undefined, {
       runAgent: stubRunAgent,
     });
 
@@ -287,7 +287,7 @@ describe("runWorkflow workflowId sanitisation", () => {
       "workflows/improve",
     );
 
-    await runWorkflow(workflow, {}, stubConfig, "/tmp", undefined, {
+    await executeWorkflow(workflow, {}, stubConfig, "/tmp", undefined, {
       runAgent: stubRunAgent,
     });
 
@@ -333,7 +333,7 @@ describe("runWorkflow env propagation", () => {
     const prior = process.env.RUNWORKFLOW_TEST_MISSING_KEY;
     delete process.env.RUNWORKFLOW_TEST_MISSING_KEY;
     try {
-      await rejects(runWorkflow(workflow, {}, stubConfig, "/tmp"), EnvProfileError);
+      await rejects(executeWorkflow(workflow, {}, stubConfig, "/tmp"), EnvProfileError);
     } finally {
       if (prior !== undefined) process.env.RUNWORKFLOW_TEST_MISSING_KEY = prior;
     }
@@ -429,7 +429,7 @@ describe("runWorkflow isolation: worktree", () => {
       "wt",
     );
     const { stubSetup, getCleanupCalls } = makeStubSetup();
-    const result = await runWorkflow(
+    const result = await executeWorkflow(
       workflow,
       {},
       stubConfig,
@@ -470,7 +470,7 @@ describe("runWorkflow isolation: worktree", () => {
       "wt-keep",
     );
     const { stubSetup, getCleanupCalls } = makeStubSetup();
-    const result = await runWorkflow(workflow, {}, stubConfig, "/repo/x", undefined, {
+    const result = await executeWorkflow(workflow, {}, stubConfig, "/repo/x", undefined, {
       runAgent: stubRunAgent,
       setupWorktree: stubSetup,
       mainProjectRoot: "/repo",
@@ -506,13 +506,12 @@ describe("runWorkflow isolation: worktree", () => {
       "wt-fail",
     );
     const { stubSetup, getCleanupCalls } = makeStubSetup();
-    await rejects(() =>
-      runWorkflow(workflow, {}, stubConfig, "/repo/x", undefined, {
-        runAgent: stubRunAgent,
-        setupWorktree: stubSetup,
-        mainProjectRoot: "/repo",
-      }),
-    );
+    const result = await executeWorkflow(workflow, {}, stubConfig, "/repo/x", undefined, {
+      runAgent: stubRunAgent,
+      setupWorktree: stubSetup,
+      mainProjectRoot: "/repo",
+    });
+    equal(result.success, false);
     equal(getCleanupCalls(), 1);
   });
 
@@ -547,7 +546,7 @@ describe("runWorkflow isolation: worktree", () => {
         .build(),
       "no-wt",
     );
-    await runWorkflow(workflow, {}, stubConfig, "/tmp", undefined, {
+    await executeWorkflow(workflow, {}, stubConfig, "/tmp", undefined, {
       runAgent: stubRunAgent,
       setupWorktree: stubSetup,
     });
@@ -586,7 +585,7 @@ describe("runWorkflow isolation: worktree", () => {
         .build(),
       "no-wt-overridden",
     );
-    await runWorkflow(workflow, {}, stubConfig, "/tmp", undefined, {
+    await executeWorkflow(workflow, {}, stubConfig, "/tmp", undefined, {
       runAgent: stubRunAgent,
       setupWorktree: stubSetup,
       isolationOverride: "worktree",
@@ -678,7 +677,7 @@ describe("runWorkflow onReject factory-form", () => {
       "reject-flow",
     );
 
-    const result = await runWorkflow(workflow, {}, stubConfig, "/tmp", undefined, {
+    const result = await executeWorkflow(workflow, {}, stubConfig, "/tmp", undefined, {
       runAgent: stubRunAgent,
     });
 
@@ -753,7 +752,7 @@ describe("runWorkflow first-class halt via outputs", () => {
       "halt-flow",
     );
 
-    const result = await runWorkflow(workflow, {}, stubConfig, "/tmp", undefined, {
+    const result = await executeWorkflow(workflow, {}, stubConfig, "/tmp", undefined, {
       runAgent: stubRunAgent,
     });
 
@@ -838,7 +837,7 @@ describe("runWorkflow agent outputs flow into downstream stepFns", () => {
       "outputs-flow",
     );
 
-    const result = await runWorkflow(workflow, {}, stubConfig, "/tmp", undefined, {
+    const result = await executeWorkflow(workflow, {}, stubConfig, "/tmp", undefined, {
       runAgent: stubRunAgent,
     });
 
@@ -908,10 +907,10 @@ describe("runWorkflow agent failure status fails the workflow", () => {
       "fail-stops",
     );
 
-    await rejects(
-      runWorkflow(workflow, {}, stubConfig, "/tmp", undefined, { runAgent: stubRunAgent }),
-      /emit missing keys: spec_filepath/,
-    );
+    const result = await executeWorkflow(workflow, {}, stubConfig, "/tmp", undefined, {
+      runAgent: stubRunAgent,
+    });
+    equal(result.success, false);
     equal(secondCalled, false);
   });
 });
@@ -977,7 +976,7 @@ describe("runWorkflow with factory-form agent (smoke)", () => {
       "smoke",
     );
 
-    const result = await runWorkflow(workflow, {}, stubConfig, "/tmp", undefined, {
+    const result = await executeWorkflow(workflow, {}, stubConfig, "/tmp", undefined, {
       runAgent: stubRunAgent,
     });
 

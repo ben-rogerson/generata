@@ -10,6 +10,7 @@ import {
   type BuiltinPromptArgs,
   type StepInvocation,
 } from "./schema.js";
+import { callerName, callerDir } from "./caller-name.js";
 
 // Branded so only `worktree()` produces an assignable value. Without this brand,
 // users could pass a raw object literal to `isolation`, bypassing the helper.
@@ -136,13 +137,22 @@ export function defineAgent(
       __inputs: Object.fromEntries(inputKeys.map((k) => [k, ""])),
     });
     // Function .name is read-only by default; the registry stamps a derived
-    // name onto agents after loading, so make it writable.
-    Object.defineProperty(callable, "name", { value: "", writable: true, configurable: true });
+    // name onto agents after loading, so make it writable. Default to the
+    // caller's filename basename so programmatic callers (who skip the
+    // registry) get a sensible label in events/metrics.
+    Object.defineProperty(callable, "name", {
+      value: callerName("agent"),
+      writable: true,
+      configurable: true,
+    });
     return callable;
   }
   // Object form
   const parsed = AgentDef.parse(defOrFactory) as AgentDef;
   (parsed as unknown as { kind: "agent" }).kind = "agent";
+  // Default name for programmatic callers; registry stamps the path-derived
+  // name on top of this for CLI flows.
+  (parsed as unknown as { name: string }).name = callerName("agent");
   return parsed;
 }
 
@@ -279,6 +289,10 @@ export function defineWorkflow<
       }
       const parsed = WorkflowDef.parse({ ...config, steps });
       (parsed as unknown as { kind: "workflow" }).kind = "workflow";
+      // Default name from caller's filename so programmatic callers (who skip
+      // the registry) don't crash on the engine's `workflow.name.replace(...)`.
+      // Registry stamps the path-derived name on top of this for CLI flows.
+      (parsed as unknown as { name: string }).name = callerName("workflow");
       return parsed as WorkflowDef;
     },
   };
@@ -294,9 +308,14 @@ type DefineConfigInput = Omit<z.input<typeof GlobalConfig>, "workDir"> & {
 };
 
 export function defineConfig(config: DefineConfigInput): GlobalConfig {
-  // workDir is optional here - loadConfig back-fills it with the directory
-  // containing generata.config.ts, and validates the full shape at load time.
-  return config as unknown as GlobalConfig;
+  // Back-fill workDir from the caller's directory (the dir holding
+  // generata.config.ts), mirroring loadConfig's `dirname(configPath)`. Schema
+  // parse applies the .default()s for agentsDir/metricsDir/logsDir/etc - the
+  // programmatic-API path used to skip this and crash later on undefined config
+  // fields. CLI flow re-runs the same parse via loadConfig (idempotent).
+  const raw: Record<string, unknown> = { ...config };
+  if (raw.workDir === undefined) raw.workDir = callerDir() ?? process.cwd();
+  return GlobalConfig.parse(raw);
 }
 
 // Public type re-exports for consumers. Internals (engine, registry, runner)
@@ -310,3 +329,16 @@ export type {
   StepParams,
   StepInvocation,
 } from "./schema.js";
+
+export { runWorkflow, runAgent } from "./run.js";
+export type {
+  RunWorkflowOptions,
+  RunAgentOptions,
+  WorkflowResult,
+  StepResult,
+  AgentResult,
+} from "./run.js";
+export { GenerataPrecheckError } from "./errors.js";
+export type { PrecheckIssue } from "./precheck.js";
+export type { EngineEvent, EventSink } from "./event-sink.js";
+export type { AgentMetrics, AgentStreamEvent } from "./schema.js";
