@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "audit": "generata workflow audit",
+    "audit": "tsx scripts/audit.ts",
     "improve": "generata workflow improve",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint",

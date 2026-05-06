@@ -4,10 +4,20 @@
 // matched; appends genuinely new entries. Never rewrites
 // existing entry bodies, so the LLM cannot accidentally
 // truncate the backlog.
+//
+// Exposes `mergeImprovements(rankedJson, opts)` for programmatic use; the
+// CLI shim at the bottom is kept for ad-hoc invocation but is no longer on
+// the audit hot path.
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+export interface MergeSummary {
+  added: number;
+  updated: number;
+  skipped: number;
+}
 
 interface Finding {
   lens: string;
@@ -108,18 +118,16 @@ function renderEntry(finding: Finding, slug: string): string {
   );
 }
 
-function main(): void {
-  const inputFile = process.argv[2];
-  const targetOverride = process.argv[3];
-  if (!inputFile) {
-    console.error("Usage: merge-improvements.ts <prioritiser-output> [<improvements-md>]");
-    process.exit(2);
-  }
+function defaultTargetPath(): string {
+  return resolve(dirname(fileURLToPath(import.meta.url)), "..", "IMPROVEMENTS.md");
+}
 
-  const here = dirname(fileURLToPath(import.meta.url));
-  const targetPath = targetOverride ?? resolve(here, "..", "IMPROVEMENTS.md");
-
-  const findings = parsePrioritiser(readFileSync(inputFile, "utf-8"));
+export function mergeImprovements(
+  rankedJson: string,
+  opts: { targetPath?: string } = {},
+): MergeSummary {
+  const targetPath = opts.targetPath ?? defaultTargetPath();
+  const findings = parsePrioritiser(rankedJson);
   const fileContent = existsSync(targetPath) ? readFileSync(targetPath, "utf-8") : "";
   const { header, entries } = parseExisting(fileContent);
 
@@ -159,8 +167,7 @@ function main(): void {
   }
 
   if (added === 0 && updated === 0) {
-    console.log(`Added 0 new entries; updated 0 scores; skipped ${skipped} duplicates.`);
-    return;
+    return { added, updated, skipped };
   }
 
   let out = header;
@@ -173,14 +180,34 @@ function main(): void {
   }
 
   writeFileSync(targetPath, out);
-  console.log(
-    `Added ${added} new entries; updated ${updated} scores; skipped ${skipped} duplicates.`,
-  );
+  return { added, updated, skipped };
 }
 
-try {
-  main();
-} catch (err) {
-  console.error(`ERROR: ${(err as Error).message}`);
-  process.exit(1);
+export function formatSummary(s: MergeSummary): string {
+  return `Added ${s.added} new entries; updated ${s.updated} scores; skipped ${s.skipped} duplicates.`;
+}
+
+// CLI shim - kept so the file is still ad-hoc runnable, though the audit
+// pipeline now calls `mergeImprovements()` directly.
+function isMainModule(): boolean {
+  if (typeof process === "undefined" || !process.argv[1]) return false;
+  return resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+}
+
+if (isMainModule()) {
+  const inputFile = process.argv[2];
+  const targetOverride = process.argv[3];
+  if (!inputFile) {
+    console.error("Usage: merge-improvements.ts <prioritiser-output> [<improvements-md>]");
+    process.exit(2);
+  }
+  try {
+    const summary = mergeImprovements(readFileSync(inputFile, "utf-8"), {
+      targetPath: targetOverride,
+    });
+    console.log(formatSummary(summary));
+  } catch (err) {
+    console.error(`ERROR: ${(err as Error).message}`);
+    process.exit(1);
+  }
 }
