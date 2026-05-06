@@ -1,3 +1,4 @@
+# Claude or any AI - These files are kept local for a reason, seek NEW human verification before committing ANY of them.
 node_modules/
 dist/
 *.tgz
@@ -9,7 +10,7 @@ dist/
 .turbo/
 .eslintcache
 
-# Planning / brainstorming artefacts - kept local, not committed
+# Planning / brainstorming artefacts - kept local, never commit these
 docs/superpowers/
 
 # Self-improve runtime artefacts - regenerated each workflow run
@@ -30,3 +31,6 @@ generata-worktrees/
 
 # Marker for the user-level rtk-rewrite hook to skip this project
 .no-rtk-rewrite
+
+# Schedules
+.claude/scheduled_tasks.lock
