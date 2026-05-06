@@ -181,6 +181,13 @@ async function runInteractive(options: RunOptions): Promise<RunResult> {
 export async function runAgent(options: RunOptions): Promise<RunResult> {
   const { agent, args, config, workDir, stepOutputs, retryPreamble } = options;
 
+  // Pre-abort short-circuit before any side effect (spawn, sink emit, fs).
+  // Mirrors executeWorkflow's check so the public runAgent surface gives the
+  // same AbortError contract whether or not `claude` is on PATH.
+  if (options.signal?.aborted) {
+    throw new DOMException("Aborted", "AbortError");
+  }
+
   if (agent.type === "planner" && agent.interactive) {
     return runInteractive(options);
   }

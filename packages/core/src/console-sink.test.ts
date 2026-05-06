@@ -24,9 +24,11 @@ function captureStdout(fn: () => void): string {
 
 // Strip ANSI for stable assertions; consoleSink uses picocolors which
 // honours NO_COLOR. We strip rather than depend on env to keep tests
-// deterministic across CI.
+// deterministic across CI (where CI=true makes picocolors emit colours
+// regardless of TTY status). Without the leading \x1b the regex would
+// leave behind the escape character, breaking phrase-level assertions.
 function stripAnsi(s: string): string {
-  return s.replace(/\[[0-9;]*m/g, "");
+  return s.replace(/\[[0-9;]*m/g, "");
 }
 
 const baseMetrics: AgentMetrics = {
