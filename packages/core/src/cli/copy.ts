@@ -26,6 +26,7 @@ export interface CopyTreeResult {
 function walk(dir: string, base: string): string[] {
   const out: string[] = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name === ".DS_Store" || entry.name.endsWith(".DS_Store")) continue;
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {
       out.push(...walk(full, base));
