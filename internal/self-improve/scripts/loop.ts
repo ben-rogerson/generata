@@ -1,14 +1,17 @@
 // Programmatic loop over the `improve` workflow. Each iteration runs the full
-// pick -> spec -> plan -> review -> code -> review -> summarise -> ship pipeline
-// against a fresh worktree, so successive runs see the previous iteration's
-// committed/PR'd state. Stops on:
+// pick -> spec -> plan -> review -> code -> review -> summarise pipeline
+// against a fresh worktree, then ships deterministically (branch + commit +
+// changeset + push + PR) using `runShipper`. Successive runs see the previous
+// iteration's committed/PR'd state. Stops on:
 //   - item-picker emitting --halt (backlog drained), OR
 //   - any non-halt step failure (loud stop; we don't silently skip), OR
+//   - shipping failure (loud stop; do not silently move on), OR
 //   - --max iterations reached (default 5).
 
 import { runWorkflow } from "@generata/core";
 import config from "../generata.config.js";
 import improve from "../agents/workflows/improve.js";
+import { runShipper, type ShipInputs } from "./ship.js";
 
 const DEFAULT_MAX = 5;
 
@@ -43,6 +46,26 @@ process.once("SIGINT", () => {
 
 const max = parseMax(process.argv.slice(2));
 
+function shipInputsFrom(outputs: Record<string, string>, worktreeRoot: string): ShipInputs {
+  const required = ["slug", "bump", "commit_subject", "commit_body"] as const;
+  for (const key of required) {
+    if (!outputs[key]) {
+      throw new Error(`workflow finished without emitting '${key}' output - cannot ship`);
+    }
+  }
+  const bump = outputs.bump;
+  if (bump !== "patch" && bump !== "minor" && bump !== "none") {
+    throw new Error(`unsupported bump '${bump}' - cannot ship`);
+  }
+  return {
+    slug: outputs.slug!,
+    bump,
+    commitSubject: outputs.commit_subject!,
+    commitBody: outputs.commit_body!,
+    worktreeRoot,
+  };
+}
+
 async function main(): Promise<void> {
   let shipped = 0;
   for (let i = 1; i <= max; i++) {
@@ -62,6 +85,20 @@ async function main(): Promise<void> {
       );
       process.exit(1);
     }
+
+    if (!result.worktreePath) {
+      console.error(
+        `\niteration ${i} succeeded but workflow ran without worktree isolation - refusing to ship`,
+      );
+      process.exit(1);
+    }
+
+    const shipResult = await runShipper(shipInputsFrom(result.outputs, result.worktreePath));
+    if (!shipResult.ok) {
+      console.error(`\niteration ${i} ship failed: ${shipResult.reason}`);
+      process.exit(1);
+    }
+    console.log(`iteration ${i} shipped: ${shipResult.prUrl}`);
     shipped++;
   }
   console.log(`\nloop done - ${shipped} iteration(s) shipped`);
