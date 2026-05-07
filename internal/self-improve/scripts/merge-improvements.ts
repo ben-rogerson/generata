@@ -74,7 +74,10 @@ function parsePrioritiser(raw: string): Finding[] {
   return (parsed as { ranked: Finding[] }).ranked;
 }
 
-function parseExisting(content: string): { header: string; entries: ExistingEntry[] } {
+function parseExisting(content: string): {
+  header: string;
+  entries: ExistingEntry[];
+} {
   const headerEnd = content.search(/^### /m);
   if (headerEnd === -1) {
     return { header: content, entries: [] };
