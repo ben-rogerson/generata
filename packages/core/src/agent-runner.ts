@@ -76,6 +76,7 @@ async function runInteractive(options: RunOptions): Promise<RunResult> {
     args,
     config,
     workDir,
+    cwd: options.cwd,
     stepOutputs,
     workflowVariables: options.workflowVariables,
   });
@@ -198,6 +199,7 @@ export async function runAgent(options: RunOptions): Promise<RunResult> {
     args,
     config,
     workDir,
+    cwd: options.cwd,
     stepOutputs,
     retryPreamble,
     workflowVariables: options.workflowVariables,

@@ -8,7 +8,14 @@ import type { WorkflowIsolation } from "./logger.js";
 import type { WorkflowResult } from "./engine.js";
 import { formatTokenCount } from "./metrics.js";
 
-export type WorkflowResultSummary = Omit<WorkflowResult, "output" | "steps"> & {
+// Summary surfaced to event sinks (CLI/notification renderers). Drops the
+// large `output`/`steps`/`outputs`/`worktreePath` payloads - they belong on
+// the programmatic `WorkflowResult` for callers that need them, not on every
+// event tick.
+export type WorkflowResultSummary = Omit<
+  WorkflowResult,
+  "output" | "steps" | "outputs" | "worktreePath"
+> & {
   stepCount: number;
   models?: string[];
 };

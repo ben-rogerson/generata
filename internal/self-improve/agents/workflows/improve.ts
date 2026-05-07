@@ -6,12 +6,17 @@ import planReviewer from "../plan-reviewer.js";
 import codeWriter from "../code-writer.js";
 import codeReviewer from "../code-reviewer.js";
 import changeSummariser from "../change-summariser.js";
-import shipper from "../shipper.js";
 
 // Each step's agent emits typed outputs (slug, spec_filepath, plan_filepath,
 // diff_filepath, checks_passed, bump, commit_subject, commit_body) via the
 // engine's `outputs` mechanism. Downstream stepFns destructure them with full
 // type-safety; no parsing of upstream text in any agent or workflow.
+//
+// Shipping (branch + commit + changeset + push + PR) is deliberately out of
+// the workflow: the LLM `shipper` agent it used to end with reported success
+// without actually opening PRs. The deterministic `runShipper` in
+// scripts/ship.ts now consumes the typed outputs the summariser emits, called
+// from scripts/loop.ts after `runWorkflow` returns successfully.
 export default defineWorkflow({
   description:
     "Pick a backlog item, plan it, ship it through the full spec/plan/code/review pipeline.",
@@ -37,7 +42,4 @@ export default defineWorkflow({
     { maxRetries: 2 },
   )
   .step("summarise", ({ slug, diff_filepath }) => changeSummariser({ slug, diff_filepath }))
-  .step("ship", ({ slug, bump, commit_subject, commit_body, checks_passed }) =>
-    shipper({ slug, bump, commit_subject, commit_body, checks_passed }),
-  )
   .build();

@@ -78,6 +78,15 @@ export interface WorkflowResult {
   halted?: boolean;
   haltReason?: string;
   output: string;
+  // Typed outputs accumulated from every agent step that declared an `outputs`
+  // map and emitted via the engine's emit bin. Last-wins on collisions across
+  // steps. Empty when no step declared outputs.
+  outputs: Record<string, string>;
+  // The worktree path the run executed against, when the workflow declared
+  // worktree isolation. Undefined for `isolation: "none"`. Programmatic drivers
+  // (e.g. a deterministic shipper) need this to copy changes from the worktree
+  // back to the main repo after `runWorkflow` returns.
+  worktreePath?: string;
 }
 
 function resolveArgs(
@@ -161,6 +170,10 @@ export async function executeWorkflow(
   const startTime = Date.now();
   const stepResults: StepResult[] = [];
   const stepOutputs: Record<string, string> = {};
+  // Accumulated typed outputs across all steps (last-wins on collision). Surfaced
+  // in WorkflowResult.outputs so programmatic callers can read the values agents
+  // emitted via the `outputs` mechanism without re-parsing step text.
+  const accumulatedOutputs: Record<string, string> = {};
   const completed = new Set<string>();
 
   // Extract profile (built-in flag, not a required workflow arg) before precheck so env-key
@@ -468,6 +481,7 @@ export async function executeWorkflow(
           // works further down).
           if (result.outputs) {
             params = { ...params, ...result.outputs };
+            Object.assign(accumulatedOutputs, result.outputs);
           }
 
           if (planName) {
@@ -655,6 +669,8 @@ export async function executeWorkflow(
     costWasReported,
     durationMs,
     output,
+    outputs: { ...accumulatedOutputs },
+    worktreePath,
   };
 
   const doneModels = [
