@@ -16,8 +16,9 @@ export interface PreflightReport {
 }
 
 async function isOnPath(name: string): Promise<boolean> {
+  const lookup = process.platform === "win32" ? "where" : "which";
   try {
-    await exec("which", [name]);
+    await exec(lookup, [name]);
     return true;
   } catch {
     return false;

@@ -1,4 +1,4 @@
-import { execSync } from "child_process";
+import { execFileSync, execSync } from "child_process";
 import { GlobalConfig, AgentMetrics } from "./schema.js";
 import { formatTokenCount } from "./metrics.js";
 import type { WorkflowResult } from "./engine.js";
@@ -46,23 +46,17 @@ function sendMacOSNotification(message: string): void {
   const esc = (s: string) => s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
   try {
     execSync("which terminal-notifier", { stdio: "ignore" });
-    const args = [
-      `-title "Generata"`,
-      `-message "${esc(title)}"`,
-      subtitle ? `-subtitle "${esc(subtitle)}"` : "",
-      `-sticky`,
-      `-group generata`,
-    ]
-      .filter(Boolean)
-      .join(" ");
-    execSync(`terminal-notifier ${args}`, { stdio: "ignore" });
+    const args = ["-title", "Generata", "-message", title];
+    if (subtitle) args.push("-subtitle", subtitle);
+    args.push("-sticky", "-group", "generata");
+    execFileSync("terminal-notifier", args, { stdio: "ignore" });
   } catch {
     // terminal-notifier not available - fall back to osascript banner
     try {
       const osa = subtitle
         ? `display notification "${esc(subtitle)}" with title "Generata" subtitle "${esc(title)}"`
         : `display notification "${esc(title)}" with title "Generata"`;
-      execSync(`osascript -e '${osa}'`, { stdio: "ignore" });
+      execFileSync("osascript", ["-e", osa], { stdio: "ignore" });
     } catch {
       // non-fatal
     }
