@@ -10,6 +10,10 @@ import { runAgent as internalRunAgent, type RunResult, type RunOptions } from ".
 import { type EngineEvent, type EventSink, noopSink } from "./event-sink.js";
 import { findProjectRoot } from "./find-project-root.js";
 import { loadConfig } from "./config.js";
+import { buildPromptLogPath } from "./cli/prompt-log-path.js";
+import { makeRunId } from "./time.js";
+import { callerName } from "./caller-name.js";
+import { basename, dirname, join } from "node:path";
 
 export type WorkflowResult = InternalWorkflowResult;
 
@@ -63,13 +67,57 @@ async function resolveConfigAndCwd(opts: {
       metricsDir: ".generata/metrics",
       logsDir: ".generata/logs",
       notifications: false,
-      logPrompts: false,
+      logPrompts: true,
       showPricing: false,
       showWeeklyMetrics: false,
       verboseOutput: false,
       maxCriticRetries: 3,
     };
     return { config: fallback, cwd };
+  }
+}
+
+// Mirrors the CLI's logPrompts flow (cli.ts:130-134, 184-191) so programmatic
+// runs land prompt logs in the same place as `generata <name>`. The path is
+// surfaced as a clickable `file://` line on stderr regardless of whether the
+// caller wired onEvent - this is the single source for the link, so consoleSink
+// no longer prints it from workflow-start / agent-welcome.
+function resolvePromptLogFile(
+  config: GlobalConfig,
+  kind: "agent" | "workflow",
+  name: string,
+  override: string | undefined,
+): string | undefined {
+  let path: string | undefined;
+  if (override !== undefined) {
+    path = override;
+  } else if (config.logPrompts) {
+    const built = buildPromptLogPath(config.workDir, config.logsDir, kind, name, makeRunId());
+    // buildPromptLogPath collapses `name` to its basename for the filename stem,
+    // so the caller-script prefix has to be applied here rather than threaded
+    // through `name`. Empty fallback signals "no caller could be resolved" (e.g.
+    // CLI flow, where every frame above is framework-internal); skip the prefix.
+    const caller = callerName("");
+    path = caller ? join(dirname(built), `${caller}-${basename(built)}`) : built;
+  }
+  if (path) process.stderr.write(`Full log: file://${path}\n\n`);
+  return path;
+}
+
+// Header for silent-mode programmatic runs: tells the user which workflow/agent
+// is running. Suppressed when the caller wires onEvent, since they're driving
+// display themselves (e.g. CLI's consoleSink emits the rich workflow-start /
+// agent-welcome lines).
+function printRunHeader(kind: "workflow", def: WorkflowDef): void;
+function printRunHeader(kind: "agent", def: AgentDef): void;
+function printRunHeader(kind: "workflow" | "agent", def: WorkflowDef | AgentDef): void {
+  if (kind === "workflow") {
+    const wf = def as WorkflowDef;
+    const n = wf.steps.length;
+    process.stderr.write(`workflow: ${wf.name} (${n} step${n === 1 ? "" : "s"})\n`);
+  } else {
+    const a = def as AgentDef;
+    process.stderr.write(`agent: ${a.name} [${a.type}]\n`);
   }
 }
 
@@ -80,6 +128,13 @@ export async function runWorkflow(
 ): Promise<WorkflowResult> {
   const { config, cwd } = await resolveConfigAndCwd(options);
   const sink: EventSink = options.onEvent ?? noopSink;
+  if (options.onEvent === undefined) printRunHeader("workflow", workflow);
+  const promptLogFile = resolvePromptLogFile(
+    config,
+    "workflow",
+    workflow.name,
+    options.promptLogFile,
+  );
 
   // Map "inherit"/"none"/WorktreeConfig to engine's EngineDeps.isolationOverride
   // shape (which now accepts the same union after Task 5 step 2).
@@ -92,7 +147,7 @@ export async function runWorkflow(
     isolationOverride = options.isolation;
   }
 
-  const result = await executeWorkflow(workflow, args, config, cwd, options.promptLogFile, {
+  const result = await executeWorkflow(workflow, args, config, cwd, promptLogFile, {
     ...options.deps,
     sink,
     signal: options.signal,
@@ -109,6 +164,8 @@ export async function runAgent(
 ): Promise<AgentResult> {
   const { config, cwd } = await resolveConfigAndCwd(options);
   const sink: EventSink = options.onEvent ?? noopSink;
+  if (options.onEvent === undefined) printRunHeader("agent", agent);
+  const promptLogFile = resolvePromptLogFile(config, "agent", agent.name, options.promptLogFile);
 
   const opts: RunOptions = {
     agent,
@@ -119,7 +176,7 @@ export async function runAgent(
     onEvent: options.onEvent
       ? (event) => sink({ type: "agent-stream", stepId: null, event })
       : undefined,
-    promptLogFile: options.promptLogFile,
+    promptLogFile,
     sink,
     signal: options.signal,
   };

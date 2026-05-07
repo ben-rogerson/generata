@@ -66,11 +66,6 @@ export type EventSink = (event: EngineEvent) => void;
 
 export const noopSink: EventSink = () => {};
 
-function formatPromptLogPath(promptLogFile: string): string {
-  const rel = relative(process.cwd(), promptLogFile);
-  return rel && !rel.startsWith("..") ? rel : promptLogFile;
-}
-
 function formatIsolation(isolation: WorkflowIsolation): string {
   if (isolation.mode === "local") return "local";
   const rel = relative(process.cwd(), isolation.path);
@@ -154,9 +149,6 @@ export const consoleSink: EventSink = (event) => {
         `  ${label}${pc.bold(event.workflow)} ${pc.dim(`(${event.stepCount} steps queued)`)}`,
       );
       console.log(`  ${pc.dim(formatIsolation(event.isolation))}`);
-      if (event.promptLogFile) {
-        console.log(`  ${pc.dim(formatPromptLogPath(event.promptLogFile))}`);
-      }
       if (event.weeklyMetrics) console.log(`  ${pc.dim(event.weeklyMetrics)}`);
       console.log("");
       return;
@@ -201,9 +193,6 @@ export const consoleSink: EventSink = (event) => {
       console.log(`  ${pc.bold(color(event.agent))} ${pc.dim(`[${event.agentType}]`)}`);
       console.log(`  ${pc.dim(event.description)}`);
       console.log(`  ${extras.join(pc.dim(" · "))}`);
-      if (event.promptLogFile) {
-        console.log(`  ${pc.dim(formatPromptLogPath(event.promptLogFile))}`);
-      }
       if (event.weeklyMetrics) console.log(`  ${pc.dim(event.weeklyMetrics)}`);
       console.log("");
       return;

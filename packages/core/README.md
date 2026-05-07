@@ -78,9 +78,22 @@ for (const item of items) {
 }
 ```
 
+### Run output
+
+A programmatic run prints two lines to stderr at start so you know what's running and where the log lives:
+
+```
+workflow: notes/review-note (3 steps)
+Full log: file:///abs/path/to/.generata/logs/workflow/review-note-<runId>.log
+```
+
+(For `runAgent` the first line is `agent: <name> [<type>]`.) The `Full log:` line fires whenever a prompt log is being written - both CLI and programmatic, with or without `onEvent`. The header line is suppressed when you wire `onEvent`, since you're driving display yourself (the CLI does this via `consoleSink`'s richer `workflow-start` / `agent-welcome` lines).
+
+Prompt logs land at `<logsDir>/<kind>/<caller>-<name>-<runId>.log` (controlled by `logPrompts: true` in your config, the default), where `<caller>` is the basename of the script that called `runWorkflow` / `runAgent`. The prefix makes it easy to tell apart logs from different scripts that drive the same workflow. CLI runs and explicit `promptLogFile` overrides skip the prefix.
+
 ### Subscribing to progress events
 
-By default, programmatic runs are silent. Pass `onEvent` to receive structured events (workflow-start, step-start, step-done, etc.):
+Programmatic runs are otherwise silent on the console. Pass `onEvent` to receive structured events (workflow-start, step-start, step-done, etc.):
 
 ```ts
 await runWorkflow(

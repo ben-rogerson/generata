@@ -228,7 +228,7 @@ describe("consoleSink workflow-start", () => {
     ok(out.includes("(3 steps queued)"), `expected step count, got: ${out}`);
   });
 
-  it("renders prompt log path when provided", () => {
+  it("does not echo prompt log path (run.ts owns the stderr 'Full log:' link)", () => {
     const out = captureConsole(() =>
       consoleSink({
         type: "workflow-start",
@@ -239,11 +239,11 @@ describe("consoleSink workflow-start", () => {
         promptLogFile: "/tmp/abs/prompts.log",
       }),
     );
-    ok(out.includes("prompts.log"), `expected prompt path, got: ${out}`);
+    ok(!out.includes("prompts.log"), `did not expect prompt path in console, got: ${out}`);
     ok(!out.includes("7d ·"), `did not expect weekly line, got: ${out}`);
   });
 
-  it("omits both lines when neither is provided", () => {
+  it("omits weekly line when none provided", () => {
     const out = captureConsole(() =>
       consoleSink({
         type: "workflow-start",
@@ -287,7 +287,7 @@ describe("consoleSink workflow-start", () => {
 });
 
 describe("consoleSink agent-welcome", () => {
-  it("renders weekly metrics and prompt log lines together", () => {
+  it("renders weekly metrics line; prompt log path is owned by run.ts (stderr) not consoleSink", () => {
     const out = captureConsole(() =>
       consoleSink({
         type: "agent-welcome",
@@ -300,7 +300,7 @@ describe("consoleSink agent-welcome", () => {
       }),
     );
     ok(out.includes("7d · 5 calls · 10k tok"), `expected weekly line, got: ${out}`);
-    ok(out.includes("prompts.log"), `expected prompt path, got: ${out}`);
+    ok(!out.includes("prompts.log"), `did not expect prompt path in console, got: ${out}`);
   });
 });
 
