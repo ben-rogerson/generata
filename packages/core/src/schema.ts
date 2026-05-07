@@ -250,7 +250,7 @@ export const GlobalConfig = z.object({
   metricsDir: z.string().default("metrics"),
   logsDir: z.string().default("logs"),
   notifications: z.boolean().default(true),
-  logPrompts: z.boolean().default(false),
+  logPrompts: z.boolean().default(true),
   showPricing: z.boolean().default(false),
   showWeeklyMetrics: z.boolean().default(true),
   verboseOutput: z.boolean().default(false),
