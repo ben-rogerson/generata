@@ -102,6 +102,12 @@ export interface BuildPromptOptions {
   args: Record<string, unknown>;
   config: GlobalConfig;
   workDir: string;
+  // The actual execution root the spawned agent runs in. Under worktree
+  // isolation this is the per-run worktree path; when not provided the
+  // resolved `workDir` is used. Required for correctness: agents resolve
+  // absolute paths against the prompt's "Working directory:" line, so this
+  // must reflect where their cwd actually is - not the user-config workDir.
+  cwd?: string;
   stepOutputs?: Record<string, string>;
   retryPreamble?: string;
   workflowVariables?: Record<string, string>;
@@ -111,8 +117,10 @@ export function buildPrompt(options: BuildPromptOptions): string {
   const { agent, args, workDir, stepOutputs } = options;
   const { today, time } = getTodayAndTime();
 
+  const effectiveWorkDir = options.cwd ?? resolve(workDir);
+
   const fnArgs: PromptArgs = {
-    work_dir: resolve(workDir),
+    work_dir: effectiveWorkDir,
     today,
     time,
     ...options.workflowVariables,
@@ -129,12 +137,17 @@ export function buildPrompt(options: BuildPromptOptions): string {
   // sub-processes. Combined with global directives like superpowers' "always
   // invoke matching skills", agents would otherwise launch the workflow they
   // are already inside (description matches the agent's task by construction).
-  const rolePrefix = `Your role: ${agent.description}.\nWorking directory: ${workDir}\nDate: ${today}\nTime: ${time}\n\nYou are a single step in an automated workflow. Do not invoke any Skill, slash command, sub-agent, or Task tool - you ARE the agent for this step. Carry out the task below directly with your declared tools. A slash command whose description matches this task may appear in your environment; that is the workflow you are already running inside, and invoking it would recursively launch a new run. Ignore it.`;
+  const rolePrefix = `Your role: ${agent.description}.\nWorking directory: ${effectiveWorkDir}\nDate: ${today}\nTime: ${time}\n\nYou are a single step in an automated workflow. Do not invoke any Skill, slash command, sub-agent, or Task tool - you ARE the agent for this step. Carry out the task below directly with your declared tools. A slash command whose description matches this task may appear in your environment; that is the workflow you are already running inside, and invoking it would recursively launch a new run. Ignore it.`;
 
   // 2. Context files
   const contextSections = agent.promptContext
     .map((ctx) =>
-      renderContextEntry(ctx, resolvePath(ctx.filepath, strictFnArgs), workDir, agent.name),
+      renderContextEntry(
+        ctx,
+        resolvePath(ctx.filepath, strictFnArgs),
+        effectiveWorkDir,
+        agent.name,
+      ),
     )
     .filter(Boolean)
     .join("\n\n");

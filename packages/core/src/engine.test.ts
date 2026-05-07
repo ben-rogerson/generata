@@ -442,6 +442,65 @@ describe("runWorkflow isolation: worktree", () => {
     equal(getCleanupCalls(), 1);
   });
 
+  it("renders the prompt header and agent factory work_dir with the worktree executionRoot, not the user-config workDir", async () => {
+    // Regression: the writer agent was mutating the main repo because the
+    // `Working directory:` prompt header (and the factory's `${work_dir}`
+    // template substitution) showed the user-config workDir. Agents resolve
+    // absolute paths against those, so the writer kept editing files in the
+    // main repo even though its cwd was the worktree.
+    const captured: Record<string, string> = {};
+    const stubRunAgent = async (options: RunOptions): Promise<RunResult> => {
+      captured[options.agent.name] = buildPrompt({
+        agent: options.agent,
+        args: options.args,
+        config: options.config,
+        workDir: options.workDir,
+        cwd: options.cwd,
+        stepOutputs: options.stepOutputs,
+        workflowVariables: options.workflowVariables,
+      });
+      return { output: "ok", metrics: makeMetrics({ agent: options.agent.name }) };
+    };
+    const worker = withName(
+      defineAgent(({ work_dir }) => ({
+        type: "worker",
+        description: "x",
+        modelTier: "light",
+        tools: [],
+        permissions: "none",
+        timeoutSeconds: 60,
+        promptContext: [],
+        prompt: `factory says cwd=${work_dir}`,
+      })),
+      "code",
+    );
+    const workflow = withName(
+      defineWorkflow({ description: "wt-prompt", isolation: worktree({ cleanup: true }) })
+        .step("code", () => worker({}))
+        .build(),
+      "wt-prompt",
+    );
+    const { stubSetup } = makeStubSetup();
+    const result = await executeWorkflow(
+      workflow,
+      {},
+      stubConfig,
+      "/repo/internal/self-improve",
+      undefined,
+      { runAgent: stubRunAgent, setupWorktree: stubSetup, mainProjectRoot: "/repo" },
+    );
+    equal(result.success, true);
+    match(captured["code"]!, /Working directory: \/tmp\/wt\/abc\/self-improve/);
+    match(captured["code"]!, /factory says cwd=\/tmp\/wt\/abc\/self-improve/);
+    ok(
+      !captured["code"]!.includes("/repo/internal/self-improve"),
+      "neither header nor factory template must leak the user-config workDir under worktree isolation",
+    );
+    // Programmatic shipper needs to read the worktree path from the result so
+    // it can copy changes back to the main repo without re-deriving it.
+    equal(result.worktreePath, "/tmp/wt/abc");
+  });
+
   it("preserves the worktree when cleanup is false (default)", async () => {
     const stubRunAgent = async (options: RunOptions): Promise<RunResult> => ({
       output: "ok",
@@ -844,6 +903,10 @@ describe("runWorkflow agent outputs flow into downstream stepFns", () => {
     equal(result.success, true);
     equal(captured.second.spec_filepath, "/abs/SPEC.md");
     equal(captured.second.instructions, "build a thing");
+    // Programmatic callers can read accumulated typed outputs from the result
+    // without re-parsing step text or re-running the workflow.
+    equal(result.outputs.spec_filepath, "/abs/SPEC.md");
+    equal(result.outputs.instructions, "build a thing");
   });
 });
 
