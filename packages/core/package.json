@@ -53,7 +53,7 @@
     "clean": "rm -rf dist",
     "build": "pnpm clean && tsc -p tsconfig.build.json",
     "build:watch": "tsc -p tsconfig.build.json --watch",
-    "prepare": "pnpm clean && tsc -p tsconfig.build.json",
+    "prepare": "pnpm build",
     "test": "node --test --import tsx 'src/**/*.test.ts'",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint",
