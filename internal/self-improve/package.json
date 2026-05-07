@@ -6,6 +6,7 @@
   "scripts": {
     "audit": "tsx scripts/audit.ts",
     "improve": "generata workflow improve",
+    "loop": "tsx scripts/loop.ts",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
