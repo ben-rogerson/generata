@@ -278,38 +278,27 @@ async function main() {
 
   if (command === "metrics") {
     const metricsDir = resolve(config.workDir, config.metricsDir);
+    type MetricsSummary = ReturnType<typeof summariseMetrics>;
+    const printSummary = (label: string, summary: MetricsSummary) => {
+      console.log(fmt.bold(label));
+      console.log(`  Calls: ${fmt.dim(String(summary.calls))}`);
+      if (summary.cost > 0) {
+        console.log(`  Cost:  ${fmt.cost(summary.cost)}`);
+      } else {
+        const totalRead = summary.input_tokens + summary.cache_read_tokens;
+        const cacheHit =
+          totalRead > 0 ? Math.round((summary.cache_read_tokens / totalRead) * 100) : 0;
+        console.log(`  Cache hit: ${fmt.dim(`${cacheHit}%`)}`);
+      }
+      console.log(`  Input tokens:  ${fmt.dim(summary.input_tokens.toLocaleString())}`);
+      console.log(`  Output tokens: ${fmt.dim(summary.output_tokens.toLocaleString())}`);
+    };
     if (target === "today" || !target) {
       const records = readMetrics(metricsDir);
-      const summary = summariseMetrics(records);
-      const showCost = summary.cost > 0;
-      console.log(fmt.bold("Today's metrics:"));
-      console.log(`  Calls: ${fmt.dim(String(summary.calls))}`);
-      if (showCost) {
-        console.log(`  Cost:  ${fmt.cost(summary.cost)}`);
-      } else {
-        const totalRead = summary.input_tokens + summary.cache_read_tokens;
-        const cacheHit =
-          totalRead > 0 ? Math.round((summary.cache_read_tokens / totalRead) * 100) : 0;
-        console.log(`  Cache hit: ${fmt.dim(`${cacheHit}%`)}`);
-      }
-      console.log(`  Input tokens:  ${fmt.dim(summary.input_tokens.toLocaleString())}`);
-      console.log(`  Output tokens: ${fmt.dim(summary.output_tokens.toLocaleString())}`);
+      printSummary("Today's metrics:", summariseMetrics(records));
     } else if (target === "week") {
       const records = readMetricsRange(metricsDir, 7);
-      const summary = summariseMetrics(records);
-      const showCost = summary.cost > 0;
-      console.log(fmt.bold("7-day metrics:"));
-      console.log(`  Calls: ${fmt.dim(String(summary.calls))}`);
-      if (showCost) {
-        console.log(`  Cost:  ${fmt.cost(summary.cost)}`);
-      } else {
-        const totalRead = summary.input_tokens + summary.cache_read_tokens;
-        const cacheHit =
-          totalRead > 0 ? Math.round((summary.cache_read_tokens / totalRead) * 100) : 0;
-        console.log(`  Cache hit: ${fmt.dim(`${cacheHit}%`)}`);
-      }
-      console.log(`  Input tokens:  ${fmt.dim(summary.input_tokens.toLocaleString())}`);
-      console.log(`  Output tokens: ${fmt.dim(summary.output_tokens.toLocaleString())}`);
+      printSummary("7-day metrics:", summariseMetrics(records));
     } else if (target === "expensive") {
       const records = readMetrics(metricsDir);
       const showCost = records.some((r) => r.estimated_cost_usd > 0);
@@ -342,20 +331,7 @@ async function main() {
         process.exit(1);
       }
       const records = readMetricsRange(metricsDir, 7).filter((r) => r.agent === agentName);
-      const summary = summariseMetrics(records);
-      const showCost = summary.cost > 0;
-      console.log(fmt.bold(`7-day metrics for agent '${agentName}':`));
-      console.log(`  Calls: ${fmt.dim(String(summary.calls))}`);
-      if (showCost) {
-        console.log(`  Cost:  ${fmt.cost(summary.cost)}`);
-      } else {
-        const totalRead = summary.input_tokens + summary.cache_read_tokens;
-        const cacheHit =
-          totalRead > 0 ? Math.round((summary.cache_read_tokens / totalRead) * 100) : 0;
-        console.log(`  Cache hit: ${fmt.dim(`${cacheHit}%`)}`);
-      }
-      console.log(`  Input tokens:  ${fmt.dim(summary.input_tokens.toLocaleString())}`);
-      console.log(`  Output tokens: ${fmt.dim(summary.output_tokens.toLocaleString())}`);
+      printSummary(`7-day metrics for agent '${agentName}':`, summariseMetrics(records));
       if (records.length > 0) {
         const avgDuration = records.reduce((s, r) => s + r.duration_ms, 0) / records.length;
         const failures = records.filter((r) => r.status !== "success").length;
