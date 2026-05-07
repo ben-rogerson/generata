@@ -90,4 +90,27 @@ describe("copyTree", () => {
     deepStrictEqual(result.wouldWrite.sort(), ["a/b/y.ts", "a/x.ts", "z.md"]);
     strictEqual(existsSync(dest), false);
   });
+
+  it("skips macOS .DS_Store metadata files", () => {
+    const dsSrc = mkdtempSync(join(tmpdir(), "copy-ds-src-"));
+    const dsDest = mkdtempSync(join(tmpdir(), "copy-ds-dst-"));
+    try {
+      mkdirSync(join(dsSrc, "nested"), { recursive: true });
+      writeFileSync(join(dsSrc, "keep.txt"), "keep");
+      writeFileSync(join(dsSrc, ".DS_Store"), "junk");
+      writeFileSync(join(dsSrc, "._.DS_Store"), "junk");
+      writeFileSync(join(dsSrc, "nested/.DS_Store"), "junk");
+      writeFileSync(join(dsSrc, "nested/inner.txt"), "inner");
+      const result = copyTree({ src: dsSrc, dest: dsDest, force: false, dryRun: true });
+      deepStrictEqual(result.wouldWrite.sort(), ["keep.txt", "nested/inner.txt"]);
+      const written = copyTree({ src: dsSrc, dest: dsDest, force: false, dryRun: false });
+      deepStrictEqual(written.written.sort(), ["keep.txt", "nested/inner.txt"]);
+      strictEqual(existsSync(join(dsDest, ".DS_Store")), false);
+      strictEqual(existsSync(join(dsDest, "._.DS_Store")), false);
+      strictEqual(existsSync(join(dsDest, "nested/.DS_Store")), false);
+    } finally {
+      rmSync(dsSrc, { recursive: true, force: true });
+      rmSync(dsDest, { recursive: true, force: true });
+    }
+  });
 });
