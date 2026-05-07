@@ -60,29 +60,46 @@ my-template/
 Two files do all the work:
 
 ```ts
-// agents/hello.ts
+// agents/coin-and-expand.ts
 import { defineWorkflow } from "@generata/core";
-import greeter from "./greeter.js";
+import coiner from "./coiner.js";
+import expander from "./expander.js";
 
 export default defineWorkflow({
-  description: "Greets the supplied message.",
-  required: ["message"], // Supplied via --message flag
+  description: "Coin a slug from a topic, then expand it.",
+  required: ["topic"], // Supplied via --topic flag
 })
-  .step("greet", ({ message }) => greeter({ message }))
+  .step("coin", ({ topic }) => coiner({ topic }))
+  .step("expand", ({ slug }) => expander({ slug }))
   .build();
 ```
 
 ```ts
-// agents/greeter.ts
+// agents/coiner.ts
 import { defineAgent } from "@generata/core";
 
-export default defineAgent<{ message: string }>(({ message }) => ({
+export default defineAgent<{ topic: string }>(({ topic }) => ({
   type: "worker",
-  description: "Greets a message in one creative line.",
+  description: "Turns a topic into a kebab-case slug.",
   modelTier: "light",
-  prompt: `Greet "${message}" in one line.`,
+  outputs: { slug: "Kebab-case slug, lowercase, dash-separated" },
+  prompt: `Turn "${topic}" into a slug.`,
 }));
 ```
+
+```ts
+// agents/expander.ts
+import { defineAgent } from "@generata/core";
+
+export default defineAgent<{ slug: string }>(({ slug }) => ({
+  type: "worker",
+  description: "Expands a slug into a one-line description.",
+  modelTier: "light",
+  prompt: `Write one sentence describing "${slug}".`,
+}));
+```
+
+`slug` arrives from `coiner`'s `outputs` and is fully typed by the chain builder.
 
 The filename becomes the agent or workflow name. Every `.ts` under `agents/` is scanned recursively and classified by its default export - `defineAgent` makes it an agent, `defineWorkflow` makes it a workflow. Putting workflows under `agents/workflows/` is a convention (used by `standup` and `coding`) but not a requirement; the `starter` template keeps its workflow flat in `agents/`.
 
