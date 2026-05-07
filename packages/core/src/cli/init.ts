@@ -10,6 +10,7 @@ import { promptForEnv, writeDotEnv, PromptItem } from "./env-prompt.js";
 import { copyTree, filesEqual } from "./copy.js";
 import { resolveStepShape } from "../step-shape.js";
 import { generateSlashCommands } from "./slash-commands.js";
+import { withDefaults } from "./template-utils.js";
 import { loadTs } from "../ts-loader.js";
 import type { AgentDef, WorkflowDef } from "../define.js";
 import { deriveName } from "../derive-name.js";
@@ -161,24 +162,6 @@ export async function runInit(opts: InitOpts): Promise<void> {
   } finally {
     if (tmpl.cleanup) await tmpl.cleanup();
   }
-}
-
-function withDefaults(
-  installPaths: Record<string, string>,
-  manifestName: string,
-): Record<string, string> {
-  const alias = templateAlias(manifestName);
-  const defaults: Record<string, string> = {
-    "agents/": "agents/",
-    "skills/": ".claude/skills/",
-    "files/": "./",
-    "README.md": `README-${alias}.md`,
-  };
-  return { ...defaults, ...installPaths };
-}
-
-export function templateAlias(manifestName: string): string {
-  return manifestName.replace(/^@[^/]+\//, "");
 }
 
 async function scanTemplate(dir: string): Promise<{

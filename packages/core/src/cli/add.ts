@@ -4,6 +4,7 @@ import { resolveTemplate } from "./resolver.js";
 import { loadManifest } from "./manifest.js";
 import { copyTree, filesEqual } from "./copy.js";
 import { generateSlashCommands } from "./slash-commands.js";
+import { withDefaults } from "./template-utils.js";
 import { fmt } from "../logger.js";
 import { findProjectRoot } from "../find-project-root.js";
 import { loadConfig } from "../config.js";
@@ -85,16 +86,3 @@ export async function runAdd(opts: AddOpts): Promise<void> {
   }
 }
 
-function withDefaults(
-  installPaths: Record<string, string>,
-  manifestName: string,
-): Record<string, string> {
-  const alias = manifestName.replace(/^@[^/]+\//, "");
-  const defaults: Record<string, string> = {
-    "agents/": "agents/",
-    "skills/": ".claude/skills/",
-    "files/": "./",
-    "README.md": `README-${alias}.md`,
-  };
-  return { ...defaults, ...installPaths };
-}
