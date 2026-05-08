@@ -101,7 +101,7 @@ export default defineAgent<{ slug: string }>(({ slug }) => ({
 
 `slug` arrives from `coiner`'s `outputs` and is fully typed by the chain builder.
 
-The filename becomes the agent or workflow name. Every `.ts` under `agents/` is scanned recursively and classified by its default export - `defineAgent` makes it an agent, `defineWorkflow` makes it a workflow. Putting workflows under `agents/workflows/` is a convention (used by `standup` and `coding`) but not a requirement; the `starter` template keeps its workflow flat in `agents/`.
+The filename becomes the agent or workflow name. Every `.ts` under `agents/` is scanned recursively and classified by its default export - `defineAgent` makes it an agent, `defineWorkflow` makes it a workflow. Workflows belong in `agents/workflows/` by convention (used by `standup` and `coding`); the `starter` template uses flat `agents/` placement, which works equally well for projects with a single workflow.
 
 ## The manifest
 
