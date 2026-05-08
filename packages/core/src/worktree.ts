@@ -185,7 +185,16 @@ export async function setupWorktree(opts: SetupWorktreeOptions): Promise<SetupWo
     await backend.exec(["git", "worktree", "remove", "--force", worktreePath], {
       cwd: opts.mainProjectRoot,
     });
-    await backend.exec(["git", "branch", "-D", branchName], { cwd: opts.mainProjectRoot });
+    // Probe before delete - the shipper may have renamed branchName to a
+    // semantic name (`<type>/<slug>`) and pushed it. In that case the original
+    // ref is gone and `git branch -D <branchName>` would error noisily.
+    const probe = await backend.exec(
+      ["git", "rev-parse", "--verify", "--quiet", `refs/heads/${branchName}`],
+      { cwd: opts.mainProjectRoot },
+    );
+    if (probe.exitCode === 0) {
+      await backend.exec(["git", "branch", "-D", branchName], { cwd: opts.mainProjectRoot });
+    }
   };
 
   try {
