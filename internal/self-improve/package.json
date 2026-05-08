@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "audit": "tsx scripts/audit.ts",
+    "dream": "tsx scripts/dream.ts",
     "improve": "generata workflow improve",
     "loop": "tsx scripts/loop.ts",
     "test": "node --test --import tsx 'scripts/**/*.test.ts'",
