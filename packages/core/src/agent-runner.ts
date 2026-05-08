@@ -6,6 +6,9 @@ import { fileURLToPath } from "url";
 import { LLMAgentDef, GlobalConfig, AgentMetrics, AgentStreamEvent, Tool } from "./schema.js";
 
 const TOOL_NAME_MAP: Partial<Record<Tool, string>> = {
+  read: "Read",
+  glob: "Glob",
+  grep: "Grep",
   bash: "Bash",
   write: "Write",
   edit: "Edit",
@@ -259,7 +262,7 @@ export function buildAllowedTools(
   }
   // permissions === "full"
   if (agent.tools.length === 0 && binPermissions.length === 0) return null;
-  const baseTools = ["Read", "Glob", "Grep"];
+  const baseTools = agent.filesystemAccess === false ? [] : ["Read", "Glob", "Grep"];
   return [...baseTools, ...extraTools, ...binPermissions].join(",");
 }
 
