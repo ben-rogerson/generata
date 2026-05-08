@@ -246,6 +246,17 @@ describe("defineWorkflow chain builder", () => {
   });
 });
 
+describe("define.ts public surface: loadTs and findProjectRoot", () => {
+  it("exposes loadTs and findProjectRoot", async () => {
+    const mod = await import("./define.js");
+    ok(typeof (mod as any).loadTs === "function", "define.ts should export loadTs");
+    ok(
+      typeof (mod as any).findProjectRoot === "function",
+      "define.ts should export findProjectRoot",
+    );
+  });
+});
+
 describe("defineConfig", () => {
   it("back-fills workDir and applies schema defaults", () => {
     const cfg = defineConfig({

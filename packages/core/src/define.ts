@@ -342,3 +342,5 @@ export { GenerataPrecheckError } from "./errors.js";
 export type { PrecheckIssue } from "./precheck.js";
 export type { EngineEvent, EventSink } from "./event-sink.js";
 export type { AgentMetrics, AgentStreamEvent } from "./schema.js";
+export { loadTs } from "./ts-loader.js";
+export { findProjectRoot } from "./find-project-root.js";
