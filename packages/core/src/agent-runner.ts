@@ -179,6 +179,90 @@ async function runInteractive(options: RunOptions): Promise<RunResult> {
   });
 }
 
+// Read-only agents previously got `Bash(<emit-bin>:*)` so they could shell out to
+// the emit bin to populate EMIT_FILE. In practice that perm let the LLM run shell
+// redirections / wrapper scripts that created arbitrary files in the working
+// directory (observed: repo-scanner wrote findings.json + emit-findings.{sh,mjs}).
+// Switching read-only agents to `Write(<EMIT_FILE>)` keeps the structured-output
+// channel open while denying any path to file creation outside that single file.
+export function buildEmissionPrompt(
+  agent: LLMAgentDef,
+  outputsBin: string,
+  outputsFile: string,
+): string {
+  const declared = Object.entries(agent.outputs ?? {});
+  const declaredKeys = declared.map(([k]) => k);
+  const isReadOnly = agent.permissions === "read-only";
+
+  if (isReadOnly) {
+    const successPath =
+      declaredKeys.length > 0
+        ? `As your final action, emit the workflow outputs by using the Write tool to create this exact file:\n  ${outputsFile}\n\nThe file contents must be a single JSON object with these keys (all required, all string values):\n${declared
+            .map(([k, desc]) => `  "${k}": "<value>"   # ${desc}`)
+            .join(
+              "\n",
+            )}\n\nWrite valid JSON only - no markdown fences, no commentary, no extra files.`
+        : `As your final action, signal completion by using the Write tool to create ${outputsFile} with the contents \`{}\`.`;
+    return `${successPath}\n\nIf you cannot complete the work (e.g. precondition unmet, ambiguous input, external blocker), halt the workflow cleanly by using the Write tool to create ${outputsFile} with the contents \`{"__halt": "<one-line reason>"}\`.\nWhen you halt, do not also emit success values. The workflow stops and the reason is propagated.`;
+  }
+
+  const successPath =
+    declaredKeys.length > 0
+      ? `As your final action, emit the workflow outputs by running:\n  ${outputsBin} ${declaredKeys
+          .map((k) => `--${k} "<value>"`)
+          .join(" ")}\n\nFlags:\n${declared
+          .map(([k, desc]) => `  --${k} "<value>"   # ${desc}`)
+          .join(
+            "\n",
+          )}\n\nAll listed flags are required. Pass each value as a single shell-escaped string.`
+      : `As your final action, signal completion to the workflow by running:\n  ${outputsBin}\n(no flags - this agent declares no typed outputs)`;
+  return `${successPath}\n\nIf you cannot complete the work (e.g. precondition unmet, ambiguous input, external blocker), halt the workflow cleanly by running:\n  ${outputsBin} --halt "<one-line reason>"\nWhen you halt, do not also emit success values. The workflow stops and the reason is propagated.`;
+}
+
+// Builds the comma-joined --allowedTools value for a given agent + bin set.
+// Returns null when the flag should be omitted entirely (full-permission agent
+// with no declared tools and no emission bins - matches the prior behaviour).
+export function buildAllowedTools(
+  agent: LLMAgentDef,
+  bins: {
+    verdictBin: string | null;
+    paramsBin: string | null;
+    outputsBin: string | null;
+    outputsFile: string | null;
+  },
+): string | null {
+  // Critic verdict and planner params bins still go through Bash - those
+  // emission paths are not implicated in the read-only file-write bug.
+  const binPermissions: string[] = [];
+  if (bins.verdictBin) binPermissions.push(`Bash(${bins.verdictBin}:*)`);
+  if (bins.paramsBin) binPermissions.push(`Bash(${bins.paramsBin}:*)`);
+  if (bins.outputsBin) {
+    if (agent.permissions === "read-only" && bins.outputsFile) {
+      // Scoped Write - the LLM can only write the EMIT_FILE path, not arbitrary files.
+      binPermissions.push(`Write(${bins.outputsFile})`);
+    } else {
+      binPermissions.push(`Bash(${bins.outputsBin}:*)`);
+    }
+  }
+
+  const extraTools = agent.tools.flatMap((t) => {
+    const mapped = TOOL_NAME_MAP[t as Tool];
+    return mapped ? [mapped] : [];
+  });
+
+  if (agent.permissions === "read-only") {
+    const baseTools = ["Read", "Glob", "Grep"];
+    return [...baseTools, ...extraTools, ...binPermissions].join(",");
+  }
+  if (agent.permissions === "none") {
+    return binPermissions.join(",");
+  }
+  // permissions === "full"
+  if (agent.tools.length === 0 && binPermissions.length === 0) return null;
+  const baseTools = ["Read", "Glob", "Grep"];
+  return [...baseTools, ...extraTools, ...binPermissions].join(",");
+}
+
 export async function runAgent(options: RunOptions): Promise<RunResult> {
   const { agent, args, config, workDir, stepOutputs, retryPreamble } = options;
 
@@ -254,19 +338,7 @@ export async function runAgent(options: RunOptions): Promise<RunResult> {
   if (agent.outputs) {
     outputsBin = resolve(fileURLToPath(new URL("../bin/emit", import.meta.url)));
     outputsFile = join(tmpdir(), `outputs-${fileId}.json`);
-    const successPath =
-      Object.keys(agent.outputs).length > 0
-        ? `As your final action, emit the workflow outputs by running:\n  ${outputsBin} ${Object.keys(
-            agent.outputs,
-          )
-            .map((k) => `--${k} "<value>"`)
-            .join(" ")}\n\nFlags:\n${Object.entries(agent.outputs)
-            .map(([k, desc]) => `  --${k} "<value>"   # ${desc}`)
-            .join(
-              "\n",
-            )}\n\nAll listed flags are required. Pass each value as a single shell-escaped string.`
-        : `As your final action, signal completion to the workflow by running:\n  ${outputsBin}\n(no flags - this agent declares no typed outputs)`;
-    prompt = `${prompt}\n\n---\n${successPath}\n\nIf you cannot complete the work (e.g. precondition unmet, ambiguous input, external blocker), halt the workflow cleanly by running:\n  ${outputsBin} --halt "<one-line reason>"\nWhen you halt, do not also emit success values. The workflow stops and the reason is propagated.`;
+    prompt = `${prompt}\n\n---\n${buildEmissionPrompt(agent, outputsBin, outputsFile)}`;
   }
 
   if (options.promptLogFile) {
@@ -285,38 +357,9 @@ export async function runAgent(options: RunOptions): Promise<RunResult> {
     "--verbose",
   ];
 
-  // Surgical bin permissions: lets the LLM invoke the specific verdict/params/
-  // emit bins without widening the agent's declared `tools` to general Bash.
-  // `Bash(<abs path>:*)` is the Claude Code syntax for "this binary only".
-  const binPermissions: string[] = [];
-  if (verdictBin) binPermissions.push(`Bash(${verdictBin}:*)`);
-  if (paramsBin) binPermissions.push(`Bash(${paramsBin}:*)`);
-  if (outputsBin) binPermissions.push(`Bash(${outputsBin}:*)`);
-
-  // Apply tool permissions
-  if (agent.permissions === "read-only") {
-    const extraTools = agent.tools.flatMap((t) => {
-      const mapped = TOOL_NAME_MAP[t as Tool];
-      return mapped ? [mapped] : [];
-    });
-    const baseTools = ["Read", "Glob", "Grep"];
-    claudeArgs.push("--allowedTools", [...baseTools, ...extraTools, ...binPermissions].join(","));
-  } else if (agent.permissions === "none") {
-    // Even with no tools, the agent may need to call its emission bins.
-    claudeArgs.push("--allowedTools", binPermissions.join(","));
-  } else {
-    // permissions === "full": trust the agent with every tool, including WebSearch/WebFetch.
-    // Non-interactive CLI mode otherwise denies tools that would require a permission prompt.
-    if (agent.tools.length > 0 || binPermissions.length > 0) {
-      const extraTools = agent.tools.flatMap((t) => {
-        const mapped = TOOL_NAME_MAP[t as Tool];
-        return mapped ? [mapped] : [];
-      });
-      const baseTools = ["Read", "Glob", "Grep"];
-      claudeArgs.push("--allowedTools", [...baseTools, ...extraTools, ...binPermissions].join(","));
-    }
-    claudeArgs.push("--dangerously-skip-permissions");
-  }
+  const allowedTools = buildAllowedTools(agent, { verdictBin, paramsBin, outputsBin, outputsFile });
+  if (allowedTools !== null) claudeArgs.push("--allowedTools", allowedTools);
+  if (agent.permissions === "full") claudeArgs.push("--dangerously-skip-permissions");
 
   const spawnEnv: Record<string, string | undefined> = { ...process.env };
   if (verdictFile) spawnEnv.VERDICT_FILE = verdictFile;
