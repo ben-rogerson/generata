@@ -29,25 +29,25 @@ export function agentColor(type: string): (s: string) => string {
 
 const TYPE_TAGLINES: Record<AgentType, string[]> = {
   worker: [
-    "Hands on keyboard. Brain in the trash where it belongs...",
-    "Code dropping. This better not suck...",
-    "Let's build some unhinged bullsh**...",
-    "Time to make it real before I lose what's left of my mind...",
-    "Currently coding like a raccoon that just did lines of caffeine...",
+    "Hands dirty, expectations low, let's go...",
+    "Compiling. Optimism not included...",
+    "Hands on keyboard. Brain mostly elsewhere...",
+    "Making it real, against better judgment...",
+    "Caffeinated, mildly resentful, building anyway...",
   ],
   planner: [
-    "Charting the course through this dumpster fire of a project...",
-    "Thinking it through... against my will...",
-    "Mapping the path. It's mostly terrible ideas and copium...",
-    "Scouting the horizon. Looks like pain and suffering...",
-    "Cooking up another ridiculous plan. This'll end great...",
+    "Charting a path through the smouldering wreckage...",
+    "Thinking it through. Against my better judgment...",
+    "Mapping the route. Mostly bad ideas and hope...",
+    "Scouting ahead. Pain and suffering, as expected...",
+    "Cooking up a plan. This will end about as well as the last one...",
   ],
   critic: [
-    "Scrutinising this nonsense like it personally offended me...",
-    "Nothing gets past me. I'm in a bad mood...",
-    "Dissecting this code like a feral animal...",
-    "Finding every flaw because someone has to be the assho**...",
-    "My disappointment is reaching record levels...",
+    "Scrutinising this like it personally wronged me...",
+    "Nothing gets past me today. Mood: bleak...",
+    "Dissecting the code with enthusiasm and minimal mercy...",
+    "Finding every flaw. Someone has to.",
+    "Disappointment levels: setting new records...",
   ],
 };
 
