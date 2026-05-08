@@ -1,17 +1,16 @@
-// Deterministic shipper. Replaces the LLM `shipper` agent (which silently
-// reported success without actually opening PRs). Inputs are the typed values
-// the change-summariser already emits, so there's no LLM judgement left in
-// shipping - just a procedural sequence of git/pnpm/gh calls.
-//
-// Mirrors the project's `/ship` slash-command (`.claude/skills/ship/SKILL.md`)
-// for the loop's narrow case (single-package `@generata/core` bumps, branch
-// derived from the commit subject's conventional-commit type, validation
-// re-run in the main repo as a final gate).
+// Deterministic shipper. Operates entirely inside the worktree the workflow
+// ran in:
+//   1. Rename the auto-generated worktree branch (`generata/wt-<runId>`)
+//      to the semantic `<type>/<slug>` derived from the commit subject.
+//   2. Validate (typecheck, lint, test) using the worktree's own node_modules.
+//   3. Commit + write+commit changeset + push + open PR.
+// Local main is never touched - the worktree is the source of truth for the
+// unit of work, and it was already created off origin/main by setupWorktree.
 
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 const execFileP = promisify(execFile);
 
@@ -50,63 +49,47 @@ export async function runShipper(inputs: ShipInputs): Promise<ShipResult> {
       };
     }
     const branch = `${typeMatch[1]}/${inputs.slug}`;
+    const wt = inputs.worktreeRoot;
 
-    const mainRepoRoot = await deriveMainRepoRoot(inputs.worktreeRoot);
-    console.log(`→ ship: preflight ${mainRepoRoot}`);
-    const status = await git(mainRepoRoot, ["status", "--porcelain"]);
-    if (status.trim() !== "") {
-      return {
-        ok: false,
-        reason: `main repo has uncommitted changes; clean or commit before shipping. git status --porcelain:\n${status}`,
-      };
-    }
+    console.log(`→ ship: rename worktree branch → ${branch}`);
+    const wtBranch = (await git(wt, ["rev-parse", "--abbrev-ref", "HEAD"])).trim();
+    // Two-arg form is explicit: rename `wtBranch` to `branch`. Errors if
+    // `branch` already exists - intentional, don't force-rename.
+    await git(wt, ["branch", "-m", wtBranch, branch]);
 
-    console.log(`→ ship: branch ${branch}`);
-    await git(mainRepoRoot, ["checkout", "main"]);
-    await git(mainRepoRoot, ["pull", "--ff-only", "origin", "main"]);
-    await git(mainRepoRoot, ["checkout", "-b", branch]);
-
-    console.log(`→ ship: discover changed files in ${inputs.worktreeRoot}`);
-    const changedRaw = await git(inputs.worktreeRoot, ["diff", "--name-only", "HEAD"]);
+    console.log(`→ ship: discover changed files in ${wt}`);
+    const changedRaw = await git(wt, ["diff", "--name-only", "HEAD"]);
     const changed = changedRaw.split("\n").filter(Boolean);
     if (changed.length === 0) {
       return { ok: false, reason: "no changes in worktree to ship" };
     }
     console.log(`  ${changed.length} file(s): ${changed.join(", ")}`);
 
-    console.log(`→ ship: copy worktree → main`);
-    for (const rel of changed) {
-      const src = resolve(inputs.worktreeRoot, rel);
-      const dst = resolve(mainRepoRoot, rel);
-      mkdirSync(dirname(dst), { recursive: true });
-      copyFileSync(src, dst);
-    }
-
-    console.log(`→ ship: validate in main (typecheck, lint, test)`);
-    await pnpm(mainRepoRoot, ["typecheck"]);
-    await pnpm(mainRepoRoot, ["lint"]);
-    await pnpm(mainRepoRoot, ["test"]);
+    console.log(`→ ship: validate (typecheck, lint, test)`);
+    await pnpm(wt, ["typecheck"]);
+    await pnpm(wt, ["lint"]);
+    await pnpm(wt, ["test"]);
 
     console.log(`→ ship: commit`);
-    await git(mainRepoRoot, ["add", ...changed]);
-    await git(mainRepoRoot, ["commit", "-m", inputs.commitSubject, "-m", inputs.commitBody]);
+    await git(wt, ["add", ...changed]);
+    await git(wt, ["commit", "-m", inputs.commitSubject, "-m", inputs.commitBody]);
 
     if (inputs.bump !== "none") {
       console.log(`→ ship: changeset (${inputs.bump})`);
       const changesetRel = `.changeset/${inputs.slug}.md`;
-      const changesetPath = resolve(mainRepoRoot, changesetRel);
+      const changesetPath = resolve(wt, changesetRel);
       const body = `---\n"@generata/core": ${inputs.bump}\n---\n\n${inputs.commitSubject}\n`;
       writeFileSync(changesetPath, body);
-      await git(mainRepoRoot, ["add", changesetRel]);
-      await git(mainRepoRoot, ["commit", "-m", "chore: add changeset"]);
+      await git(wt, ["add", changesetRel]);
+      await git(wt, ["commit", "-m", "chore: add changeset"]);
     }
 
     console.log(`→ ship: push origin ${branch}`);
-    await git(mainRepoRoot, ["push", "-u", "origin", branch]);
+    await git(wt, ["push", "-u", "origin", branch]);
 
     console.log(`→ ship: gh pr create`);
     const prBody = buildPrBody(inputs);
-    const prOut = await gh(mainRepoRoot, [
+    const prOut = await gh(wt, [
       "pr",
       "create",
       "--title",
@@ -121,17 +104,6 @@ export async function runShipper(inputs: ShipInputs): Promise<ShipResult> {
   } catch (err) {
     return { ok: false, reason: (err as Error).message };
   }
-}
-
-async function deriveMainRepoRoot(worktreeRoot: string): Promise<string> {
-  // `git worktree list --porcelain` reports the main worktree first, then
-  // every linked worktree. Each block starts with `worktree <abs-path>`. The
-  // first such path is the main repo regardless of which worktree we ask.
-  const out = await git(worktreeRoot, ["worktree", "list", "--porcelain"]);
-  for (const line of out.split("\n")) {
-    if (line.startsWith("worktree ")) return line.slice("worktree ".length).trim();
-  }
-  throw new Error(`failed to derive main repo from worktree at ${worktreeRoot}`);
 }
 
 async function git(cwd: string, args: string[]): Promise<string> {
