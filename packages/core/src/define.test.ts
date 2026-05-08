@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import { equal, ok } from "node:assert/strict";
-import { defineAgent, defineConfig, defineWorkflow, worktree } from "./define.js";
+import { defineAgent, defineConfig, defineWorkflow, findProjectRoot, loadTs, worktree } from "./define.js";
 
 describe("defineWorkflow chain builder", () => {
   const stub = defineAgent({
@@ -246,14 +246,10 @@ describe("defineWorkflow chain builder", () => {
   });
 });
 
-describe("define.ts public surface: loadTs and findProjectRoot", () => {
-  it("exposes loadTs and findProjectRoot", async () => {
-    const mod = await import("./define.js");
-    ok(typeof (mod as any).loadTs === "function", "define.ts should export loadTs");
-    ok(
-      typeof (mod as any).findProjectRoot === "function",
-      "define.ts should export findProjectRoot",
-    );
+describe("public exports: loadTs, findProjectRoot", () => {
+  it("are functions", () => {
+    ok(typeof loadTs === "function", "loadTs should be a function");
+    ok(typeof findProjectRoot === "function", "findProjectRoot should be a function");
   });
 });
 
