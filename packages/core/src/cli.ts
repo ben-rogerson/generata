@@ -236,9 +236,7 @@ async function main() {
       for (const workflow of registry.listWorkflows()) {
         const profile = typeof flags.profile === "string" ? flags.profile : undefined;
         const checkFiles = flags["check-files"] === "true";
-        const paramsForCheck: Record<string, unknown> = { ...flags };
-        for (const p of workflow.required) if (!(p in paramsForCheck)) paramsForCheck[p] = "__stub";
-        const issues = precheckWorkflow(workflow, paramsForCheck, {
+        const issues = precheckWorkflow(workflow, flags, {
           profile,
           workDir: config.workDir,
           checkFiles,
