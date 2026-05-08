@@ -2,15 +2,15 @@ import { equal, ok } from "node:assert/strict";
 import { describe, it } from "node:test";
 import { buildAllowedTools, buildEmissionPrompt } from "./agent-runner.js";
 import { defineAgent } from "./define.js";
-import type { LLMAgentDef } from "./schema.js";
+import type { AgentDef } from "./schema.js";
 
 const EMIT_BIN = "/abs/path/bin/emit";
 const EMIT_FILE = "/tmp/outputs-foo.json";
 const VERDICT_BIN = "/abs/path/bin/verdict";
 
-function asLLM<T>(def: T): LLMAgentDef {
+function asLLM<T>(def: T): AgentDef {
   (def as unknown as { name: string }).name = "test";
-  return def as unknown as LLMAgentDef;
+  return def as unknown as AgentDef;
 }
 
 describe("buildAllowedTools", () => {

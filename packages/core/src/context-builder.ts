@@ -1,7 +1,7 @@
 import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
 import {
-  LLMAgentDef,
+  AgentDef,
   GlobalConfig,
   PromptFn,
   PromptArgs,
@@ -98,7 +98,7 @@ function strictArgs<T extends Record<string, string>>(args: T, agentName: string
 }
 
 export interface BuildPromptOptions {
-  agent: LLMAgentDef;
+  agent: AgentDef;
   args: Record<string, unknown>;
   config: GlobalConfig;
   workDir: string;

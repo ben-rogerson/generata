@@ -1,7 +1,6 @@
 import { z } from "zod";
 import {
   AgentDef,
-  LLMAgentDef,
   WorkflowDef,
   WorktreeConfig as WorktreeConfigSchema,
   GlobalConfig,
@@ -192,7 +191,7 @@ type StepOptions<TParams = Record<string, string>> = {
   // outputs} bag the step's main fn sees, so the user can wrap a factory and
   // map prior outputs to the factory's typed inputs symmetrically with .step().
   onReject?:
-    | (LLMAgentDef & { readonly [_factoryBrand]?: never })
+    | (AgentDef & { readonly [_factoryBrand]?: never })
     | ((params: TParams) => StepInvocation);
 };
 
@@ -212,7 +211,7 @@ type InternalStep = {
   maxRetries?: number;
   // Stored loose because either an object agent or a callable factory may be
   // passed; the engine narrows by `typeof === "function"` at rejection time.
-  onReject?: LLMAgentDef | ((inputs: Record<string, string>) => StepInvocation);
+  onReject?: AgentDef | ((inputs: Record<string, string>) => StepInvocation);
 };
 
 type WorkflowConfigInput<

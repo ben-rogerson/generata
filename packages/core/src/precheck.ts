@@ -1,6 +1,6 @@
 import { existsSync } from "fs";
 import { resolve } from "path";
-import { BUILTIN_ARGS, LLMAgentDef, WorkflowDef } from "./schema.js";
+import { BUILTIN_ARGS, AgentDef, WorkflowDef } from "./schema.js";
 import { extractPromptParams } from "./context-builder.js";
 import { EnvProfileError, resolveEnvProfile } from "./env-profile.js";
 import { resolveStepShape } from "./step-shape.js";
@@ -366,7 +366,7 @@ export interface ValidateAgentArgsOptions {
  * precheck doesn't apply. Returns human-readable error strings (empty = valid).
  */
 export function validateAgentArgs(
-  agent: LLMAgentDef,
+  agent: AgentDef,
   args: Record<string, unknown>,
   options: ValidateAgentArgsOptions = {},
 ): string[] {

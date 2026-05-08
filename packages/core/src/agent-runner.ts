@@ -3,7 +3,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, unlinkSync } from 
 import { tmpdir } from "os";
 import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
-import { LLMAgentDef, GlobalConfig, AgentMetrics, AgentStreamEvent, Tool } from "./schema.js";
+import { AgentDef, GlobalConfig, AgentMetrics, AgentStreamEvent, Tool } from "./schema.js";
 
 const TOOL_NAME_MAP: Partial<Record<Tool, string>> = {
   bash: "Bash",
@@ -18,7 +18,7 @@ import { startSpinner, pickTagline } from "./logger.js";
 import { type EventSink, noopSink } from "./event-sink.js";
 
 export interface RunOptions {
-  agent: LLMAgentDef;
+  agent: AgentDef;
   args: Record<string, unknown>;
   config: GlobalConfig;
   workDir: string;
@@ -49,7 +49,7 @@ export interface RunResult {
 }
 
 export function resolveModel(
-  agent: LLMAgentDef,
+  agent: AgentDef,
   args: Record<string, unknown>,
   config: GlobalConfig,
 ): string {
@@ -186,7 +186,7 @@ async function runInteractive(options: RunOptions): Promise<RunResult> {
 // Switching read-only agents to `Write(<EMIT_FILE>)` keeps the structured-output
 // channel open while denying any path to file creation outside that single file.
 export function buildEmissionPrompt(
-  agent: LLMAgentDef,
+  agent: AgentDef,
   outputsBin: string,
   outputsFile: string,
 ): string {
@@ -223,7 +223,7 @@ export function buildEmissionPrompt(
 // Returns null when the flag should be omitted entirely (full-permission agent
 // with no declared tools and no emission bins - matches the prior behaviour).
 export function buildAllowedTools(
-  agent: LLMAgentDef,
+  agent: AgentDef,
   bins: {
     verdictBin: string | null;
     paramsBin: string | null;
