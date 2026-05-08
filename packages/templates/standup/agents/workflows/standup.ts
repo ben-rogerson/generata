@@ -7,7 +7,7 @@ export default defineWorkflow({
   variables: { repo: "", today_focus: "" },
 })
   .step("summarise", ({ repo }) => gitSummariser({ repo }))
-  .step("write", ({ summarise, today_focus }) =>
-    standupWriter({ git_summary: summarise, today_focus }),
+  .step("write", ({ git_summary, today_focus }) =>
+    standupWriter({ git_summary, today_focus }),
   )
   .build();
