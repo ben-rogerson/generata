@@ -339,17 +339,28 @@ export async function runAgent(options: RunOptions): Promise<RunResult> {
     // hasn't exited. Node's built-in spawn timeout only sends SIGTERM, which
     // the Claude CLI has been observed to ignore - leaving the parent waiting.
     let exited = false;
+    let killReason: "timeout-sigterm" | "timeout-sigkill" | null = null;
+    let exitSignal: NodeJS.Signals | null = null;
+    let exitedAtMs: number | null = null;
     const sigtermTimer = setTimeout(() => {
-      if (!exited) proc.kill("SIGTERM");
+      if (!exited) {
+        killReason = "timeout-sigterm";
+        proc.kill("SIGTERM");
+      }
     }, agent.timeoutSeconds * 1000);
     const sigkillTimer = setTimeout(
       () => {
-        if (!exited) proc.kill("SIGKILL");
+        if (!exited) {
+          if (!killReason) killReason = "timeout-sigkill";
+          proc.kill("SIGKILL");
+        }
       },
       agent.timeoutSeconds * 1000 + 10_000,
     );
-    proc.once("exit", () => {
+    proc.once("exit", (_code, signal) => {
       exited = true;
+      exitSignal = signal;
+      exitedAtMs = Date.now();
       clearTimeout(sigtermTimer);
       clearTimeout(sigkillTimer);
     });
@@ -420,6 +431,31 @@ export async function runAgent(options: RunOptions): Promise<RunResult> {
         (claudeResult.total_cost_usd as number) ?? (claudeResult.cost_usd as number) ?? 0;
       const costWasReported = estimatedCost > 0;
 
+      // Build a structured error message so a kill-by-timeout failure tells us
+      // HOW the process died, not just what exit_code Node saw. Without this,
+      // a SIGTERM kill leaves only the benign "no stdin data received in 3s"
+      // warning in stderr and we have no way to distinguish timeout from crash.
+      const closeDelayMs = exitedAtMs !== null ? Date.now() - exitedAtMs : null;
+      const errorParts: string[] = [];
+      if (killReason) {
+        errorParts.push(`killed by ${killReason} (timeoutSeconds=${agent.timeoutSeconds})`);
+      }
+      if (exitSignal) errorParts.push(`signal=${exitSignal}`);
+      // 30s threshold: legitimate stdio drain is <1s; longer means orphaned
+      // grandchildren are holding the inherited pipes open after the direct
+      // child died. Surfacing this points at the next fix (detached + pgkill).
+      if (closeDelayMs !== null && closeDelayMs > 30_000) {
+        errorParts.push(
+          `close delayed ${Math.round(closeDelayMs / 1000)}s after exit (orphaned grandchildren holding stdio)`,
+        );
+      }
+      const claudeErrorText = String(claudeResult.result ?? "");
+      if (claudeErrorText) errorParts.push(claudeErrorText);
+      const trimmedStderr = stderr.trim();
+      if (trimmedStderr) errorParts.push(`stderr: ${trimmedStderr.slice(-500)}`);
+
+      const isTimeoutKill = killReason !== null;
+
       const metrics: AgentMetrics = {
         agent: agent.name,
         model,
@@ -435,8 +471,10 @@ export async function runAgent(options: RunOptions): Promise<RunResult> {
         cache_write_tokens: cacheWriteTokens,
         estimated_cost_usd: estimatedCost,
         cost_was_reported: costWasReported,
-        status: isSuccess ? "success" : "failure",
-        error: isSuccess ? undefined : stderr || String(claudeResult.result ?? ""),
+        status: isSuccess ? "success" : isTimeoutKill ? "timeout" : "failure",
+        error: isSuccess
+          ? undefined
+          : errorParts.join("; ") || "process died without diagnostic output",
         exit_code: exitCode,
       };
 
@@ -477,13 +515,13 @@ export async function runAgent(options: RunOptions): Promise<RunResult> {
             if (missing.length === 0) {
               outputsData = Object.fromEntries(declared.map((k) => [k, String(raw[k] ?? "")]));
             } else {
-              metrics.status = "failure";
+              if (metrics.status === "success") metrics.status = "failure";
               metrics.error = `${metrics.error ? metrics.error + "; " : ""}emit missing keys: ${missing.join(", ")}`;
             }
           }
         } catch {}
       } else if (outputsFile && agent.outputs && Object.keys(agent.outputs).length > 0) {
-        metrics.status = "failure";
+        if (metrics.status === "success") metrics.status = "failure";
         metrics.error = `${metrics.error ? metrics.error + "; " : ""}emit bin was not invoked - declared outputs missing: ${Object.keys(agent.outputs).join(", ")}`;
       }
 
