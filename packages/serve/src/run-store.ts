@@ -1,8 +1,8 @@
 import { mkdir, readdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { RunState } from "./handler.js";
+import type { HandlerLogger, RunState } from "./handler.js";
 
-type WarnLogger = { warn: (...args: unknown[]) => void };
+type WarnLogger = Pick<HandlerLogger, "warn">;
 
 export type RunStore = {
   create: (runId: string) => Promise<Extract<RunState, { status: "pending" }>>;

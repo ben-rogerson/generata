@@ -104,3 +104,26 @@ test("get() returns undefined for unknown runId", async () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("complete() throws for unknown runId", async () => {
+  const dir = tmp();
+  try {
+    const store = await createRunStore({ dir });
+    await assert.rejects(() => store.complete("ghost", {}), /unknown runId/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("fail() throws for unknown runId", async () => {
+  const dir = tmp();
+  try {
+    const store = await createRunStore({ dir });
+    await assert.rejects(
+      () => store.fail("ghost", { code: "x", message: "y" }),
+      /unknown runId/,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
