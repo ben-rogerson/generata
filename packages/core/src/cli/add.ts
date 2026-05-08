@@ -76,6 +76,7 @@ export async function runAdd(opts: AddOpts): Promise<void> {
     generateSlashCommands({
       workflows: registry.listWorkflows(),
       destDir: join(projectRoot, ".claude", "commands"),
+      projectRoot,
     });
 
     if (manifest.postInstall) {
