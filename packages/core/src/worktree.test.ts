@@ -288,7 +288,29 @@ describe("setupWorktree", () => {
     await result.cleanup();
     const teardown = backend.calls.slice(callsBeforeCleanup).map((c) => c.cmd.join(" "));
     equal(teardown[0], `git worktree remove --force ${result.worktreePath}`);
-    equal(teardown[1], "git branch -D generata/wt-abc");
+    equal(teardown[1], "git rev-parse --verify --quiet refs/heads/generata/wt-abc");
+    equal(teardown[2], "git branch -D generata/wt-abc");
+  });
+
+  it("cleanup skips branch -D when the branch is gone (e.g. renamed by shipper)", async () => {
+    const backend = makeStubBackend();
+    backend.failOn(["git", "rev-parse", "--verify", "--quiet", "refs/heads/generata/wt-abc"], {});
+    const result = await setupWorktree({
+      workflow: makeWorkflow(),
+      config: { worktreeSetup: ["pnpm", "install"], sharedPaths: [], cleanup: false },
+      mainProjectRoot: "/repo",
+      workDir: "/repo",
+      runId: "abc",
+      backend,
+      logsDir: "logs",
+      metricsDir: "metrics",
+    });
+    const callsBeforeCleanup = backend.calls.length;
+    await result.cleanup();
+    const teardown = backend.calls.slice(callsBeforeCleanup).map((c) => c.cmd.join(" "));
+    equal(teardown.length, 2);
+    equal(teardown[0], `git worktree remove --force ${result.worktreePath}`);
+    equal(teardown[1], "git rev-parse --verify --quiet refs/heads/generata/wt-abc");
   });
 
   it("cleanup is idempotent - second call does nothing", async () => {
@@ -308,7 +330,7 @@ describe("setupWorktree", () => {
     const callsAfterFirst = backend.calls.length - callsBeforeCleanup;
     await result.cleanup();
     const callsAfterSecond = backend.calls.length - callsBeforeCleanup;
-    equal(callsAfterFirst, 2); // worktree remove + branch -D
-    equal(callsAfterSecond, 2); // second cleanup is a no-op
+    equal(callsAfterFirst, 3); // worktree remove + rev-parse + branch -D
+    equal(callsAfterSecond, 3); // second cleanup is a no-op
   });
 });
