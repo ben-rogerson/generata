@@ -23,7 +23,7 @@ Definitions:
   whose absence stands out.
 
 For each idea, capture:
-- title: short, sentence case, ≤ 8 words
+- title: short, sentence case, <= 8 words
 - kind: "big-swing" or "adjacent-extension"
 - problem: 1-2 sentences naming the user/persona this unblocks and what they
   cannot do today
@@ -45,6 +45,6 @@ existing ideas".
 `,
   outputs: {
     dreams_json:
-      'JSON-encoded array of dream features. Each entry: { "title": "<≤8 words, sentence case>", "kind": "big-swing" | "adjacent-extension", "problem": "<1-2 sentences>", "openQuestions": ["<question 1>", "<question 2>"], "notes": "<optional, 1-3 short bullets joined with newlines>" }. Aim for ~10 entries; lean closer to 8 than 12 if quality drops.',
+      'JSON-encoded array of dream features. Each entry: { "title": "<=8 words, sentence case", "kind": "big-swing" | "adjacent-extension", "problem": "<1-2 sentences>", "openQuestions": ["<question 1>", "<question 2>"], "notes": "<optional, 1-3 short bullets joined with newlines>" }. The notes key is optional - omit it entirely if absent (do not emit `null` or `""`). Aim for ~10 entries; lean closer to 8 than 12 if quality drops.',
   },
 }));
