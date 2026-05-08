@@ -110,11 +110,6 @@ async function main() {
     const registry = await loadSingleAgentRegistry(target, registryOpts);
     const [agent] = registry.list();
 
-    if (flags.plan_name && !flags.plan_filepath) {
-      const plansDir = (flags.plans_dir as string) ?? "plans";
-      flags.plan_filepath = `${plansDir}/${flags.plan_name}.md`;
-    }
-
     if ("prompt" in agent) {
       const errors = validateAgentArgs(agent, flags, {
         checkProjectExists: true,
