@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadRegistry, resolveAgentName } from "./registry.js";
+import { resolveStepShape } from "./step-shape.js";
 
 const DEFINE_PATH = fileURLToPath(new URL("./define.ts", import.meta.url));
 
@@ -184,7 +185,7 @@ describe("loadRegistry workflows", () => {
     const registry = await loadRegistry({ projectRoot: root, agentsDir: "agents" });
     const wf = registry.getWorkflow("standup/flow");
     const step = wf.steps[0];
-    const stepAgent = ("agent" in step ? step.agent : undefined) as { name?: string } | undefined;
+    const stepAgent = resolveStepShape(step).agent as { name?: string };
     const directAgent = registry.get("echo");
     strictEqual(stepAgent?.name, "echo");
     strictEqual(stepAgent === directAgent, true);
