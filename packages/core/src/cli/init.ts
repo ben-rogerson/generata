@@ -292,7 +292,7 @@ function writeGenerataConfig(dest: string): boolean {
     `  modelTiers: {\n` +
     `    heavy: "claude-opus-4-7",\n` +
     `    standard: "claude-sonnet-4-6",\n` +
-    `    light: "claude-haiku-4-5",\n` +
+    `    light: "claude-haiku-4-5-20251001",\n` +
     `  },\n` +
     `  logPrompts: true,\n` +
     `  verboseOutput: true,\n` +

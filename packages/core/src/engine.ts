@@ -387,7 +387,7 @@ export async function executeWorkflow(
                 // metrics). Surface that as a thrown error so the retry/fail
                 // path runs instead of advancing with undefined outputs that
                 // crash the next step.
-                if (r.metrics.status === "failure") {
+                if (r.metrics.status === "failure" || r.metrics.status === "timeout") {
                   throw new Error(
                     r.metrics.error || "agent reported failure with no error message",
                   );
@@ -447,7 +447,7 @@ export async function executeWorkflow(
 
           let result = await runAgentStep(step, stepAgent, resolvedArgs);
 
-          if (result.metrics.status === "failure") {
+          if (result.metrics.status === "failure" || result.metrics.status === "timeout") {
             stepOutputs[step.id] = result.output;
             stepResults.push({
               stepId: step.id,
