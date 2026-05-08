@@ -10,6 +10,7 @@ import { promptForEnv, writeDotEnv, PromptItem } from "./env-prompt.js";
 import { copyTree, filesEqual } from "./copy.js";
 import { resolveStepShape } from "../step-shape.js";
 import { generateSlashCommands } from "./slash-commands.js";
+import { detectPm } from "./pm.js";
 import { withDefaults } from "./template-utils.js";
 import { loadTs } from "../ts-loader.js";
 import type { AgentDef, WorkflowDef } from "../define.js";
@@ -146,6 +147,7 @@ export async function runInit(opts: InitOpts): Promise<void> {
     generateSlashCommands({
       workflows,
       destDir: join(destAbs, ".claude", "commands"),
+      projectRoot: destAbs,
     });
 
     if (failureCount > 0) {
@@ -292,7 +294,7 @@ function writeGenerataConfig(dest: string): boolean {
     `  modelTiers: {\n` +
     `    heavy: "claude-opus-4-7",\n` +
     `    standard: "claude-sonnet-4-6",\n` +
-    `    light: "claude-haiku-4-5",\n` +
+    `    light: "claude-haiku-4-5-20251001",\n` +
     `  },\n` +
     `  logPrompts: true,\n` +
     `  verboseOutput: true,\n` +
@@ -349,17 +351,4 @@ function runPmInstall(dest: string): void {
   } catch (err) {
     throw new Error(`${pm} install failed: ${(err as Error).message}`);
   }
-}
-
-function detectPm(dest: string): string {
-  if (existsSync(join(dest, "pnpm-lock.yaml"))) return "pnpm";
-  if (existsSync(join(dest, "yarn.lock"))) return "yarn";
-  if (existsSync(join(dest, "package-lock.json"))) return "npm";
-  // Fresh init: match whatever PM invoked us (npx -> npm, pnpm dlx -> pnpm, etc.)
-  const ua = process.env.npm_config_user_agent ?? "";
-  if (ua.startsWith("pnpm")) return "pnpm";
-  if (ua.startsWith("yarn")) return "yarn";
-  if (ua.startsWith("bun")) return "bun";
-  if (ua.startsWith("npm")) return "npm";
-  return "pnpm";
 }
