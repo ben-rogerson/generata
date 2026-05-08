@@ -1,6 +1,6 @@
 import { strictEqual, ok, match, throws } from "node:assert/strict";
 import { describe, it } from "node:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { WorkflowDef } from "@generata/core";
@@ -14,11 +14,18 @@ const workflow: WorkflowDef = {
   steps: [],
 } as unknown as WorkflowDef;
 
+function mkPnpmRoot(): string {
+  const root = mkdtempSync(join(tmpdir(), "skills-root-"));
+  writeFileSync(join(root, "pnpm-lock.yaml"), "");
+  return root;
+}
+
 describe("generateSlashCommands", () => {
   it("writes one .md per workflow with frontmatter and bash invocation", () => {
     const dest = mkdtempSync(join(tmpdir(), "skills-"));
+    const projectRoot = mkPnpmRoot();
     try {
-      generateSlashCommands({ workflows: [workflow], destDir: dest });
+      generateSlashCommands({ workflows: [workflow], destDir: dest, projectRoot });
       const out = readFileSync(join(dest, "execute-plan.md"), "utf8");
       match(out, /^---/m);
       match(out, /description: Execute a plan with post-validation/);
@@ -27,30 +34,35 @@ describe("generateSlashCommands", () => {
       match(out, /Variables: plans_dir, output_dir/);
     } finally {
       rmSync(dest, { recursive: true, force: true });
+      rmSync(projectRoot, { recursive: true, force: true });
     }
   });
 
   it("overwrites existing files (idempotent)", () => {
     const dest = mkdtempSync(join(tmpdir(), "skills-"));
+    const projectRoot = mkPnpmRoot();
     try {
-      generateSlashCommands({ workflows: [workflow], destDir: dest });
+      generateSlashCommands({ workflows: [workflow], destDir: dest, projectRoot });
       const first = readFileSync(join(dest, "execute-plan.md"), "utf8");
-      generateSlashCommands({ workflows: [workflow], destDir: dest });
+      generateSlashCommands({ workflows: [workflow], destDir: dest, projectRoot });
       const second = readFileSync(join(dest, "execute-plan.md"), "utf8");
       strictEqual(first, second);
     } finally {
       rmSync(dest, { recursive: true, force: true });
+      rmSync(projectRoot, { recursive: true, force: true });
     }
   });
 
   it("creates the dest dir if missing", () => {
     const root = mkdtempSync(join(tmpdir(), "skills-"));
     const dest = join(root, "nested", "commands");
+    const projectRoot = mkPnpmRoot();
     try {
-      generateSlashCommands({ workflows: [workflow], destDir: dest });
+      generateSlashCommands({ workflows: [workflow], destDir: dest, projectRoot });
       ok(readFileSync(join(dest, "execute-plan.md"), "utf8"));
     } finally {
       rmSync(root, { recursive: true, force: true });
+      rmSync(projectRoot, { recursive: true, force: true });
     }
   });
 
@@ -60,12 +72,14 @@ describe("generateSlashCommands", () => {
       name: "workflows/build-project",
     } as unknown as WorkflowDef;
     const dest = mkdtempSync(join(tmpdir(), "skills-"));
+    const projectRoot = mkPnpmRoot();
     try {
-      generateSlashCommands({ workflows: [nested], destDir: dest });
+      generateSlashCommands({ workflows: [nested], destDir: dest, projectRoot });
       ok(readFileSync(join(dest, "build-project.md"), "utf8"));
       strictEqual(existsSync(join(dest, "workflows")), false);
     } finally {
       rmSync(dest, { recursive: true, force: true });
+      rmSync(projectRoot, { recursive: true, force: true });
     }
   });
 
@@ -79,13 +93,43 @@ describe("generateSlashCommands", () => {
       name: "agents/workflows/build-project",
     } as unknown as WorkflowDef;
     const dest = mkdtempSync(join(tmpdir(), "skills-"));
+    const projectRoot = mkPnpmRoot();
     try {
       throws(
-        () => generateSlashCommands({ workflows: [a, b], destDir: dest }),
+        () => generateSlashCommands({ workflows: [a, b], destDir: dest, projectRoot }),
         /agents\/build-project.*agents\/workflows\/build-project|agents\/workflows\/build-project.*agents\/build-project/,
       );
     } finally {
       rmSync(dest, { recursive: true, force: true });
+      rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("uses npm when projectRoot has package-lock.json", () => {
+    const dest = mkdtempSync(join(tmpdir(), "skills-"));
+    const projectRoot = mkdtempSync(join(tmpdir(), "skills-root-"));
+    writeFileSync(join(projectRoot, "package-lock.json"), "{}");
+    try {
+      generateSlashCommands({ workflows: [workflow], destDir: dest, projectRoot });
+      const out = readFileSync(join(dest, "execute-plan.md"), "utf8");
+      match(out, /npm generata execute-plan \$ARGUMENTS/);
+    } finally {
+      rmSync(dest, { recursive: true, force: true });
+      rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("uses yarn when projectRoot has yarn.lock", () => {
+    const dest = mkdtempSync(join(tmpdir(), "skills-"));
+    const projectRoot = mkdtempSync(join(tmpdir(), "skills-root-"));
+    writeFileSync(join(projectRoot, "yarn.lock"), "");
+    try {
+      generateSlashCommands({ workflows: [workflow], destDir: dest, projectRoot });
+      const out = readFileSync(join(dest, "execute-plan.md"), "utf8");
+      match(out, /yarn generata execute-plan \$ARGUMENTS/);
+    } finally {
+      rmSync(dest, { recursive: true, force: true });
+      rmSync(projectRoot, { recursive: true, force: true });
     }
   });
 });
