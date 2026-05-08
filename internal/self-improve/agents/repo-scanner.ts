@@ -7,8 +7,7 @@ export default defineAgent({
   modelTier: "heavy",
   permissions: "read-only",
   tools: [],
-  timeoutSeconds: 600,
-  promptContext: [{ filepath: "../../README.md" }],
+  timeoutSeconds: 1200,
   outputs: {
     findings_json:
       'JSON-encoded array of findings, e.g. \'[{"lens":"...","title":"...","description":"...","evidence_paths":["path:line"],"suggested_change_kind":"refactor"}]\'. Each finding object has: lens (one of: quality, dx-api, docs, consistency, feature), title (max 60 chars, kebab-case-friendly), description (1-2 sentences), evidence_paths (array of 1-3 strings; each "path", "path:line", or "path:line-line"), suggested_change_kind (one of: refactor, doc-update, bug-fix, new-feature, rename, test-add).',
@@ -38,7 +37,7 @@ Lenses, in priority order. The first two are higher priority - lean toward surfa
 5. **feature** - things templates need but core does not expose; gaps against README promises
 
 Procedure:
-1. README.md is in your context above. Consult it for the public contract before scanning.
+1. Read README.md first for the public contract before scanning.
 2. Use \`glob\` and \`read\` to walk in-scope files. Be thorough but not exhaustive - 15-25 high-quality findings is better than 60 weak ones.
 3. For each candidate improvement, capture: lens, title, description, evidence_paths, suggested_change_kind (see the findings_json output description for shape and allowed values).
 

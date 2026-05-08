@@ -7,7 +7,7 @@ export default defineAgent<{ findings_json: string }>(({ findings_json }) => ({
   modelTier: "standard",
   permissions: "read-only",
   tools: [],
-  timeoutSeconds: 300,
+  timeoutSeconds: 600,
   promptContext: [{ filepath: "IMPROVEMENTS.md", optional: true }],
   outputs: {
     ranked_json:
