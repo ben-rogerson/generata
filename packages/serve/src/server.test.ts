@@ -37,16 +37,18 @@ async function withServer(
   }
 }
 
-test("returns 401 when token is missing or wrong", async () => {
+test("returns 401 with WWW-Authenticate when token is missing or wrong", async () => {
   const routes = new Map<string, Handler>([["x", async () => ({ ok: true })]]);
   await withServer(routes, async (base) => {
     const r1 = await fetch(`${base}/x`, { method: "POST" });
     assert.equal(r1.status, 401);
+    assert.equal(r1.headers.get("WWW-Authenticate"), 'Bearer realm="generata"');
     const r2 = await fetch(`${base}/x`, {
       method: "POST",
       headers: { Authorization: "Bearer wrong" },
     });
     assert.equal(r2.status, 401);
+    assert.equal(r2.headers.get("WWW-Authenticate"), 'Bearer realm="generata"');
   });
 });
 
@@ -82,7 +84,7 @@ test("returns 202 + Location for runAsync handlers", async () => {
   const routes = new Map<string, Handler>([
     [
       "kick",
-      async () => runAsync({ kind: "workflow", name: "fake" } as never, { inputs: {} } as never),
+      async () => runAsync({ kind: "workflow", name: "fake" } as never, {} as never, {} as never),
     ],
   ]);
   await withServer(routes, async (base) => {
@@ -139,7 +141,7 @@ test("GET /runs/:id returns the run state", async () => {
   const routes = new Map<string, Handler>([
     [
       "kick",
-      async () => runAsync({ kind: "workflow", name: "fake" } as never, { inputs: {} } as never),
+      async () => runAsync({ kind: "workflow", name: "fake" } as never, {} as never, {} as never),
     ],
   ]);
   await withServer(routes, async (base) => {
@@ -166,6 +168,18 @@ test("GET /healthz works without auth", async () => {
     assert.equal(r.status, 200);
     const body = (await r.json()) as { ok: boolean };
     assert.equal(body.ok, true);
+  });
+});
+
+test("GET /runs/:id returns 404 for unknown runId", async () => {
+  const routes = new Map<string, Handler>();
+  await withServer(routes, async (base) => {
+    const r = await fetch(`${base}/runs/00000000-0000-0000-0000-000000000000`, {
+      headers: { Authorization: "Bearer secret" },
+    });
+    assert.equal(r.status, 404);
+    const body = (await r.json()) as { error: string };
+    assert.equal(body.error, "not-found");
   });
 });
 

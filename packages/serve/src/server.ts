@@ -133,7 +133,7 @@ export function createServer({
 
       const bg = (async () => {
         try {
-          const result = await runWorkflow(resolved.workflow, {}, resolved.options);
+          const result = await runWorkflow(resolved.workflow, resolved.args, resolved.options);
           await runStore.complete(runId, result);
         } catch (err) {
           try {

@@ -5,9 +5,14 @@ const RUN_ASYNC_BRAND = Symbol.for("@generata/serve/run-async");
 
 type BrandedSentinel = RunAsyncSentinel & { [RUN_ASYNC_BRAND]: true };
 
-export function runAsync(workflow: WorkflowDef, options: RunWorkflowOptions): RunAsyncSentinel {
+export function runAsync(
+  workflow: WorkflowDef,
+  args: Record<string, string>,
+  options?: RunWorkflowOptions,
+): RunAsyncSentinel {
   const sentinel = {
     workflow,
+    args,
     options,
     [RUN_ASYNC_BRAND]: true,
   } as unknown as BrandedSentinel;

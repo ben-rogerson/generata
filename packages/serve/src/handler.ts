@@ -5,7 +5,8 @@ declare const _runAsyncBrand: unique symbol;
 export type RunAsyncSentinel = {
   readonly [_runAsyncBrand]: true;
   readonly workflow: WorkflowDef;
-  readonly options: RunWorkflowOptions;
+  readonly args: Record<string, string>;
+  readonly options?: RunWorkflowOptions;
 };
 
 export type HandlerLogger = {
@@ -18,7 +19,7 @@ export type HandlerContext = {
   body: unknown;
   runId: string;
   runWorkflow: typeof runWorkflowFn;
-  runAsync: (workflow: WorkflowDef, options: RunWorkflowOptions) => RunAsyncSentinel;
+  runAsync: (workflow: WorkflowDef, args: Record<string, string>, options?: RunWorkflowOptions) => RunAsyncSentinel;
   eventSink: EventSink;
   logger: HandlerLogger;
   signal: AbortSignal;
