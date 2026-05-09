@@ -350,6 +350,10 @@ async function main() {
         console.log(`  Avg duration:  ${fmt.dim(`${Math.round(avgDuration)}ms`)}`);
         console.log(`  Failures:      ${failures > 0 ? fmt.fail(String(failures)) : fmt.dim("0")}`);
       }
+    } else {
+      console.error(fmt.fail(`Unknown metrics subcommand: '${target}'`));
+      console.error(fmt.dim("Usage: generata metrics [today|week|expensive|agent <name>]"));
+      process.exit(1);
     }
     return;
   }
