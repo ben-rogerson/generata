@@ -6,6 +6,9 @@ import { fileURLToPath } from "url";
 import { LLMAgentDef, GlobalConfig, AgentMetrics, AgentStreamEvent, Tool } from "./schema.js";
 
 const TOOL_NAME_MAP: Partial<Record<Tool, string>> = {
+  read: "Read",
+  glob: "Glob",
+  grep: "Grep",
   bash: "Bash",
   write: "Write",
   edit: "Edit",
@@ -238,8 +241,12 @@ export function buildAllowedTools(
   if (bins.paramsBin) binPermissions.push(`Bash(${bins.paramsBin}:*)`);
   if (bins.outputsBin) {
     if (agent.permissions === "read-only" && bins.outputsFile) {
-      // Scoped Write - the LLM can only write the EMIT_FILE path, not arbitrary files.
-      binPermissions.push(`Write(${bins.outputsFile})`);
+      // Scoped Edit - the LLM can only write the EMIT_FILE path, not arbitrary
+      // files. `Edit(...)` covers all built-in file-edit tools including Write
+      // (per Claude Code docs), and absolute paths require a leading `//` -
+      // a single `/` is interpreted as project-root-relative and silently
+      // fails to match an absolute tmpdir path.
+      binPermissions.push(`Edit(/${bins.outputsFile})`);
     } else {
       binPermissions.push(`Bash(${bins.outputsBin}:*)`);
     }
@@ -259,7 +266,7 @@ export function buildAllowedTools(
   }
   // permissions === "full"
   if (agent.tools.length === 0 && binPermissions.length === 0) return null;
-  const baseTools = ["Read", "Glob", "Grep"];
+  const baseTools = agent.filesystemAccess === false ? [] : ["Read", "Glob", "Grep"];
   return [...baseTools, ...extraTools, ...binPermissions].join(",");
 }
 
@@ -376,7 +383,9 @@ export async function runAgent(options: RunOptions): Promise<RunResult> {
       env: spawnEnv,
       cwd: options.cwd,
       signal: options.signal,
+      detached: true,
     });
+    proc.unref();
 
     // Two-stage timeout: SIGTERM at timeoutSeconds, SIGKILL 10s later if it
     // hasn't exited. Node's built-in spawn timeout only sends SIGTERM, which
@@ -388,14 +397,14 @@ export async function runAgent(options: RunOptions): Promise<RunResult> {
     const sigtermTimer = setTimeout(() => {
       if (!exited) {
         killReason = "timeout-sigterm";
-        proc.kill("SIGTERM");
+        if (proc.pid) process.kill(-proc.pid, "SIGTERM");
       }
     }, agent.timeoutSeconds * 1000);
     const sigkillTimer = setTimeout(
       () => {
         if (!exited) {
           if (!killReason) killReason = "timeout-sigkill";
-          proc.kill("SIGKILL");
+          if (proc.pid) process.kill(-proc.pid, "SIGKILL");
         }
       },
       agent.timeoutSeconds * 1000 + 10_000,
