@@ -10,6 +10,7 @@ export const RESERVED_COMMANDS: ReadonlySet<string> = new Set([
   "run",
   "validate",
   "metrics",
+  "worktree",
 ]);
 
 export function resolveCommand(positional: string[]): {

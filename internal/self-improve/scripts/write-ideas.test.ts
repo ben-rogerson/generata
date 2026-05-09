@@ -7,7 +7,10 @@ import { slugify, renderIdeaMd, writeIdeas, formatSummary, type Dream } from "./
 
 describe("slugify", () => {
   it("lowercases and joins runs of non-alphanumerics with single dashes", () => {
-    equal(slugify("Add an \"all options\" section to the README"), "add-an-all-options-section-to-the-readme");
+    equal(
+      slugify('Add an "all options" section to the README'),
+      "add-an-all-options-section-to-the-readme",
+    );
   });
   it("handles already-clean strings", () => {
     equal(slugify("plist scheduling for workflows"), "plist-scheduling-for-workflows");

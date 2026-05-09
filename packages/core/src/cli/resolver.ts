@@ -65,8 +65,7 @@ export async function resolveTemplate(spec: string): Promise<ResolvedTemplate> {
     }
     const { url, subdir, ref } =
       typeof entry === "string" ? { url: entry, subdir: undefined, ref: undefined } : entry;
-    const cloneUrl = ref ? `${url}@${ref}` : url;
-    const cloned = await cloneToTemp(cloneUrl);
+    const cloned = await cloneToTemp(url, ref);
     if (!subdir) {
       assertHasManifest(cloned.dir, classified.alias, cloned.cleanup);
       return cloned;
@@ -101,20 +100,18 @@ function assertHasManifest(
   throw new Error(`Template at ${label} has no generata.template.json`);
 }
 
-async function cloneToTemp(url: string): Promise<ResolvedTemplate> {
+async function cloneToTemp(url: string, ref?: string): Promise<ResolvedTemplate> {
   const dir = mkdtempSync(join(tmpdir(), "generata-tmpl-"));
-  const refMatch = url.match(/@([\w.-]+)$/);
-  const ref = refMatch ? refMatch[1] : null;
-  const cleanUrl = ref ? url.replace(/@[\w.-]+$/, "") : url;
   const args = ref
-    ? ["clone", "--depth", "1", "--branch", ref, cleanUrl, dir]
-    : ["clone", "--depth", "1", cleanUrl, dir];
+    ? ["clone", "--depth", "1", "--branch", ref, url, dir]
+    : ["clone", "--depth", "1", url, dir];
   try {
     await exec("git", args, { timeout: 60_000 });
   } catch (err) {
     await rm(dir, { recursive: true, force: true });
+    const refSuffix = ref ? `@${ref}` : "";
     throw new Error(
-      `git clone failed for ${url}: ${(err as Error).message}. Check the URL, your network, and your auth.`,
+      `git clone failed for ${url}${refSuffix}: ${(err as Error).message}. Check the URL, your network, and your auth.`,
     );
   }
   return {

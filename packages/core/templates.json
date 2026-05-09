@@ -1,14 +1,17 @@
 {
   "@generata/starter": {
     "url": "https://github.com/ben-rogerson/generata.git",
-    "subdir": "packages/templates/starter"
+    "subdir": "packages/templates/starter",
+    "ref": "@generata/core@1.2.0"
   },
   "@generata/standup": {
     "url": "https://github.com/ben-rogerson/generata.git",
-    "subdir": "packages/templates/standup"
+    "subdir": "packages/templates/standup",
+    "ref": "@generata/core@1.2.0"
   },
   "@generata/coding": {
     "url": "https://github.com/ben-rogerson/generata.git",
-    "subdir": "packages/templates/coding"
+    "subdir": "packages/templates/coding",
+    "ref": "@generata/core@1.2.0"
   }
 }
