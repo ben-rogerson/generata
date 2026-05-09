@@ -101,7 +101,7 @@ export default defineAgent<{ slug: string }>(({ slug }) => ({
 
 `slug` arrives from `coiner`'s `outputs` and is fully typed by the chain builder.
 
-The filename becomes the agent or workflow name. Every `.ts` under `agents/` is scanned recursively and classified by its default export - `defineAgent` makes it an agent, `defineWorkflow` makes it a workflow. Putting workflows under `agents/workflows/` is a convention (used by `standup` and `coding`) but not a requirement; the `starter` template keeps its workflow flat in `agents/`.
+The filename becomes the agent or workflow name. Every `.ts` under `agents/` is scanned recursively and classified by its default export - `defineAgent` makes it an agent, `defineWorkflow` makes it a workflow. Workflows belong in `agents/workflows/` by convention (used by `standup` and `coding`); the `starter` template uses flat `agents/` placement, which works equally well for projects with a single workflow.
 
 ## The manifest
 
@@ -131,7 +131,7 @@ Full schema (all fields after `name`/`description` are optional):
 | `engineVersion` | Semver range pinned in the generated `package.json` (`@generata/core` dep)                 |
 | `requiredBins`  | CLI tools that must be on PATH. `optional: true` to warn instead of fail                   |
 | `requiredEnv`   | Env vars to prompt for at install. `{ description, example?, secret?, optional? }` per key |
-| `installPaths`  | Override the default copy map. Keys are template paths, values are project-relative dests  |
+| `installPaths`  | Override the default copy map (defaults: `agents/` -> `agents/`, `skills/` -> `.claude/skills/`, `files/` -> `./`, `README.md` -> `README-<alias>.md`). User entries are merged on top of the defaults, not a full replacement - omitting a key keeps its default. |
 | `postInstall`   | Multi-line string printed after install completes                                          |
 
 The install spec users actually pass to `generata init` is the catalog key from [`templates.json`](../core/templates.json), a git URL, a `you/repo` short form, or a local path - not the manifest's `name`.

@@ -168,6 +168,12 @@ type BuiltinArgs = { work_dir: string; today: string; time: string };
 // called inside a step function with their inputs — passing one bare would let
 // the engine consume a sentinel-laced prompt.
 type StepValue<TParams> =
+  /**
+   * @deprecated Passing a bare `AgentDef` as a step value is half-supported and
+   * will be removed in a future major. Use the stepFn form so prior-step
+   * outputs and typed inputs thread through correctly:
+   *   .step("id", ({ ... }) => myAgent({ ... }))
+   */
   | (AgentDef & { readonly [_factoryBrand]?: never })
   | ((params: TParams) => StepInvocation<Record<string, string>>);
 
@@ -192,6 +198,13 @@ type StepOptions<TParams = Record<string, string>> = {
   // outputs} bag the step's main fn sees, so the user can wrap a factory and
   // map prior outputs to the factory's typed inputs symmetrically with .step().
   onReject?:
+    /**
+     * @deprecated Passing a bare `LLMAgentDef` as an `onReject` handler is
+     * half-supported and will be removed in a future major. Use the stepFn
+     * form so the rejection bag (builtins + vars + prior outputs) threads
+     * through correctly:
+     *   onReject: ({ ... }) => myAgent({ ... })
+     */
     | (LLMAgentDef & { readonly [_factoryBrand]?: never })
     | ((params: TParams) => StepInvocation);
 };
@@ -202,12 +215,11 @@ export function worktree(input: WorktreeConfigInput): WorktreeConfig {
   return WorktreeConfigSchema.parse(input) as WorktreeConfig;
 }
 
-// Internal step shape used by the engine. Either `agent` (bare) or `stepFn`
-// (function form) is set; the engine dispatches at runtime.
+// Internal step shape used by the engine. Bare-agent steps are wrapped in a
+// stepFn closure inside `.step()` so every step is uniform at the engine layer.
 type InternalStep = {
   id: string;
-  agent?: AgentDef;
-  stepFn?: (params: Record<string, string>) => StepInvocation;
+  stepFn: (params: Record<string, string>) => StepInvocation;
   dependsOn?: string[];
   maxRetries?: number;
   // Stored loose because either an object agent or a callable factory may be
@@ -263,24 +275,34 @@ export function defineWorkflow<
       if (steps.some((s) => s.id === id)) {
         throw new Error(`defineWorkflow: duplicate step id '${id}'`);
       }
-      const internal: InternalStep = { id, ...options };
+      let stepFn: InternalStep["stepFn"];
       if (typeof value === "function") {
         // Factory-form agents are callable AND carry kind: "agent". Passing one
         // bare would skip the input mapping and run with a sentinel template.
         // Type-level: the brand on AgentCallable rejects this slot. Runtime
         // guard catches anyone bypassing types (e.g. via `as any`).
         if ((value as { kind?: unknown }).kind === "agent") {
-          const fnName = (value as { name?: string }).name || "<factory>";
           throw new Error(
-            `Step '${id}': factory-form agent '${fnName}' cannot be passed bare. ` +
-              `Call it inside a step fn: .step("${id}", ({...}) => ${fnName}({...inputs}))`,
+            `Step '${id}': received a factory-form agent passed bare. ` +
+              `Call it inside a step fn: .step("${id}", ({...}) => agentName({...inputs}))`,
           );
         }
-        internal.stepFn = value as InternalStep["stepFn"];
+        stepFn = value as InternalStep["stepFn"];
       } else {
-        internal.agent = value as AgentDef;
+        // Bare-agent step slot is deprecated: prefer the stepFn form so typed
+        // inputs and prior-step outputs thread through correctly.
+        const agent = value as AgentDef;
+        const agentName = agent.name || "<agent>";
+        console.warn(
+          `[generata] Step '${id}': passing a bare AgentDef ('${agentName}') is deprecated and ` +
+            `will be removed in a future major. Use the stepFn form: ` +
+            `.step("${id}", ({...}) => ${agentName}({...inputs}))`,
+        );
+        // Wrap in a stepFn closure so the engine sees a uniform shape for
+        // every step. Args default to {} (the old object-form behaviour).
+        stepFn = () => ({ kind: "step-invocation", agent, args: {} });
       }
-      steps.push(internal);
+      steps.push({ id, stepFn, ...options });
       return builder;
     },
     build(): WorkflowDef {

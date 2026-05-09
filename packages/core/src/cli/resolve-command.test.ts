@@ -17,6 +17,10 @@ test("resolveCommand: reserved subcommand passes through", () => {
     command: "init",
     rest: ["@generata/starter"],
   });
+  deepEqual(resolveCommand(["worktree", "prune"]), {
+    command: "worktree",
+    rest: ["prune"],
+  });
 });
 
 test("resolveCommand: empty positional returns undefined command", () => {

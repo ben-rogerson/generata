@@ -10,7 +10,7 @@ export default defineAgent<{ slug: string; diff_filepath: string }>(
       modelTier: "light",
       permissions: "full",
       tools: ["write", "edit", "bash"],
-      timeoutSeconds: 300,
+      timeoutSeconds: 600,
       prompt: `
 You finalise an improve run.
 
@@ -34,10 +34,11 @@ Do not run \`git commit\`, \`git push\`, or \`gh\` - the next step (\`ship\`) do
       outputs: {
         slug: "Kebab-case slug of the shipped item (echo the input slug verbatim)",
         bump: "One of: patch, minor, major, none",
-        commit_subject: "Conventional-commit subject line: <type>: <subject> (single line)",
+        commit_subject:
+          "Conventional-commit subject line: <type>: <subject> (single line)",
         commit_body:
           "Commit message body paragraph (single line; use \\\\n for paragraph breaks if needed)",
       },
     };
-  },
+  }
 );
