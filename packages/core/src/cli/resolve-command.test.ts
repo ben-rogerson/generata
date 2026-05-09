@@ -24,6 +24,10 @@ test("resolveCommand: reserved subcommand passes through", () => {
     command: "worktree",
     rest: ["prune"],
   });
+  deepEqual(resolveCommand(["commands", "sync"]), {
+    command: "commands",
+    rest: ["sync"],
+  });
 });
 
 test("resolveCommand: empty positional returns undefined command", () => {
