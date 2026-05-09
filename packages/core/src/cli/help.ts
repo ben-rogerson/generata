@@ -74,7 +74,10 @@ async function helpAgents(): Promise<void> {
 async function helpWorkflows(): Promise<void> {
   const projectRoot = findProjectRoot();
   const config = await loadConfig(projectRoot);
-  const registry = await loadRegistry({ projectRoot, agentsDir: config.agentsDir });
+  const registry = await loadRegistry({
+    projectRoot,
+    agentsDir: config.agentsDir,
+  });
   const wfs = registry.listWorkflows();
   if (wfs.length === 0) {
     console.error(fmt.fail(`No workflows found under ${config.agentsDir}/`));

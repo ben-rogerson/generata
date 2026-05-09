@@ -61,8 +61,12 @@ describe("makeStubBackend", () => {
 
   it("can be primed to fail a specific command", async () => {
     const b = makeStubBackend();
-    b.failOn(["pnpm", "install", "--frozen-lockfile"], { stderr: "lockfile mismatch" });
-    const r = await b.exec(["pnpm", "install", "--frozen-lockfile"], { cwd: "/x" });
+    b.failOn(["pnpm", "install", "--frozen-lockfile"], {
+      stderr: "lockfile mismatch",
+    });
+    const r = await b.exec(["pnpm", "install", "--frozen-lockfile"], {
+      cwd: "/x",
+    });
     equal(r.exitCode, 1);
     equal(r.stderr, "lockfile mismatch");
   });
@@ -154,7 +158,9 @@ describe("setupWorktree", () => {
 
   it("aborts and runs cleanup when 'origin' remote is missing", async () => {
     const backend = makeStubBackend();
-    backend.failOn(["git", "fetch", "origin", "main"], { stderr: "no such remote 'origin'" });
+    backend.failOn(["git", "fetch", "origin", "main"], {
+      stderr: "no such remote 'origin'",
+    });
 
     let err: Error | null = null;
     try {
@@ -178,7 +184,9 @@ describe("setupWorktree", () => {
 
   it("aborts when worktreeSetup install fails, and tears down the worktree", async () => {
     const backend = makeStubBackend();
-    backend.failOn(["pnpm", "install", "--frozen-lockfile"], { stderr: "boom" });
+    backend.failOn(["pnpm", "install", "--frozen-lockfile"], {
+      stderr: "boom",
+    });
 
     let err: Error | null = null;
     try {
@@ -223,7 +231,11 @@ describe("setupWorktree", () => {
     // detectPackageManager unit test plus the integration test in Task 11.
     await setupWorktree({
       workflow: makeWorkflow(),
-      config: { worktreeSetup: ["pnpm", "install"], sharedPaths: [], cleanup: false },
+      config: {
+        worktreeSetup: ["pnpm", "install"],
+        sharedPaths: [],
+        cleanup: false,
+      },
       mainProjectRoot: "/repo",
       workDir: "/repo",
       runId: "x",
@@ -238,7 +250,10 @@ describe("setupWorktree", () => {
     const backend = makeStubBackend();
     const result = await setupWorktree({
       workflow: makeWorkflow(),
-      config: { sharedPaths: ["IMPROVEMENTS.md", "subdir/state/"], cleanup: false },
+      config: {
+        sharedPaths: ["IMPROVEMENTS.md", "subdir/state/"],
+        cleanup: false,
+      },
       mainProjectRoot: "/repo",
       workDir: "/repo/internal/self-improve",
       runId: "abc",
@@ -275,7 +290,11 @@ describe("setupWorktree", () => {
     const backend = makeStubBackend();
     const result = await setupWorktree({
       workflow: makeWorkflow(),
-      config: { worktreeSetup: ["pnpm", "install"], sharedPaths: [], cleanup: false },
+      config: {
+        worktreeSetup: ["pnpm", "install"],
+        sharedPaths: [],
+        cleanup: false,
+      },
       mainProjectRoot: "/repo",
       workDir: "/repo",
       runId: "abc",
@@ -297,7 +316,11 @@ describe("setupWorktree", () => {
     backend.failOn(["git", "rev-parse", "--verify", "--quiet", "refs/heads/generata/wt-abc"], {});
     const result = await setupWorktree({
       workflow: makeWorkflow(),
-      config: { worktreeSetup: ["pnpm", "install"], sharedPaths: [], cleanup: false },
+      config: {
+        worktreeSetup: ["pnpm", "install"],
+        sharedPaths: [],
+        cleanup: false,
+      },
       mainProjectRoot: "/repo",
       workDir: "/repo",
       runId: "abc",
@@ -317,7 +340,11 @@ describe("setupWorktree", () => {
     const backend = makeStubBackend();
     const result = await setupWorktree({
       workflow: makeWorkflow(),
-      config: { worktreeSetup: ["pnpm", "install"], sharedPaths: [], cleanup: false },
+      config: {
+        worktreeSetup: ["pnpm", "install"],
+        sharedPaths: [],
+        cleanup: false,
+      },
       mainProjectRoot: "/repo",
       workDir: "/repo",
       runId: "abc",

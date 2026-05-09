@@ -168,7 +168,10 @@ async function main() {
 
   if (command === "workflow" || command === "run") {
     if (flags.list || target === "--list") {
-      const registry = await loadRegistry({ projectRoot, agentsDir: config.agentsDir });
+      const registry = await loadRegistry({
+        projectRoot,
+        agentsDir: config.agentsDir,
+      });
       console.log("Available workflows:");
       for (const wf of registry.listWorkflows()) {
         console.log(`  ${wf.name}`);
@@ -179,7 +182,10 @@ async function main() {
       console.error("Usage: generata <name> [--key value ...]  (or: generata workflow <name>)");
       process.exit(1);
     }
-    const registry = await loadRegistry({ projectRoot, agentsDir: config.agentsDir });
+    const registry = await loadRegistry({
+      projectRoot,
+      agentsDir: config.agentsDir,
+    });
     const candidates = [...registry.workflows.keys()];
     const resolvedName = resolveAgentName(target, candidates);
     const workflow = registry.getWorkflow(resolvedName);
@@ -233,7 +239,10 @@ async function main() {
 
   if (command === "validate") {
     if (flags.list || flags.all || target === "--list" || target === "--all") {
-      const registry = await loadRegistry({ projectRoot, agentsDir: config.agentsDir });
+      const registry = await loadRegistry({
+        projectRoot,
+        agentsDir: config.agentsDir,
+      });
       let failed = 0;
       for (const workflow of registry.listWorkflows()) {
         const profile = typeof flags.profile === "string" ? flags.profile : undefined;
@@ -257,7 +266,10 @@ async function main() {
       console.error("Usage: generata validate <workflow> [--check-files] [--profile P] [--key v]");
       process.exit(1);
     }
-    const registry = await loadRegistry({ projectRoot, agentsDir: config.agentsDir });
+    const registry = await loadRegistry({
+      projectRoot,
+      agentsDir: config.agentsDir,
+    });
     const candidates = [...registry.workflows.keys()];
     const resolvedName = resolveAgentName(target, candidates);
     const workflow = registry.getWorkflow(resolvedName);

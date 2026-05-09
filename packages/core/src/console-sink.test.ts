@@ -130,7 +130,11 @@ describe("consoleSink", () => {
         consoleSink({
           type: "agent-stream",
           stepId: "x",
-          event: { type: "tool_use", name: "Read", input: { file_path: "/tmp/foo.md" } },
+          event: {
+            type: "tool_use",
+            name: "Read",
+            input: { file_path: "/tmp/foo.md" },
+          },
         });
       }),
     );
@@ -165,7 +169,11 @@ describe("consoleSink", () => {
       captureStdout(() => {
         consoleSink({
           type: "isolation-overridden",
-          declared: { worktreeSetup: undefined, sharedPaths: [], cleanup: false } as never,
+          declared: {
+            worktreeSetup: undefined,
+            sharedPaths: [],
+            cleanup: false,
+          } as never,
           used: "none",
         });
       }),

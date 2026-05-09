@@ -207,7 +207,10 @@ export const WorkflowDef = z
     steps: z.array(WorkflowStep).min(1),
   })
   .strict();
-export type WorkflowDef = z.infer<typeof WorkflowDef> & { kind: "workflow"; name: string };
+export type WorkflowDef = z.infer<typeof WorkflowDef> & {
+  kind: "workflow";
+  name: string;
+};
 
 export const GlobalConfig = z.object({
   modelTiers: z.object({

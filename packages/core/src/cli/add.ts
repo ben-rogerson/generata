@@ -86,4 +86,3 @@ export async function runAdd(opts: AddOpts): Promise<void> {
     if (tmpl.cleanup) await tmpl.cleanup();
   }
 }
-

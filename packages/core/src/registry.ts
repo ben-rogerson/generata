@@ -93,7 +93,10 @@ export async function loadSingleAgentRegistry(
 ): Promise<AgentRegistry> {
   const agentsAbs = resolve(opts.projectRoot, opts.agentsDir);
   const filePaths = existsSync(agentsAbs) ? await collectFiles(agentsAbs) : [];
-  const candidates = filePaths.map((fp) => ({ name: deriveName(agentsAbs, fp), path: fp }));
+  const candidates = filePaths.map((fp) => ({
+    name: deriveName(agentsAbs, fp),
+    path: fp,
+  }));
 
   const resolved = resolveAgentName(
     name,
@@ -120,10 +123,9 @@ export async function loadRegistry(opts: RegistryOpts): Promise<AgentRegistry> {
 
   for (const filePath of filePaths) {
     const derived = deriveName(agentsAbs, filePath);
-    const mod = await loadTs<{ default: (AgentDef | WorkflowDef) & { kind?: string } }>(
-      filePath,
-      import.meta.url,
-    );
+    const mod = await loadTs<{
+      default: (AgentDef | WorkflowDef) & { kind?: string };
+    }>(filePath, import.meta.url);
     const def = mod.default;
     if (!def) continue;
     (def as unknown as { name: string }).name = derived;

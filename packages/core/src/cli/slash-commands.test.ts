@@ -25,7 +25,11 @@ describe("generateSlashCommands", () => {
     const dest = mkdtempSync(join(tmpdir(), "skills-"));
     const projectRoot = mkPnpmRoot();
     try {
-      generateSlashCommands({ workflows: [workflow], destDir: dest, projectRoot });
+      generateSlashCommands({
+        workflows: [workflow],
+        destDir: dest,
+        projectRoot,
+      });
       const out = readFileSync(join(dest, "execute-plan.md"), "utf8");
       match(out, /^---/m);
       match(out, /description: Execute a plan with post-validation/);
@@ -42,9 +46,17 @@ describe("generateSlashCommands", () => {
     const dest = mkdtempSync(join(tmpdir(), "skills-"));
     const projectRoot = mkPnpmRoot();
     try {
-      generateSlashCommands({ workflows: [workflow], destDir: dest, projectRoot });
+      generateSlashCommands({
+        workflows: [workflow],
+        destDir: dest,
+        projectRoot,
+      });
       const first = readFileSync(join(dest, "execute-plan.md"), "utf8");
-      generateSlashCommands({ workflows: [workflow], destDir: dest, projectRoot });
+      generateSlashCommands({
+        workflows: [workflow],
+        destDir: dest,
+        projectRoot,
+      });
       const second = readFileSync(join(dest, "execute-plan.md"), "utf8");
       strictEqual(first, second);
     } finally {
@@ -58,7 +70,11 @@ describe("generateSlashCommands", () => {
     const dest = join(root, "nested", "commands");
     const projectRoot = mkPnpmRoot();
     try {
-      generateSlashCommands({ workflows: [workflow], destDir: dest, projectRoot });
+      generateSlashCommands({
+        workflows: [workflow],
+        destDir: dest,
+        projectRoot,
+      });
       ok(readFileSync(join(dest, "execute-plan.md"), "utf8"));
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -74,7 +90,11 @@ describe("generateSlashCommands", () => {
     const dest = mkdtempSync(join(tmpdir(), "skills-"));
     const projectRoot = mkPnpmRoot();
     try {
-      generateSlashCommands({ workflows: [nested], destDir: dest, projectRoot });
+      generateSlashCommands({
+        workflows: [nested],
+        destDir: dest,
+        projectRoot,
+      });
       ok(readFileSync(join(dest, "build-project.md"), "utf8"));
       strictEqual(existsSync(join(dest, "workflows")), false);
     } finally {
@@ -96,7 +116,12 @@ describe("generateSlashCommands", () => {
     const projectRoot = mkPnpmRoot();
     try {
       throws(
-        () => generateSlashCommands({ workflows: [a, b], destDir: dest, projectRoot }),
+        () =>
+          generateSlashCommands({
+            workflows: [a, b],
+            destDir: dest,
+            projectRoot,
+          }),
         /agents\/build-project.*agents\/workflows\/build-project|agents\/workflows\/build-project.*agents\/build-project/,
       );
     } finally {
@@ -110,7 +135,11 @@ describe("generateSlashCommands", () => {
     const projectRoot = mkdtempSync(join(tmpdir(), "skills-root-"));
     writeFileSync(join(projectRoot, "package-lock.json"), "{}");
     try {
-      generateSlashCommands({ workflows: [workflow], destDir: dest, projectRoot });
+      generateSlashCommands({
+        workflows: [workflow],
+        destDir: dest,
+        projectRoot,
+      });
       const out = readFileSync(join(dest, "execute-plan.md"), "utf8");
       match(out, /npm generata execute-plan \$ARGUMENTS/);
     } finally {
@@ -124,7 +153,11 @@ describe("generateSlashCommands", () => {
     const projectRoot = mkdtempSync(join(tmpdir(), "skills-root-"));
     writeFileSync(join(projectRoot, "yarn.lock"), "");
     try {
-      generateSlashCommands({ workflows: [workflow], destDir: dest, projectRoot });
+      generateSlashCommands({
+        workflows: [workflow],
+        destDir: dest,
+        projectRoot,
+      });
       const out = readFileSync(join(dest, "execute-plan.md"), "utf8");
       match(out, /yarn generata execute-plan \$ARGUMENTS/);
     } finally {

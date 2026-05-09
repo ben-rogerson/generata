@@ -1,6 +1,6 @@
 import { ok } from "node:assert/strict";
 import { describe, it } from "node:test";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,6 +13,7 @@ const FIXTURE = fileURLToPath(
 describe("runInit scanTemplate tolerance", () => {
   it("skips files with unresolvable imports while still scanning valid siblings", async () => {
     const dest = mkdtempSync(join(tmpdir(), "init-scan-"));
+    mkdirSync(join(dest, "node_modules"), { recursive: true });
     try {
       await runInit({
         spec: FIXTURE,

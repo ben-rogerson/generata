@@ -171,10 +171,16 @@ async function scanTemplate(dir: string): Promise<{
   workflowEnvKeys: Record<string, string[]>;
   workflows: WorkflowDef[];
   failureCount: number;
+  skipped?: boolean;
 }> {
   const agentEnvKeys: Record<string, string[]> = {};
   const workflowEnvKeys: Record<string, string[]> = {};
   const workflows: WorkflowDef[] = [];
+
+  if (!existsSync(join(dir, "node_modules"))) {
+    console.log(fmt.dim(`      Skipping template scan: dependencies not installed in ${dir}`));
+    return { agentEnvKeys, workflowEnvKeys, workflows, failureCount: 0, skipped: true };
+  }
 
   const agentsRoot = resolve(dir, "agents");
 
@@ -231,7 +237,12 @@ async function scanTemplate(dir: string): Promise<{
     console.log(fmt.dim(`      The template may be incompatible with this engine version.`));
   }
 
-  return { agentEnvKeys, workflowEnvKeys, workflows, failureCount: failures.length };
+  return {
+    agentEnvKeys,
+    workflowEnvKeys,
+    workflows,
+    failureCount: failures.length,
+  };
 }
 
 function buildPromptItems(

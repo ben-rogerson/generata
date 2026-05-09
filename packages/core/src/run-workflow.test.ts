@@ -173,7 +173,11 @@ describe("isolation resolution matrix", () => {
         cleanup: async () => {},
       };
     };
-    return { stubSetup, getCalls: () => calls, getLastConfig: () => lastConfig };
+    return {
+      stubSetup,
+      getCalls: () => calls,
+      getLastConfig: () => lastConfig,
+    };
   }
 
   it("omitted + declared none → none (no setup call, no override event)", async () => {

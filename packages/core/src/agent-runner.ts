@@ -423,7 +423,12 @@ export async function runAgent(options: RunOptions): Promise<RunResult> {
     "--verbose",
   ];
 
-  const allowedTools = buildAllowedTools(agent, { verdictBin, paramsBin, outputsBin, outputsFile });
+  const allowedTools = buildAllowedTools(agent, {
+    verdictBin,
+    paramsBin,
+    outputsBin,
+    outputsFile,
+  });
   if (allowedTools !== null) claudeArgs.push("--allowedTools", allowedTools);
   if (agent.permissions === "full") claudeArgs.push("--dangerously-skip-permissions");
 

@@ -8,7 +8,10 @@ import { fmt } from "../logger.js";
 export async function runCommandsSync(): Promise<void> {
   const projectRoot = findProjectRoot();
   const config = await loadConfig(projectRoot);
-  const registry = await loadRegistry({ projectRoot, agentsDir: config.agentsDir });
+  const registry = await loadRegistry({
+    projectRoot,
+    agentsDir: config.agentsDir,
+  });
   const workflows = registry.listWorkflows();
   const dest = join(projectRoot, ".claude", "commands");
   generateSlashCommands({ workflows, destDir: dest, projectRoot });

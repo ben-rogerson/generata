@@ -91,7 +91,10 @@ describe("loadRegistry path validation", () => {
       writeFileSync(join(root, "agents/_shared.ts"), "export const X = 1;\n");
       mkdirSync(join(root, "agents/_internal"), { recursive: true });
       writeFileSync(join(root, "agents/_internal/util.ts"), "export const Y = 2;\n");
-      const registry = await loadRegistry({ projectRoot: root, agentsDir: "agents" });
+      const registry = await loadRegistry({
+        projectRoot: root,
+        agentsDir: "agents",
+      });
       ok(registry.has("echo"));
       strictEqual(registry.list().length, 1);
     } finally {
@@ -169,12 +172,18 @@ describe("loadRegistry workflows", () => {
   });
 
   it("discovers workflows anywhere under agentsDir", async () => {
-    const registry = await loadRegistry({ projectRoot: root, agentsDir: "agents" });
+    const registry = await loadRegistry({
+      projectRoot: root,
+      agentsDir: "agents",
+    });
     ok(registry.workflows.has("standup/flow"));
   });
 
   it("routes by kind: agents go to agents map, workflows go to workflows map", async () => {
-    const registry = await loadRegistry({ projectRoot: root, agentsDir: "agents" });
+    const registry = await loadRegistry({
+      projectRoot: root,
+      agentsDir: "agents",
+    });
     ok(registry.agents.has("echo"));
     ok(!registry.workflows.has("echo"));
     ok(registry.workflows.has("standup/flow"));
@@ -182,7 +191,10 @@ describe("loadRegistry workflows", () => {
   });
 
   it("workflow steps reference the same agent objects as the agents map", async () => {
-    const registry = await loadRegistry({ projectRoot: root, agentsDir: "agents" });
+    const registry = await loadRegistry({
+      projectRoot: root,
+      agentsDir: "agents",
+    });
     const wf = registry.getWorkflow("standup/flow");
     const step = wf.steps[0];
     const stepAgent = resolveStepShape(step).agent as { name?: string };

@@ -31,7 +31,10 @@ export function selectGenerataWorktrees(entries: WorktreeEntry[]): WorktreeEntry
 
 async function run(cmd: string[], cwd: string): Promise<{ stdout: string; exitCode: number }> {
   return new Promise((resolve) => {
-    const proc = spawn(cmd[0], cmd.slice(1), { cwd, stdio: ["ignore", "pipe", "pipe"] });
+    const proc = spawn(cmd[0], cmd.slice(1), {
+      cwd,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
     let stdout = "";
     proc.stdout.on("data", (b) => (stdout += b.toString()));
     proc.on("close", (code) => resolve({ stdout, exitCode: code ?? 1 }));

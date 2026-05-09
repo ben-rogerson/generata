@@ -19,7 +19,10 @@ describe("parseWorktreeListPorcelain", () => {
   it("parses three worktrees with paths and branches", () => {
     const entries = parseWorktreeListPorcelain(SAMPLE);
     deepEqual(entries.length, 3);
-    deepEqual(entries[1], { path: "/Users/x/repo-worktrees/run1", branch: "generata/wt-run1" });
+    deepEqual(entries[1], {
+      path: "/Users/x/repo-worktrees/run1",
+      branch: "generata/wt-run1",
+    });
   });
 });
 

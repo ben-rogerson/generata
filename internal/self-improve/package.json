@@ -19,8 +19,9 @@
     "@generata/core": "workspace:*"
   },
   "devDependencies": {
-    "oxfmt": "^0.44.0",
-    "oxlint": "^1.59.0",
-    "typescript": "^5.7.2"
+    "oxfmt": "^0.48.0",
+    "oxlint": "^1.63.0",
+    "oxlint-tsgolint": "^0.22.1",
+    "typescript": "^6.0.3"
   }
 }

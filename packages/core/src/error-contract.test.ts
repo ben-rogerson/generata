@@ -32,7 +32,10 @@ describe("error contract: precheck", () => {
       prompt: "uses {{missing_arg}}",
     });
     (a as unknown as { name: string }).name = "a";
-    const w = defineWorkflow({ description: "", required: ["missing_arg"] as const })
+    const w = defineWorkflow({
+      description: "",
+      required: ["missing_arg"] as const,
+    })
       .step("only", a)
       .build();
     (w as unknown as { name: string }).name = "wf";
@@ -56,7 +59,10 @@ describe("error contract: precheck", () => {
       prompt: "uses {{missing_arg}}",
     });
     (a as unknown as { name: string }).name = "a";
-    const w = defineWorkflow({ description: "", required: ["missing_arg"] as const })
+    const w = defineWorkflow({
+      description: "",
+      required: ["missing_arg"] as const,
+    })
       .step("only", a)
       .build();
     (w as unknown as { name: string }).name = "wf";

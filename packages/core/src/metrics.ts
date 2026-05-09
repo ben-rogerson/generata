@@ -43,7 +43,14 @@ export function summariseMetrics(records: AgentMetrics[]) {
       cache_read_tokens: acc.cache_read_tokens + r.cache_read_tokens,
       duration_ms: acc.duration_ms + r.duration_ms,
     }),
-    { calls: 0, cost: 0, input_tokens: 0, output_tokens: 0, cache_read_tokens: 0, duration_ms: 0 },
+    {
+      calls: 0,
+      cost: 0,
+      input_tokens: 0,
+      output_tokens: 0,
+      cache_read_tokens: 0,
+      duration_ms: 0,
+    },
   );
   return total;
 }

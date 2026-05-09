@@ -30,10 +30,9 @@ export async function loadTs<T = unknown>(specifier: string, parentURL: string):
       /Unknown file extension|ERR_UNKNOWN_FILE_EXTENSION|Cannot find module/i.test(err.message);
     if (!isTs || !looksLikeMissingTsLoader) throw err;
 
-    const mod = (await tsImport(specifier, parentURL)) as { default?: unknown } & Record<
-      string,
-      unknown
-    >;
+    const mod = (await tsImport(specifier, parentURL)) as {
+      default?: unknown;
+    } & Record<string, unknown>;
     if (
       mod &&
       typeof mod === "object" &&
@@ -42,7 +41,10 @@ export async function loadTs<T = unknown>(specifier: string, parentURL: string):
       typeof mod.default === "object" &&
       "default" in (mod.default as object)
     ) {
-      return { ...mod, default: (mod.default as { default: unknown }).default } as T;
+      return {
+        ...mod,
+        default: (mod.default as { default: unknown }).default,
+      } as T;
     }
     return mod as T;
   }
