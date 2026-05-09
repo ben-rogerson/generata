@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import { equal, ok } from "node:assert/strict";
-import { defineAgent, defineConfig, defineWorkflow, worktree } from "./define.js";
+import { defineAgent, defineConfig, defineWorkflow, findProjectRoot, loadTs, worktree } from "./define.js";
 
 describe("defineWorkflow chain builder", () => {
   const stub = defineAgent({
@@ -243,6 +243,13 @@ describe("defineWorkflow chain builder", () => {
     // falls back. The point: programmatic callers never see an empty name.
     const wf = defineWorkflow({ description: "d" }).step("only", stub).build();
     ok(wf.name && wf.name.length > 0, `expected non-empty workflow.name, got '${wf.name}'`);
+  });
+});
+
+describe("public exports: loadTs, findProjectRoot", () => {
+  it("are functions", () => {
+    ok(typeof loadTs === "function", "loadTs should be a function");
+    ok(typeof findProjectRoot === "function", "findProjectRoot should be a function");
   });
 });
 

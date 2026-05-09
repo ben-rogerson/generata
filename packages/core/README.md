@@ -131,6 +131,8 @@ It returns `halted: true, success: false` for:
 
 - A worker that emits `--halt "<reason>"` via the emit bin. `result.haltReason` carries the reason; this is a clean structured stop, not a failure.
 
+Looking to expose workflows over HTTP? See [`@generata/serve`](../serve).
+
 ## CLI
 
 | Command                           | Purpose                                                     |
