@@ -44,7 +44,10 @@ async function resolveConfigAndCwd(opts: {
   cwd?: string;
 }): Promise<{ config: GlobalConfig; cwd: string }> {
   if (opts.config) {
-    return { config: opts.config, cwd: opts.cwd ?? opts.config.workDir ?? process.cwd() };
+    return {
+      config: opts.config,
+      cwd: opts.cwd ?? opts.config.workDir ?? process.cwd(),
+    };
   }
   // Best-effort discovery. If no project root, fall back to process.cwd() and
   // a minimal default config so scripts outside a generata project still work.

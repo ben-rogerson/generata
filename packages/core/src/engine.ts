@@ -164,9 +164,16 @@ export async function executeWorkflow(
 
   // One static pass before any step fires - catches variable wiring, structural, context-path,
   // and env-key issues. Any issue aborts the run with zero LLM calls.
-  const precheckIssues = precheckWorkflow(workflow, params, { profile, workDir });
+  const precheckIssues = precheckWorkflow(workflow, params, {
+    profile,
+    workDir,
+  });
   if (precheckIssues.length > 0) {
-    sink({ type: "precheck-fail", workflow: workflow.name, issues: precheckIssues });
+    sink({
+      type: "precheck-fail",
+      workflow: workflow.name,
+      issues: precheckIssues,
+    });
     throw new GenerataPrecheckError(workflow.name, precheckIssues);
   }
 
@@ -355,7 +362,12 @@ export async function executeWorkflow(
                   // parallel runnable steps will fight over the same TTY line - acceptable
                   // for now since most workflows are sequential.
                   onEvent: config.verboseOutput
-                    ? (event) => sink({ type: "agent-stream", stepId: targetStep.id, event })
+                    ? (event) =>
+                        sink({
+                          type: "agent-stream",
+                          stepId: targetStep.id,
+                          event,
+                        })
                     : undefined,
                   promptLogFile,
                   retryPreamble,
@@ -501,7 +513,11 @@ export async function executeWorkflow(
               let retryAttempt = 0;
               while (retryAttempt < maxAttempts && !result.verdict) {
                 retryAttempt++;
-                sink({ type: "step-retry", stepId: step.id, attempt: retryAttempt });
+                sink({
+                  type: "step-retry",
+                  stepId: step.id,
+                  attempt: retryAttempt,
+                });
                 const reResolved = resolveStepForRun(step, params, stepOutputs);
                 result = await runAgentStep(step, reResolved.agent, reResolved.args);
                 stepOutputs[step.id] = result.output;
@@ -525,7 +541,11 @@ export async function executeWorkflow(
 
                 while (retryAttempt < maxAttempts && result.verdict?.verdict !== "approve") {
                   retryAttempt++;
-                  sink({ type: "step-retry", stepId: executorStep.id, attempt: retryAttempt });
+                  sink({
+                    type: "step-retry",
+                    stepId: executorStep.id,
+                    attempt: retryAttempt,
+                  });
 
                   const preamble = buildRetryPreamble({
                     summary: result.verdict?.summary ?? "",

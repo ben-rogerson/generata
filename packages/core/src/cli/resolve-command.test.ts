@@ -7,7 +7,10 @@ test("resolveCommand: reserved subcommand passes through", () => {
     command: "workflow",
     rest: ["hello"],
   });
-  deepEqual(resolveCommand(["run", "hello"]), { command: "run", rest: ["hello"] });
+  deepEqual(resolveCommand(["run", "hello"]), {
+    command: "run",
+    rest: ["hello"],
+  });
   deepEqual(resolveCommand(["agent", "greeter"]), {
     command: "agent",
     rest: ["greeter"],
@@ -28,7 +31,10 @@ test("resolveCommand: empty positional returns undefined command", () => {
 });
 
 test("resolveCommand: unreserved first arg becomes workflow target", () => {
-  deepEqual(resolveCommand(["hello"]), { command: "workflow", rest: ["hello"] });
+  deepEqual(resolveCommand(["hello"]), {
+    command: "workflow",
+    rest: ["hello"],
+  });
   deepEqual(resolveCommand(["build-project"]), {
     command: "workflow",
     rest: ["build-project"],

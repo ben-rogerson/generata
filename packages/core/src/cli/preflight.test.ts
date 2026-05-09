@@ -27,7 +27,11 @@ describe("runPreflight", () => {
 
   it("includes the hint in the missing entry when provided", async () => {
     const report = await runPreflight([
-      { name: "definitely-not-a-real-bin-xyz", optional: false, hint: "brew install xyz" },
+      {
+        name: "definitely-not-a-real-bin-xyz",
+        optional: false,
+        hint: "brew install xyz",
+      },
     ]);
     strictEqual(report.missing[0].hint, "brew install xyz");
   });

@@ -98,7 +98,11 @@ describe("consoleSink step-done", () => {
         type: "step-done",
         stepId: "step-1",
         output: "",
-        metrics: makeMetrics({ cost_was_reported: false, input_tokens: 3000, output_tokens: 2000 }),
+        metrics: makeMetrics({
+          cost_was_reported: false,
+          input_tokens: 3000,
+          output_tokens: 2000,
+        }),
         showPricing: true,
       }),
     );

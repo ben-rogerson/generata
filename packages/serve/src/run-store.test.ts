@@ -86,7 +86,10 @@ test("corrupt JSON files are skipped with a warning, not a crash", async () => {
       JSON.stringify({ runId: "good", status: "pending", startedAt: "2026-05-09T00:00:00Z" }),
     );
     const warnings: string[] = [];
-    const store = await createRunStore({ dir, logger: { warn: (m: unknown) => warnings.push(String(m)) } });
+    const store = await createRunStore({
+      dir,
+      logger: { warn: (m: unknown) => warnings.push(String(m)) },
+    });
     assert.ok(warnings.some((w) => w.includes("bad.json")));
     const good = await store.get("good");
     assert.equal(good?.status, "failed"); // demoted from pending → orphaned
@@ -119,10 +122,7 @@ test("fail() throws for unknown runId", async () => {
   const dir = tmp();
   try {
     const store = await createRunStore({ dir });
-    await assert.rejects(
-      () => store.fail("ghost", { code: "x", message: "y" }),
-      /unknown runId/,
-    );
+    await assert.rejects(() => store.fail("ghost", { code: "x", message: "y" }), /unknown runId/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

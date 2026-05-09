@@ -2,7 +2,10 @@ import { equal } from "node:assert/strict";
 import { describe, it } from "node:test";
 import { formatWeeklySummary } from "./metrics.js";
 
-const summary = (overrides: Partial<ReturnType<typeof base>> = {}) => ({ ...base(), ...overrides });
+const summary = (overrides: Partial<ReturnType<typeof base>> = {}) => ({
+  ...base(),
+  ...overrides,
+});
 function base() {
   return {
     calls: 0,
@@ -21,7 +24,12 @@ describe("formatWeeklySummary", () => {
 
   it("renders calls + tokens when pricing is hidden", () => {
     const out = formatWeeklySummary(
-      summary({ calls: 12, cost: 1.23, input_tokens: 200_000, output_tokens: 50_000 }),
+      summary({
+        calls: 12,
+        cost: 1.23,
+        input_tokens: 200_000,
+        output_tokens: 50_000,
+      }),
       false,
     );
     equal(out, "7d · 12 calls · 250k tok");
@@ -29,7 +37,12 @@ describe("formatWeeklySummary", () => {
 
   it("includes cost when pricing is shown and cost > 0", () => {
     const out = formatWeeklySummary(
-      summary({ calls: 12, cost: 1.236, input_tokens: 200_000, output_tokens: 50_000 }),
+      summary({
+        calls: 12,
+        cost: 1.236,
+        input_tokens: 200_000,
+        output_tokens: 50_000,
+      }),
       true,
     );
     equal(out, "7d · 12 calls · $1.24 · 250k tok");
@@ -37,7 +50,12 @@ describe("formatWeeklySummary", () => {
 
   it("omits cost when pricing is shown but cost is zero", () => {
     const out = formatWeeklySummary(
-      summary({ calls: 4, cost: 0, input_tokens: 10_000, output_tokens: 5_000 }),
+      summary({
+        calls: 4,
+        cost: 0,
+        input_tokens: 10_000,
+        output_tokens: 5_000,
+      }),
       true,
     );
     equal(out, "7d · 4 calls · 15k tok");

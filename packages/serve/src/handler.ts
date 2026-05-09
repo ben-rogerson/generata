@@ -1,4 +1,9 @@
-import type { runWorkflow as runWorkflowFn, RunWorkflowOptions, WorkflowDef, EventSink } from "@generata/core";
+import type {
+  runWorkflow as runWorkflowFn,
+  RunWorkflowOptions,
+  WorkflowDef,
+  EventSink,
+} from "@generata/core";
 
 declare const _runAsyncBrand: unique symbol;
 
@@ -19,7 +24,11 @@ export type HandlerContext = {
   body: unknown;
   runId: string;
   runWorkflow: typeof runWorkflowFn;
-  runAsync: (workflow: WorkflowDef, args: Record<string, string>, options?: RunWorkflowOptions) => RunAsyncSentinel;
+  runAsync: (
+    workflow: WorkflowDef,
+    args: Record<string, string>,
+    options?: RunWorkflowOptions,
+  ) => RunAsyncSentinel;
   eventSink: EventSink;
   logger: HandlerLogger;
   signal: AbortSignal;

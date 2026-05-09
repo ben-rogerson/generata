@@ -35,7 +35,10 @@ export const realBackend: WorktreeBackend = {
   exec(cmd, opts) {
     return new Promise<ExecResult>((res) => {
       const [bin, ...rest] = cmd;
-      const proc = spawn(bin, rest, { cwd: opts.cwd, stdio: ["ignore", "pipe", "pipe"] });
+      const proc = spawn(bin, rest, {
+        cwd: opts.cwd,
+        stdio: ["ignore", "pipe", "pipe"],
+      });
       let stdout = "";
       let stderr = "";
       proc.stdout.on("data", (b) => (stdout += b.toString()));
@@ -155,7 +158,9 @@ export async function setupWorktree(opts: SetupWorktreeOptions): Promise<SetupWo
     if (fetched.exitCode !== 0) {
       throw new Error(
         `isolation: "worktree" requires '${baseRef}' to be reachable. ` +
-          `'git fetch ${baseRemote} ${baseBranch}' failed: ${fetched.stderr.trim() || "(no stderr)"}`,
+          `'git fetch ${baseRemote} ${baseBranch}' failed: ${
+            fetched.stderr.trim() || "(no stderr)"
+          }`,
       );
     }
   }
@@ -164,7 +169,9 @@ export async function setupWorktree(opts: SetupWorktreeOptions): Promise<SetupWo
   console.log(`→ worktree: creating ${relative(opts.mainProjectRoot, worktreePath)}`);
   const added = await backend.exec(
     ["git", "worktree", "add", "-b", branchName, worktreePath, baseRef],
-    { cwd: opts.mainProjectRoot },
+    {
+      cwd: opts.mainProjectRoot,
+    },
   );
   if (added.exitCode !== 0) {
     throw new Error(
@@ -188,7 +195,9 @@ export async function setupWorktree(opts: SetupWorktreeOptions): Promise<SetupWo
       { cwd: opts.mainProjectRoot },
     );
     if (probe.exitCode === 0) {
-      await backend.exec(["git", "branch", "-D", branchName], { cwd: opts.mainProjectRoot });
+      await backend.exec(["git", "branch", "-D", branchName], {
+        cwd: opts.mainProjectRoot,
+      });
     }
   };
 
@@ -223,7 +232,9 @@ export async function setupWorktree(opts: SetupWorktreeOptions): Promise<SetupWo
       const installed = await backend.exec(installCmd, { cwd: worktreePath });
       if (installed.exitCode !== 0) {
         throw new Error(
-          `worktreeSetup '${installCmd.join(" ")}' failed (exit ${installed.exitCode}): ${installed.stderr.trim()}`,
+          `worktreeSetup '${installCmd.join(" ")}' failed (exit ${
+            installed.exitCode
+          }): ${installed.stderr.trim()}`,
         );
       }
     } else if (!opts.config.worktreeSetup) {

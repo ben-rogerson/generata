@@ -4,7 +4,10 @@
   "engineVersion": "^1.0.0",
   "requiredBins": [{ "name": "node", "optional": false }],
   "requiredEnv": {
-    "FAKE_KEY": { "description": "A fake required env value", "example": "abc123" }
+    "FAKE_KEY": {
+      "description": "A fake required env value",
+      "example": "abc123"
+    }
   },
   "postInstall": "Fixture template installed - try: pnpm generata help workflows"
 }

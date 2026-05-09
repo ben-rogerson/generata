@@ -30,10 +30,7 @@ test("default mode skips files with no default export rather than throwing", asy
 });
 
 test("rejects non-kebab-case filenames", async () => {
-  await assert.rejects(
-    () => discoverHandlers(fixturesBadName),
-    /Bad-Name|kebab-case/,
-  );
+  await assert.rejects(() => discoverHandlers(fixturesBadName), /Bad-Name|kebab-case/);
 });
 
 test("returns empty map for missing serve dir", async () => {

@@ -204,8 +204,7 @@ type StepOptions<TParams = Record<string, string>> = {
      * through correctly:
      *   onReject: ({ ... }) => myAgent({ ... })
      */
-    | (AgentDef & { readonly [_factoryBrand]?: never })
-    | ((params: TParams) => StepInvocation);
+    (AgentDef & { readonly [_factoryBrand]?: never }) | ((params: TParams) => StepInvocation);
 };
 
 type WorktreeConfigInput = z.input<typeof WorktreeConfigSchema>;

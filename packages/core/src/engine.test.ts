@@ -73,7 +73,11 @@ describe("runWorkflow critic retry short-circuit", () => {
       return {
         output: "rejected",
         metrics: makeMetrics({ agent: options.agent.name }),
-        verdict: { verdict: "reject", summary: "needs changeset", issues: ["missing changeset"] },
+        verdict: {
+          verdict: "reject",
+          summary: "needs changeset",
+          issues: ["missing changeset"],
+        },
       };
     };
 
@@ -177,7 +181,10 @@ describe("runWorkflow critic no-verdict retry", () => {
       // Critic: first 2 calls return no verdict (transient hang), 3rd approves.
       const attempt = callsByStep[stepId];
       if (attempt < 3) {
-        return { output: "", metrics: makeMetrics({ agent: options.agent.name }) };
+        return {
+          output: "",
+          metrics: makeMetrics({ agent: options.agent.name }),
+        };
       }
       return {
         output: "ok",
@@ -207,7 +214,10 @@ describe("runWorkflow critic no-verdict retry", () => {
           metrics: makeMetrics({ agent: options.agent.name }),
         };
       }
-      return { output: "", metrics: makeMetrics({ agent: options.agent.name }) };
+      return {
+        output: "",
+        metrics: makeMetrics({ agent: options.agent.name }),
+      };
     };
 
     const result = await executeWorkflow(buildWorkflow(2), {}, stubConfig, "/tmp", undefined, {
@@ -404,7 +414,10 @@ describe("runWorkflow isolation: worktree", () => {
     const observed: string[] = [];
     const stubRunAgent = async (options: RunOptions): Promise<RunResult> => {
       observed.push(options.cwd ?? "");
-      return { output: "ok", metrics: makeMetrics({ agent: options.agent.name }) };
+      return {
+        output: "ok",
+        metrics: makeMetrics({ agent: options.agent.name }),
+      };
     };
     const worker = withName(
       defineAgent({
@@ -435,7 +448,11 @@ describe("runWorkflow isolation: worktree", () => {
       stubConfig,
       "/repo/internal/self-improve",
       undefined,
-      { runAgent: stubRunAgent, setupWorktree: stubSetup, mainProjectRoot: "/repo" },
+      {
+        runAgent: stubRunAgent,
+        setupWorktree: stubSetup,
+        mainProjectRoot: "/repo",
+      },
     );
     equal(result.success, true);
     equal(observed[0], "/tmp/wt/abc/self-improve");
@@ -459,7 +476,10 @@ describe("runWorkflow isolation: worktree", () => {
         stepOutputs: options.stepOutputs,
         workflowVariables: options.workflowVariables,
       });
-      return { output: "ok", metrics: makeMetrics({ agent: options.agent.name }) };
+      return {
+        output: "ok",
+        metrics: makeMetrics({ agent: options.agent.name }),
+      };
     };
     const worker = withName(
       defineAgent(({ work_dir }) => ({
@@ -475,7 +495,10 @@ describe("runWorkflow isolation: worktree", () => {
       "code",
     );
     const workflow = withName(
-      defineWorkflow({ description: "wt-prompt", isolation: worktree({ cleanup: true }) })
+      defineWorkflow({
+        description: "wt-prompt",
+        isolation: worktree({ cleanup: true }),
+      })
         .step("code", () => worker({}))
         .build(),
       "wt-prompt",
@@ -487,7 +510,11 @@ describe("runWorkflow isolation: worktree", () => {
       stubConfig,
       "/repo/internal/self-improve",
       undefined,
-      { runAgent: stubRunAgent, setupWorktree: stubSetup, mainProjectRoot: "/repo" },
+      {
+        runAgent: stubRunAgent,
+        setupWorktree: stubSetup,
+        mainProjectRoot: "/repo",
+      },
     );
     equal(result.success, true);
     match(captured["code"]!, /Working directory: \/tmp\/wt\/abc\/self-improve/);
@@ -620,7 +647,11 @@ describe("runWorkflow isolation: worktree", () => {
     });
     const stubSetup = async (): Promise<SetupWorktreeResult> => {
       setupCalls++;
-      return { worktreePath: "", executionRoot: "/forced", cleanup: async () => {} };
+      return {
+        worktreePath: "",
+        executionRoot: "/forced",
+        cleanup: async () => {},
+      };
     };
     const worker = withName(
       defineAgent({
@@ -796,11 +827,17 @@ describe("runWorkflow first-class halt via outputs", () => {
           halt: { reason: "no unbuilt ideas in NOTES.md" },
         };
       }
-      return { output: "ran", metrics: makeMetrics({ agent: options.agent.name }) };
+      return {
+        output: "ran",
+        metrics: makeMetrics({ agent: options.agent.name }),
+      };
     };
 
     const workflow = withName(
-      defineWorkflow({ description: "halt-flow", variables: { output_dir: "p" } })
+      defineWorkflow({
+        description: "halt-flow",
+        variables: { output_dir: "p" },
+      })
         .step("first", ({ output_dir }) => halter({ output_dir }))
         .step("second", () => ({
           kind: "step-invocation" as const,
@@ -875,10 +912,16 @@ describe("runWorkflow agent outputs flow into downstream stepFns", () => {
         return {
           output: "ok",
           metrics: makeMetrics({ agent: options.agent.name }),
-          outputs: { spec_filepath: "/abs/SPEC.md", instructions: "build a thing" },
+          outputs: {
+            spec_filepath: "/abs/SPEC.md",
+            instructions: "build a thing",
+          },
         };
       }
-      return { output: "done", metrics: makeMetrics({ agent: options.agent.name }) };
+      return {
+        output: "done",
+        metrics: makeMetrics({ agent: options.agent.name }),
+      };
     };
 
     const workflow = withName(
@@ -959,11 +1002,17 @@ describe("runWorkflow agent failure status fails the workflow", () => {
         };
       }
       secondCalled = true;
-      return { output: "", metrics: makeMetrics({ agent: options.agent.name }) };
+      return {
+        output: "",
+        metrics: makeMetrics({ agent: options.agent.name }),
+      };
     };
 
     const workflow = withName(
-      defineWorkflow({ description: "fail-stops", variables: { output_dir: "p" } })
+      defineWorkflow({
+        description: "fail-stops",
+        variables: { output_dir: "p" },
+      })
         .step("first", ({ output_dir }) => broken({ output_dir }))
         .step("second", ({ spec_filepath }) => downstream({ spec_filepath }))
         .build(),
