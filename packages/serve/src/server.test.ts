@@ -65,9 +65,7 @@ test("returns 404 for unknown routes", async () => {
 });
 
 test("returns 200 with JSON for sync handlers", async () => {
-  const routes = new Map<string, Handler>([
-    ["echo", async ({ body }) => ({ got: body })],
-  ]);
+  const routes = new Map<string, Handler>([["echo", async ({ body }) => ({ got: body })]]);
   await withServer(routes, async (base) => {
     const r = await fetch(`${base}/echo`, {
       method: "POST",
@@ -183,15 +181,46 @@ test("GET /runs/:id returns 404 for unknown runId", async () => {
   });
 });
 
-test("returns 413 on oversized body", async () => {
-  const routes = new Map<string, Handler>([["x", async () => ({ ok: true })]]);
+test("returns 500 with precheck-failed and issues when handler throws GenerataPrecheckError", async () => {
+  const { GenerataPrecheckError } = await import("@generata/core");
+  const issues = [
+    { kind: "missing-arg", agent: "fake", message: "missing required arg X" },
+  ] as never;
+
+  const routes = new Map<string, Handler>([
+    [
+      "preflight",
+      async () => {
+        throw new GenerataPrecheckError("fake-workflow", issues);
+      },
+    ],
+  ]);
   await withServer(routes, async (base) => {
-    const big = "x".repeat(200);
-    const r = await fetch(`${base}/x`, {
+    const r = await fetch(`${base}/preflight`, {
       method: "POST",
       headers: { Authorization: "Bearer secret", "Content-Type": "application/json" },
-      body: JSON.stringify({ pad: big }),
+      body: "{}",
     });
-    assert.equal(r.status, 413);
-  }, 64);
+    assert.equal(r.status, 500);
+    const body = (await r.json()) as { error: string; issues: unknown };
+    assert.equal(body.error, "precheck-failed");
+    assert.deepEqual(body.issues, issues);
+  });
+});
+
+test("returns 413 on oversized body", async () => {
+  const routes = new Map<string, Handler>([["x", async () => ({ ok: true })]]);
+  await withServer(
+    routes,
+    async (base) => {
+      const big = "x".repeat(200);
+      const r = await fetch(`${base}/x`, {
+        method: "POST",
+        headers: { Authorization: "Bearer secret", "Content-Type": "application/json" },
+        body: JSON.stringify({ pad: big }),
+      });
+      assert.equal(r.status, 413);
+    },
+    64,
+  );
 });

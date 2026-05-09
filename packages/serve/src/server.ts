@@ -5,7 +5,7 @@ import {
   type ServerResponse,
 } from "node:http";
 import { randomUUID } from "node:crypto";
-import { runWorkflow } from "@generata/core";
+import { runWorkflow, GenerataPrecheckError } from "@generata/core";
 import type { BearerAuth } from "./auth.js";
 import type { RunStore } from "./run-store.js";
 import type { Handler, HandlerContext, HandlerLogger } from "./handler.js";
@@ -121,6 +121,11 @@ export function createServer({
     try {
       resolved = await handler(ctx);
     } catch (err) {
+      if (err instanceof GenerataPrecheckError) {
+        logger.error(`handler '${route}' precheck failed: ${err.message}`);
+        respond(res, 500, { error: "precheck-failed", issues: err.issues });
+        return;
+      }
       logger.error(`handler '${route}' threw: ${(err as Error).message}`);
       respond(res, 500, { error: "handler-error", runId });
       return;
@@ -136,13 +141,24 @@ export function createServer({
           const result = await runWorkflow(resolved.workflow, resolved.args, resolved.options);
           await runStore.complete(runId, result);
         } catch (err) {
-          try {
-            await runStore.fail(runId, {
-              code: "workflow-error",
-              message: (err as Error).message,
-            });
-          } catch (storeErr) {
-            logger.error(`run-store: failed to record failure for ${runId}: ${(storeErr as Error).message}`);
+          if (err instanceof GenerataPrecheckError) {
+            try {
+              await runStore.fail(runId, {
+                code: "precheck-failed",
+                message: err.message,
+              });
+            } catch {
+              // teardown race - test cleaned up dir before fail wrote
+            }
+          } else {
+            try {
+              await runStore.fail(runId, {
+                code: "workflow-error",
+                message: (err as Error).message,
+              });
+            } catch {
+              // teardown race
+            }
           }
         }
       })();

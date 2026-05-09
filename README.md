@@ -153,12 +153,13 @@ Most agent frameworks expect you to manage Anthropic/OpenAI API keys, juggle Pyt
 
 ## Packages
 
-| Package                                                      | What it is                                              |
-| :----------------------------------------------------------- | :------------------------------------------------------ |
-| [`packages/core`](./packages/core)                           | `@generata/core` - the engine and CLI, published to npm |
-| [`packages/templates/coding`](./packages/templates/coding)   | The default coding pipeline template, cloned by `init`  |
-| [`packages/templates/starter`](./packages/templates/starter) | Minimal starter for building your own pipeline          |
-| [`packages/templates/standup`](./packages/templates/standup) | Daily standup summariser template                       |
+| Package                                                      | What it is                                                                |
+| :----------------------------------------------------------- | :------------------------------------------------------------------------ |
+| [`packages/core`](./packages/core)                           | `@generata/core` - the engine and CLI, published to npm                   |
+| [`packages/serve`](./packages/serve)                         | `@generata/serve` - HTTP server that exposes workflows over a REST API    |
+| [`packages/templates/coding`](./packages/templates/coding)   | The default coding pipeline template, cloned by `init`                    |
+| [`packages/templates/starter`](./packages/templates/starter) | Minimal starter for building your own pipeline                            |
+| [`packages/templates/standup`](./packages/templates/standup) | Daily standup summariser template                                         |
 
 ---
 

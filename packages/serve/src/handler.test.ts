@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { Handler, HandlerContext, RunState } from "./handler.ts";
+import type { Handler, RunState } from "./handler.ts";
 
 test("Handler is a function shape that accepts HandlerContext and returns a Promise", () => {
   // Type-level shape verification: this assignment compiles only if Handler matches HandlerContext.
