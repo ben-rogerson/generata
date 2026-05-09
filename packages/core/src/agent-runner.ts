@@ -36,6 +36,10 @@ export interface RunOptions {
   resolvedEnv?: Record<string, string>;
   sink?: EventSink;
   signal?: AbortSignal;
+  // Only the initiator planner (no effective deps) actually emits workflow params
+  // via the params bin. Non-initiator planners produce `outputs` instead, so the
+  // params-bin instruction is misleading noise for them.
+  isInitiatorPlanner?: boolean;
 }
 
 export interface RunResult {
@@ -396,7 +400,7 @@ export async function runAgent(options: RunOptions): Promise<RunResult> {
     verdictBin = resolve(fileURLToPath(new URL("../bin/verdict", import.meta.url)));
     verdictFile = join(tmpdir(), `verdict-${fileId}.json`);
     prompt = `${prompt}\n\n---\nTo record your verdict, run ONE of:\n  ${verdictBin} approve\n  ${verdictBin} reject "<one-line summary>" "<issue 1>" "<issue 2>" ...\n\nWhen rejecting, each issue must be a specific, actionable one-sentence statement the upstream agent can address - one issue per failure, not concatenated. If you have nothing specific to flag, approve instead.`;
-  } else if (agent.type === "planner") {
+  } else if (agent.type === "planner" && options.isInitiatorPlanner) {
     paramsBin = resolve(fileURLToPath(new URL("../bin/params", import.meta.url)));
     paramsFile = join(tmpdir(), `params-${fileId}.json`);
     prompt = `${prompt}\n\n---\nTo emit workflow params, run: ${paramsBin} <plan_name> <instructions>`;
