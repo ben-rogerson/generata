@@ -5,7 +5,7 @@ import { loadRegistry } from "../registry.js";
 import { generateSlashCommands } from "./slash-commands.js";
 import { fmt } from "../logger.js";
 
-export async function runSkillsSync(): Promise<void> {
+export async function runCommandsSync(): Promise<void> {
   const projectRoot = findProjectRoot();
   const config = await loadConfig(projectRoot);
   const registry = await loadRegistry({ projectRoot, agentsDir: config.agentsDir });

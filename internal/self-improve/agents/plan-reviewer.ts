@@ -18,7 +18,8 @@ Evaluate:
 2. Does the plan scale to the spec's SIZE declaration (no 5-step plan for a TRIVIAL typo; no 1-bullet plan for a SUBSTANTIAL change)?
 3. Are plan steps concrete (no "set up X" or "handle edge cases" without specifics)?
 4. Does the plan stay in scope - no proposed edits to .changeset/, .github/workflows/, internal/self-improve/ (except IMPROVEMENTS.md, which the workflow may prune), package.json version fields?
-5. Are dependencies and risks called out for SUBSTANTIAL plans?
+5. **No-breaking-changes rule (defence in depth).** The spec-creator should already have deferred breaking changes to \`internal/ideas/\` rather than write a spec, so this case is rare. If a plan slips through that would require a breaking change to \`@generata/core\` public exports (anything re-exported from \`packages/core/src/define.ts\`, including the types from \`schema.ts\` - removed/renamed exports, changed required parameters, narrowed return types, tightened existing types), reject it. Additive changes (new exports, new optional fields) are fine.
+6. Are dependencies and risks called out for SUBSTANTIAL plans?
 
 Reason through each point in prose, then call the verdict command. When rejecting, list each concrete problem as a separate issue argument anchored to a specific spec line or plan step. Vague flags like "needs more detail" do not qualify.`,
   }),
