@@ -38,7 +38,7 @@ export default defineAgent<{ message: string }>(({ message }) => ({
 }));
 ```
 
-And a workflow that uses it. Workflows live under `agents/` (flat) or `agents/workflows/` (nested) - the filename is the workflow name. The starter uses flat; most templates use the nested convention.
+And a workflow that uses it. Workflows live under `agents/workflows/` by default - the filename is the workflow name. Flat placement directly in `agents/` is also valid for simple setups (the `starter` template uses this).
 
 ```ts
 // agents/hello.ts  (or agents/workflows/hello.ts)
