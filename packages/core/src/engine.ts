@@ -40,13 +40,6 @@ import { resolveEnvProfile, type ResolvedEnv } from "./env-profile.js";
 import { resolveStepShape } from "./step-shape.js";
 import { GenerataPrecheckError } from "./errors.js";
 
-// Workers signal a structural halt by leading their output with `STATUS: halt`.
-// The critic retry loop checks this to short-circuit retries that would re-hit
-// the same conflict. Exported so the regex can be regression-tested in isolation.
-export function isStructuralHalt(output: string): boolean {
-  return /^STATUS:\s*halt\b/im.test(output);
-}
-
 function computeWorkflowVariables(
   workflow: WorkflowDef,
   builtinsAndArgs: Record<string, string>,
@@ -566,11 +559,6 @@ export async function executeWorkflow(
                   const criticResolved = resolveStepForRun(step, params, stepOutputs);
                   result = await runAgentStep(step, criticResolved.agent, criticResolved.args);
                   stepOutputs[step.id] = result.output;
-
-                  // Structural-halt short-circuit: if the worker reports STATUS: halt
-                  // the rerun won't make progress (the conflict is in the spec/plan, not
-                  // the diff). Stop retrying and let the rejection propagate to haltSignal.
-                  if (isStructuralHalt(execResult.output)) break;
                 }
               }
 
