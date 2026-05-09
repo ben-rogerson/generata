@@ -329,7 +329,7 @@ function writePackageJson(dest: string, manifest: TemplateManifest): void {
       workflow: "generata workflow",
       validate: "generata validate",
       metrics: "generata metrics",
-      "skills:sync": "generata skills sync",
+      "commands:sync": "generata commands sync",
     },
     devDependencies: {
       "@generata/core": engineRange,
