@@ -73,6 +73,7 @@ describe("pickPrintableFinalOutput", () => {
   });
 
   it("returns null when the final step's agent is a critic", () => {
+    const criticAgent = { type: "critic", name: "judge" } as any;
     const workflow = {
       description: "x",
       required: [],
@@ -80,8 +81,7 @@ describe("pickPrintableFinalOutput", () => {
       steps: [
         {
           id: "judge",
-          agent: { type: "critic", name: "judge" } as any,
-          args: {},
+          stepFn: () => ({ kind: "step-invocation", agent: criticAgent, args: {} }),
         },
       ],
       kind: "workflow" as const,
@@ -99,6 +99,7 @@ describe("pickPrintableFinalOutput", () => {
   });
 
   it("returns the output when the final step's agent is a worker (not critic)", () => {
+    const workerAgent = { type: "worker", name: "do-it" } as any;
     const workflow = {
       description: "x",
       required: [],
@@ -106,8 +107,7 @@ describe("pickPrintableFinalOutput", () => {
       steps: [
         {
           id: "do-it",
-          agent: { type: "worker", name: "do-it" } as any,
-          args: {},
+          stepFn: () => ({ kind: "step-invocation", agent: workerAgent, args: {} }),
         },
       ],
       kind: "workflow" as const,

@@ -4,7 +4,6 @@ import { dirname, join, resolve } from "path";
 import {
   WorkflowDef,
   WorkflowStep,
-  CriticWorkflowStep,
   GlobalConfig,
   AgentMetrics,
   AgentDef,
@@ -89,37 +88,19 @@ export interface WorkflowResult {
   worktreePath?: string;
 }
 
-function resolveArgs(
-  args: Record<string, unknown> | ((params: StepParams) => Record<string, unknown>) | undefined,
-  params: Record<string, unknown>,
-  stepOutputs: Record<string, string>,
-): Record<string, unknown> {
-  const stringParams: StepParams = Object.fromEntries(
-    Object.entries({ ...params, ...stepOutputs }).map(([k, v]) => [k, String(v)]),
-  );
-  // Always-passthrough: builtins, vars, required, derived. Prior step outputs
-  // are NOT auto-leaked — agents only see what an `args` fn explicitly returns.
-  const passthrough: Record<string, unknown> = { ...params };
-  if (typeof args === "function") return { ...passthrough, ...args(stringParams) };
-  return { ...passthrough, ...args };
-}
-
-// Resolve a workflow step (agent-form or stepFn-form) to {agent, args} for
-// the run loop. For stepFn-form, run the user's function with the current
-// {params + stepOutputs} so it can map prior outputs into the agent factory.
+// Resolve a workflow step to {agent, args} for the run loop. The stepFn runs
+// with the current {params + stepOutputs} so it can map prior outputs into the
+// agent factory.
 function resolveStepForRun(
   step: WorkflowStep,
   params: Record<string, unknown>,
   stepOutputs: Record<string, string>,
 ): { agent: AgentDef; args: Record<string, unknown> } {
-  if ("stepFn" in step) {
-    const stringParams: StepParams = Object.fromEntries(
-      Object.entries({ ...params, ...stepOutputs }).map(([k, v]) => [k, String(v)]),
-    );
-    const inv = step.stepFn(stringParams);
-    return { agent: inv.agent as AgentDef, args: { ...params, ...inv.args } };
-  }
-  return { agent: step.agent as AgentDef, args: resolveArgs(step.args, params, stepOutputs) };
+  const stringParams: StepParams = Object.fromEntries(
+    Object.entries({ ...params, ...stepOutputs }).map(([k, v]) => [k, String(v)]),
+  );
+  const inv = step.stepFn(stringParams);
+  return { agent: inv.agent as AgentDef, args: { ...params, ...inv.args } };
 }
 
 function resolveIsolation(
@@ -571,7 +552,7 @@ export async function executeWorkflow(
               }
 
               if (result.verdict?.verdict !== "approve") {
-                const onRejectAgent = (step as CriticWorkflowStep).onReject;
+                const onRejectAgent = step.onReject;
                 if (onRejectAgent) {
                   // Factory-form: call it with all available runtime state to
                   // get a freshly-resolved StepInvocation (closure interpolation
@@ -588,13 +569,16 @@ export async function executeWorkflow(
                     rejectArgs = { ...params, ...inv.args };
                   } else {
                     rejectAgent = onRejectAgent as AgentDef;
-                    rejectArgs = resolveArgs({}, params, stepOutputs);
+                    rejectArgs = { ...params };
                   }
                   await runAgentStep(
                     {
                       id: `${step.id}-cleanup`,
-                      agent: rejectAgent,
-                      args: {},
+                      stepFn: () => ({
+                        kind: "step-invocation",
+                        agent: rejectAgent,
+                        args: {},
+                      }),
                     } as WorkflowStep,
                     rejectAgent,
                     rejectArgs,

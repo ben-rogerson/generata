@@ -1,0 +1,52 @@
+{
+  "name": "@generata/serve",
+  "version": "0.1.0",
+  "description": "HTTP server for Generata workflow handlers - auto-discovers user scripts and runs them with Bearer auth and disk-persisted run state.",
+  "keywords": ["generata", "http", "webhook", "ai-agents", "claude"],
+  "homepage": "https://github.com/ben-rogerson/generata#readme",
+  "bugs": { "url": "https://github.com/ben-rogerson/generata/issues" },
+  "license": "ISC",
+  "author": "Ben Rogerson <info@benrogerson.dev>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ben-rogerson/generata.git",
+    "directory": "packages/serve"
+  },
+  "bin": { "generata-serve": "./bin/generata-serve" },
+  "files": ["dist", "bin", "src", "README.md", "CHANGELOG.md"],
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "publishConfig": { "access": "public" },
+  "scripts": {
+    "dev": "tsx src/cli.ts",
+    "clean": "rm -rf dist",
+    "build": "pnpm clean && tsc -p tsconfig.build.json",
+    "build:watch": "tsc -p tsconfig.build.json --watch",
+    "prepare": "pnpm build",
+    "test": "node --test --import tsx 'src/**/*.test.ts'",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check"
+  },
+  "dependencies": {
+    "@generata/core": "workspace:*",
+    "tsx": "^4.19.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "oxfmt": "^0.44.0",
+    "oxlint": "^1.59.0",
+    "typescript": "^5.7.2"
+  }
+}

@@ -6,6 +6,9 @@ import { fileURLToPath } from "url";
 import { AgentDef, GlobalConfig, AgentMetrics, AgentStreamEvent, Tool } from "./schema.js";
 
 const TOOL_NAME_MAP: Partial<Record<Tool, string>> = {
+  read: "Read",
+  glob: "Glob",
+  grep: "Grep",
   bash: "Bash",
   write: "Write",
   edit: "Edit",
@@ -238,8 +241,12 @@ export function buildAllowedTools(
   if (bins.paramsBin) binPermissions.push(`Bash(${bins.paramsBin}:*)`);
   if (bins.outputsBin) {
     if (agent.permissions === "read-only" && bins.outputsFile) {
-      // Scoped Write - the LLM can only write the EMIT_FILE path, not arbitrary files.
-      binPermissions.push(`Write(${bins.outputsFile})`);
+      // Scoped Edit - the LLM can only write the EMIT_FILE path, not arbitrary
+      // files. `Edit(...)` covers all built-in file-edit tools including Write
+      // (per Claude Code docs), and absolute paths require a leading `//` -
+      // a single `/` is interpreted as project-root-relative and silently
+      // fails to match an absolute tmpdir path.
+      binPermissions.push(`Edit(/${bins.outputsFile})`);
     } else {
       binPermissions.push(`Bash(${bins.outputsBin}:*)`);
     }
@@ -259,8 +266,67 @@ export function buildAllowedTools(
   }
   // permissions === "full"
   if (agent.tools.length === 0 && binPermissions.length === 0) return null;
-  const baseTools = ["Read", "Glob", "Grep"];
+  const baseTools = agent.filesystemAccess === false ? [] : ["Read", "Glob", "Grep"];
   return [...baseTools, ...extraTools, ...binPermissions].join(",");
+}
+
+async function parseCloseResult(
+  files: {
+    verdictFile: string | null;
+    paramsFile: string | null;
+    outputsFile: string | null;
+  },
+  agentOutputs: AgentDef["outputs"],
+): Promise<{
+  verdictData?: { verdict: string; summary: string; issues: string[] };
+  paramsData?: { plan_name: string; instructions: string };
+  outputsData?: Record<string, string>;
+  haltData?: { reason: string };
+  missingKeys: string[];
+  outputsInvoked: boolean;
+}> {
+  let verdictData: { verdict: string; summary: string; issues: string[] } | undefined;
+  if (files.verdictFile && existsSync(files.verdictFile)) {
+    try {
+      verdictData = JSON.parse(readFileSync(files.verdictFile, "utf8"));
+      unlinkSync(files.verdictFile);
+    } catch {}
+  }
+
+  let paramsData: { plan_name: string; instructions: string } | undefined;
+  if (files.paramsFile && existsSync(files.paramsFile)) {
+    try {
+      paramsData = JSON.parse(readFileSync(files.paramsFile, "utf8"));
+      unlinkSync(files.paramsFile);
+    } catch {}
+  }
+
+  let outputsData: Record<string, string> | undefined;
+  let haltData: { reason: string } | undefined;
+  let missingKeys: string[] = [];
+  let outputsInvoked = false;
+  if (files.outputsFile && existsSync(files.outputsFile)) {
+    outputsInvoked = true;
+    try {
+      const raw = JSON.parse(readFileSync(files.outputsFile, "utf8")) as Record<string, unknown>;
+      unlinkSync(files.outputsFile);
+      if (typeof raw.__halt === "string") {
+        haltData = { reason: raw.__halt };
+      } else {
+        const declared = Object.keys(agentOutputs ?? {});
+        const missing = declared.filter((k) => !(k in raw));
+        if (missing.length === 0) {
+          outputsData = Object.fromEntries(declared.map((k) => [k, String(raw[k] ?? "")]));
+        } else {
+          missingKeys = missing;
+        }
+      }
+    } catch {}
+  } else if (files.outputsFile && agentOutputs && Object.keys(agentOutputs).length > 0) {
+    missingKeys = Object.keys(agentOutputs);
+  }
+
+  return { verdictData, paramsData, outputsData, haltData, missingKeys, outputsInvoked };
 }
 
 export async function runAgent(options: RunOptions): Promise<RunResult> {
@@ -376,7 +442,9 @@ export async function runAgent(options: RunOptions): Promise<RunResult> {
       env: spawnEnv,
       cwd: options.cwd,
       signal: options.signal,
+      detached: true,
     });
+    proc.unref();
 
     // Two-stage timeout: SIGTERM at timeoutSeconds, SIGKILL 10s later if it
     // hasn't exited. Node's built-in spawn timeout only sends SIGTERM, which
@@ -388,14 +456,14 @@ export async function runAgent(options: RunOptions): Promise<RunResult> {
     const sigtermTimer = setTimeout(() => {
       if (!exited) {
         killReason = "timeout-sigterm";
-        proc.kill("SIGTERM");
+        if (proc.pid) process.kill(-proc.pid, "SIGTERM");
       }
     }, agent.timeoutSeconds * 1000);
     const sigkillTimer = setTimeout(
       () => {
         if (!exited) {
           if (!killReason) killReason = "timeout-sigkill";
-          proc.kill("SIGKILL");
+          if (proc.pid) process.kill(-proc.pid, "SIGKILL");
         }
       },
       agent.timeoutSeconds * 1000 + 10_000,
@@ -521,51 +589,22 @@ export async function runAgent(options: RunOptions): Promise<RunResult> {
         exit_code: exitCode,
       };
 
-      // Read and clean up verdict file for critic agents
-      let verdictData: { verdict: string; summary: string; issues: string[] } | undefined;
-      if (verdictFile && existsSync(verdictFile)) {
-        try {
-          verdictData = JSON.parse(readFileSync(verdictFile, "utf8"));
-          unlinkSync(verdictFile);
-        } catch {}
-      }
-
-      // Read and clean up params file for initiator agents
-      let paramsData: { plan_name: string; instructions: string } | undefined;
-      if (paramsFile && existsSync(paramsFile)) {
-        try {
-          paramsData = JSON.parse(readFileSync(paramsFile, "utf8"));
-          unlinkSync(paramsFile);
-        } catch {}
-      }
-
-      // Read and clean up outputs file. Three branches:
-      //   1. Halt emission ({__halt: "<reason>"}) — return halt signal, no
+      // Read and clean up verdict, params, and outputs files. Branches handled
+      // inside the helper:
+      //   1. Halt emission ({__halt: "<reason>"}) - return halt signal, no
       //      metric failure; engine treats as structured workflow stop.
-      //   2. Success keys present — validate declared keys, expose as outputs.
-      //   3. Missing keys / no emission — fail metric so engine retries/halts.
-      let outputsData: Record<string, string> | undefined;
-      let haltData: { reason: string } | undefined;
-      if (outputsFile && existsSync(outputsFile)) {
-        try {
-          const raw = JSON.parse(readFileSync(outputsFile, "utf8")) as Record<string, unknown>;
-          unlinkSync(outputsFile);
-          if (typeof raw.__halt === "string") {
-            haltData = { reason: raw.__halt };
-          } else {
-            const declared = Object.keys(agent.outputs ?? {});
-            const missing = declared.filter((k) => !(k in raw));
-            if (missing.length === 0) {
-              outputsData = Object.fromEntries(declared.map((k) => [k, String(raw[k] ?? "")]));
-            } else {
-              if (metrics.status === "success") metrics.status = "failure";
-              metrics.error = `${metrics.error ? metrics.error + "; " : ""}emit missing keys: ${missing.join(", ")}`;
-            }
-          }
-        } catch {}
-      } else if (outputsFile && agent.outputs && Object.keys(agent.outputs).length > 0) {
+      //   2. Success keys present - validate declared keys, expose as outputs.
+      //   3. Missing keys / no emission - surface via missingKeys so the caller
+      //      fails the metric and the engine retries/halts.
+      const { verdictData, paramsData, outputsData, haltData, missingKeys, outputsInvoked } =
+        await parseCloseResult({ verdictFile, paramsFile, outputsFile }, agent.outputs);
+
+      if (missingKeys.length > 0) {
         if (metrics.status === "success") metrics.status = "failure";
-        metrics.error = `${metrics.error ? metrics.error + "; " : ""}emit bin was not invoked - declared outputs missing: ${Object.keys(agent.outputs).join(", ")}`;
+        const reason = outputsInvoked
+          ? `emit missing keys: ${missingKeys.join(", ")}`
+          : `emit bin was not invoked - declared outputs missing: ${missingKeys.join(", ")}`;
+        metrics.error = `${metrics.error ? metrics.error + "; " : ""}${reason}`;
       }
 
       writeMetrics(metrics, resolve(workDir, config.metricsDir));

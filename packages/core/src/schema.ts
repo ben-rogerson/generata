@@ -1,6 +1,15 @@
 import { z } from "zod";
 
-export const Tool = z.enum(["write", "bash", "edit", "web-search", "web-fetch"]);
+export const Tool = z.enum([
+  "read",
+  "glob",
+  "grep",
+  "write",
+  "bash",
+  "edit",
+  "web-search",
+  "web-fetch",
+]);
 export type Tool = z.infer<typeof Tool>;
 
 export const LLMTier = z.enum(["heavy", "standard", "light"]);
@@ -16,6 +25,7 @@ export const ContextSource = z.object({
     (val) => typeof val === "string" || typeof val === "function",
     "filepath must be a string or a function",
   ),
+  head: z.number().optional(),
   tail: z.number().optional(),
   // When true, a missing file produces no tag and no warning. Use for files that
   // are expected to be absent on fresh systems (e.g. memory/progress.txt).
@@ -28,6 +38,11 @@ const AgentBase = z.object({
   description: z.string(),
   timeoutSeconds: z.number().default(600),
   envKeys: z.array(z.string()).default([]),
+  // Opt-out of the implicit Read/Glob/Grep base tools that full-permission agents
+  // receive by default. Has no effect on read-only agents (filesystem read is the
+  // defining characteristic of that level) - setting false on a read-only agent
+  // is a parse error.
+  filesystemAccess: z.boolean().optional(),
 });
 
 export const BUILTIN_ARGS = ["work_dir", "today", "time"] as const;
@@ -55,27 +70,38 @@ const LLMAgentBase = AgentBase.extend({
   outputs: z.record(z.string(), z.string()).optional(),
 });
 
-export const AgentDef = z.discriminatedUnion("type", [
-  // critic: read-only analysis; supports per-arg model switching
-  LLMAgentBase.extend({
-    type: z.literal("critic"),
-    permissions: z.literal("read-only").default("read-only"),
-    modelTierOverrides: z.record(z.string(), LLMTier).optional(),
-  }).strict(),
-  // worker: full-permission agent that reads/writes/runs code
-  // .strict() rejects unknown fields so removed fields (e.g. promptRetryTemplate) fail loudly
-  // instead of being silently stripped.
-  LLMAgentBase.extend({
-    type: z.literal("worker"),
-    permissions: Permissions.default("full"),
-  }).strict(),
-  // planner: produces plans or acts as workflow initiator (interactive: true = terminal takeover)
-  LLMAgentBase.extend({
-    type: z.literal("planner"),
-    permissions: Permissions.default("full"),
-    interactive: z.boolean().default(false),
-  }).strict(),
-]);
+export const AgentDef = z
+  .discriminatedUnion("type", [
+    // critic: read-only analysis; supports per-arg model switching
+    LLMAgentBase.extend({
+      type: z.literal("critic"),
+      permissions: z.literal("read-only").default("read-only"),
+      modelTierOverrides: z.record(z.string(), LLMTier).optional(),
+    }).strict(),
+    // worker: full-permission agent that reads/writes/runs code
+    // .strict() rejects unknown fields so removed fields (e.g. promptRetryTemplate) fail loudly
+    // instead of being silently stripped.
+    LLMAgentBase.extend({
+      type: z.literal("worker"),
+      permissions: Permissions.default("full"),
+    }).strict(),
+    // planner: produces plans or acts as workflow initiator (interactive: true = terminal takeover)
+    LLMAgentBase.extend({
+      type: z.literal("planner"),
+      permissions: Permissions.default("full"),
+      interactive: z.boolean().default(false),
+    }).strict(),
+  ])
+  .superRefine((val, ctx) => {
+    if (val.permissions === "read-only" && val.filesystemAccess === false) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["filesystemAccess"],
+        message:
+          "filesystemAccess: false is incompatible with permissions: 'read-only' (read-only agents always have filesystem read access by definition)",
+      });
+    }
+  });
 export type AgentDef = z.infer<typeof AgentDef> & { kind: "agent"; name: string };
 export type LLMAgentDef = AgentDef;
 
@@ -98,9 +124,9 @@ export type StepInvocation<
   args: Record<string, unknown>;
 };
 
-// Function-step shape: chain builder's `.step(id, (params) => agent(...))` form.
-// The fn receives prior step outputs + builtins/vars and returns a StepInvocation.
-const FnWorkflowStep = z.object({
+// Workflow steps are uniformly stepFn-shaped. defineWorkflow's `.step()` wraps
+// bare-agent values in a closure so the engine sees a single shape.
+export const WorkflowStep = z.object({
   id: z.string(),
   stepFn: z.custom<(params: StepParams) => StepInvocation>(
     (val) => typeof val === "function",
@@ -122,59 +148,6 @@ const FnWorkflowStep = z.object({
     }, "onReject must be an LLM agent definition or a function returning a StepInvocation")
     .optional(),
 });
-
-const CriticWorkflowStep = z.object({
-  id: z.string(),
-  agent: z.custom<Extract<AgentDef, { type: "critic" }>>(
-    (val) =>
-      typeof val === "object" &&
-      val !== null &&
-      "type" in val &&
-      (val as { type: unknown }).type === "critic",
-  ),
-  args: z
-    .custom<Record<string, unknown> | ((params: StepParams) => Record<string, unknown>)>(
-      (val) => (typeof val === "object" && val !== null) || typeof val === "function",
-    )
-    .default({}),
-  dependsOn: z.array(z.string()).optional(),
-  maxRetries: z.number().optional(),
-  // Accepts either an object-form AgentDef or a function (stepFn / factory)
-  // returning a StepInvocation. The engine narrows by typeof at rejection time.
-  onReject: z
-    .custom<AgentDef | ((inputs: Record<string, string>) => StepInvocation)>((val) => {
-      if (val === null || val === undefined) return false;
-      if (typeof val === "function") return true;
-      return (
-        typeof val === "object" &&
-        "type" in val &&
-        ["worker", "planner", "critic"].includes((val as { type: unknown }).type as string)
-      );
-    }, "onReject must be an LLM agent definition or a function returning a StepInvocation")
-    .optional(),
-});
-
-const NonCriticWorkflowStep = z.object({
-  id: z.string(),
-  agent: z.custom<Exclude<AgentDef, { type: "critic" }>>(
-    (val) =>
-      typeof val === "object" &&
-      val !== null &&
-      "type" in val &&
-      ["worker", "planner"].includes((val as { type: unknown }).type as string),
-  ),
-  args: z
-    .custom<Record<string, unknown> | ((params: StepParams) => Record<string, unknown>)>(
-      (val) => (typeof val === "object" && val !== null) || typeof val === "function",
-    )
-    .default({}),
-  dependsOn: z.array(z.string()).optional(),
-});
-
-export type CriticWorkflowStep = z.infer<typeof CriticWorkflowStep>;
-export type FnWorkflowStep = z.infer<typeof FnWorkflowStep>;
-
-export const WorkflowStep = z.union([CriticWorkflowStep, NonCriticWorkflowStep, FnWorkflowStep]);
 export type WorkflowStep = z.infer<typeof WorkflowStep>;
 
 export type DeriveFn = (args: Record<string, string>) => Record<string, string>;
@@ -258,6 +231,8 @@ export const GlobalConfig = z.object({
       chatId: z.string(),
     })
     .optional(),
+  // Consumed by @generata/serve at startup; core does not validate the shape.
+  serve: z.unknown().optional(),
 });
 export type GlobalConfig = z.infer<typeof GlobalConfig>;
 

@@ -79,7 +79,13 @@ function renderContextEntry(
     return `<context file="${resolvedPath}" status="missing" />`;
   }
   const raw = readFileSync(fullPath, "utf-8");
-  const content = ctx.tail ? raw.split("\n").slice(-ctx.tail).join("\n") : raw;
+  let content = raw;
+  if (ctx.head !== undefined || ctx.tail !== undefined) {
+    let lines = raw.split("\n");
+    if (ctx.head !== undefined) lines = lines.slice(0, ctx.head);
+    if (ctx.tail !== undefined) lines = lines.slice(-ctx.tail);
+    content = lines.join("\n");
+  }
   return `<context file="${resolvedPath}">\n${content}\n</context>`;
 }
 
