@@ -36,8 +36,10 @@ type AgentInput =
     });
 
 // Brand that distinguishes factory-form agents from object-form. The bare-agent
-// step slot rejects branded values so a factory can't be passed without calling
-// it (which would silently use the sentinel-resolved prompt at runtime).
+// step slot rejects branded values; a separate slot accepts only the no-inputs
+// factory shape (`AgentCallable<Record<never, string>, ...>`), so factories
+// with declared inputs still can't be passed without calling them (which would
+// silently use the sentinel-resolved prompt at runtime).
 declare const _factoryBrand: unique symbol;
 
 // Factory-form return: callable that produces StepInvocations. Static agent
@@ -163,9 +165,10 @@ export function defineAgent(
 // .build() validates and emits the WorkflowDef the engine consumes.
 type BuiltinArgs = { work_dir: string; today: string; time: string };
 
-// Bare slot rejects factory-form agents via the brand check. Factories must be
-// called inside a step function with their inputs — passing one bare would let
-// the engine consume a sentinel-laced prompt.
+// Bare slot rejects factory-form agents that declare inputs (via the brand +
+// inputs check). Factories with declared inputs must be called inside a stepFn
+// so prior-step outputs thread through correctly. Factories with NO declared
+// inputs are exempt: there is nothing to thread, so wrapping is pure noise.
 type StepValue<TParams> =
   /**
    * @deprecated Passing a bare `AgentDef` as a step value is half-supported and
@@ -174,6 +177,13 @@ type StepValue<TParams> =
    *   .step("id", ({ ... }) => myAgent({ ... }))
    */
   | (AgentDef & { readonly [_factoryBrand]?: never })
+  // Factory-form with no declared inputs: bare passing is canonical; the
+  // engine wraps it as `() => agent({})`. Discriminated by object properties
+  // only (no call signature) so lambdas - which lack `kind`/`__inputs`/the
+  // brand - never match this slot, preserving contextual typing of `params`
+  // for the stepFn slot below. `__inputs: Record<string, never>` rejects
+  // factories with required inputs (their `__inputs` has non-`never` values).
+  | { kind: "agent"; readonly [_factoryBrand]: true; __inputs: Record<string, never> }
   | ((params: TParams) => StepInvocation<Record<string, string>>);
 
 // Pulls the declared output keys back out of a step value's type.
@@ -204,7 +214,12 @@ type StepOptions<TParams = Record<string, string>> = {
      * through correctly:
      *   onReject: ({ ... }) => myAgent({ ... })
      */
-    (AgentDef & { readonly [_factoryBrand]?: never }) | ((params: TParams) => StepInvocation);
+    | (AgentDef & { readonly [_factoryBrand]?: never })
+    // Symmetric with the step value slot: factory-form agents with no declared
+    // inputs may be passed bare. Object-shape match (not callable) so lambdas
+    // contextually type their `params` against the stepFn slot below.
+    | { kind: "agent"; readonly [_factoryBrand]: true; __inputs: Record<string, never> }
+    | ((params: TParams) => StepInvocation);
 };
 
 type WorktreeConfigInput = z.input<typeof WorktreeConfigSchema>;
@@ -220,9 +235,14 @@ type InternalStep = {
   stepFn: (params: Record<string, string>) => StepInvocation;
   dependsOn?: string[];
   maxRetries?: number;
-  // Stored loose because either an object agent or a callable factory may be
-  // passed; the engine narrows by `typeof === "function"` at rejection time.
-  onReject?: AgentDef | ((inputs: Record<string, string>) => StepInvocation);
+  // Stored loose because three shapes may be passed: object AgentDef, callable
+  // factory wrapped in a stepFn, or bare empty-input AgentCallable. The engine
+  // narrows by `typeof === "function"` at rejection time - the bare callable
+  // hits the function branch and is invoked the same as a stepFn.
+  onReject?:
+    | AgentDef
+    | { kind: "agent"; readonly [_factoryBrand]: true; __inputs: Record<string, never> }
+    | ((inputs: Record<string, string>) => StepInvocation);
 };
 
 type WorkflowConfigInput<
@@ -275,17 +295,27 @@ export function defineWorkflow<
       }
       let stepFn: InternalStep["stepFn"];
       if (typeof value === "function") {
-        // Factory-form agents are callable AND carry kind: "agent". Passing one
-        // bare would skip the input mapping and run with a sentinel template.
-        // Type-level: the brand on AgentCallable rejects this slot. Runtime
-        // guard catches anyone bypassing types (e.g. via `as any`).
+        // Factory-form agents are callable AND carry kind: "agent". Two cases:
+        //  - `__inputs` empty: nothing to thread from prior steps, so wrap as
+        //    `() => agent({})` and treat as a normal stepFn. This keeps the
+        //    common case (pickers, scanners) free of `() => agent({})` boilerplate.
+        //  - `__inputs` non-empty: factory expects keyed args; passing it bare
+        //    would skip the input mapping and run with a sentinel template.
+        //    Type-level: the brand on AgentCallable rejects this slot. Runtime
+        //    guard catches anyone bypassing types (e.g. via `as any`).
         if ((value as { kind?: unknown }).kind === "agent") {
-          throw new Error(
-            `Step '${id}': received a factory-form agent passed bare. ` +
-              `Call it inside a step fn: .step("${id}", ({...}) => agentName({...inputs}))`,
-          );
+          const callable = value as AgentCallable<Record<string, string>>;
+          if (Object.keys(callable.__inputs).length === 0) {
+            stepFn = () => callable({});
+          } else {
+            throw new Error(
+              `Step '${id}': received a factory-form agent passed bare. ` +
+                `Call it inside a step fn: .step("${id}", ({...}) => agentName({...inputs}))`,
+            );
+          }
+        } else {
+          stepFn = value as InternalStep["stepFn"];
         }
-        stepFn = value as InternalStep["stepFn"];
       } else {
         // Bare-agent step slot is deprecated: prefer the stepFn form so typed
         // inputs and prior-step outputs thread through correctly.
