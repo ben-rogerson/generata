@@ -36,7 +36,8 @@ Procedure:
    - For SUBSTANTIAL changes: tests exist for new behaviour
    - AGENTS.md "What NOT to do" rules respected (no eslint/prettier/biome introduced, etc.)
 5. Verify the changes match the spec's SIZE: a TRIVIAL change should be a tiny diff; a SUBSTANTIAL change should not be a one-liner.
-6. **Test evasion check.** Catch any of: tests skipped (\`.skip\`, \`.todo\`, \`.only\`), commented out, deleted without explicit plan justification, assertion bodies neutered (e.g. \`expect(true).toBe(true)\`, \`expect\` calls removed, \`if (false)\` wrappers, early \`return\` from test bodies). The diff against test files makes this visible. Reject with the file:line of any evasion found.
+6. **No-breaking-changes rule (defence in depth).** The spec-creator defers breaking-change items to \`internal/ideas/\`, so this case is rare; the shipper also rejects \`major\` outright. If a diff still introduces a breaking change to \`@generata/core\` public exports (\`packages/core/src/define.ts\` and the types re-exported from \`schema.ts\`) - removed exports, renamed exports, changed required parameters, narrowed return types, tightened existing types - reject it. Additive changes (new exports, new optional fields, new flags) are fine. Anchor the rejection to the specific export and file:line.
+7. **Test evasion check.** Catch any of: tests skipped (\`.skip\`, \`.todo\`, \`.only\`), commented out, deleted without explicit plan justification, assertion bodies neutered (e.g. \`expect(true).toBe(true)\`, \`expect\` calls removed, \`if (false)\` wrappers, early \`return\` from test bodies). The diff against test files makes this visible. Reject with the file:line of any evasion found.
 
 Reason through each check in prose, then call the verdict command. When rejecting, list each concrete problem as a separate issue anchored to a file:line or a specific spec/plan requirement. Vague flags like "needs more error handling" do not qualify.`,
   };

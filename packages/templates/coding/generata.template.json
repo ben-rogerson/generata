@@ -1,6 +1,6 @@
 {
   "name": "@generata/coding",
-  "description": "Spec-driven coding pipeline: dream, plan, audit, code, review.",
+  "description": "Spec-driven coding pipeline: dream, plan, audit, execute, verify, readme, tidy.",
   "engineVersion": "^1.0.0",
   "requiredBins": [
     {

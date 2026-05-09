@@ -1,14 +1,17 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import type { WorkflowDef } from "../define.js";
+import { detectPm } from "./pm.js";
 
 export interface GenerateSlashCommandsInput {
   workflows: WorkflowDef[];
   destDir: string;
+  projectRoot: string;
 }
 
 export function generateSlashCommands(input: GenerateSlashCommandsInput): void {
   mkdirSync(input.destDir, { recursive: true });
+  const pm = detectPm(input.projectRoot);
   const seenBasenames = new Map<string, string>();
   for (const wf of input.workflows) {
     const base = basename(wf.name);
@@ -21,11 +24,11 @@ export function generateSlashCommands(input: GenerateSlashCommandsInput): void {
     seenBasenames.set(base, wf.name);
     const path = join(input.destDir, `${base}.md`);
     mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, renderSlashCommand(wf), "utf8");
+    writeFileSync(path, renderSlashCommand(wf, pm), "utf8");
   }
 }
 
-function renderSlashCommand(wf: WorkflowDef): string {
+function renderSlashCommand(wf: WorkflowDef, pm: string): string {
   const required = wf.required ?? [];
   const variables = Object.keys(wf.variables ?? {});
   const argumentHint = required.length
@@ -45,6 +48,6 @@ Variables: ${variables.join(", ") || "(none)"}
 
 Use the Bash tool to execute:
 
-\`pnpm generata ${wf.name} $ARGUMENTS\`
+\`${pm} generata ${wf.name} $ARGUMENTS\`
 `;
 }
