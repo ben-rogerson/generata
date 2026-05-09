@@ -1,6 +1,15 @@
 import { z } from "zod";
 
-export const Tool = z.enum(["write", "bash", "edit", "web-search", "web-fetch"]);
+export const Tool = z.enum([
+  "read",
+  "glob",
+  "grep",
+  "write",
+  "bash",
+  "edit",
+  "web-search",
+  "web-fetch",
+]);
 export type Tool = z.infer<typeof Tool>;
 
 export const LLMTier = z.enum(["heavy", "standard", "light"]);
@@ -32,6 +41,11 @@ const AgentBase = z.object({
   description: z.string(),
   timeoutSeconds: z.number().default(600),
   envKeys: z.array(z.string()).default([]),
+  // Opt-out of the implicit Read/Glob/Grep base tools that full-permission agents
+  // receive by default. Has no effect on read-only agents (filesystem read is the
+  // defining characteristic of that level) - setting false on a read-only agent
+  // is a parse error.
+  filesystemAccess: z.boolean().optional(),
 });
 
 export const BUILTIN_ARGS = ["work_dir", "today", "time"] as const;
@@ -59,27 +73,38 @@ const LLMAgentBase = AgentBase.extend({
   outputs: z.record(z.string(), z.string()).optional(),
 });
 
-export const AgentDef = z.discriminatedUnion("type", [
-  // critic: read-only analysis; supports per-arg model switching
-  LLMAgentBase.extend({
-    type: z.literal("critic"),
-    permissions: z.literal("read-only").default("read-only"),
-    modelTierOverrides: z.record(z.string(), LLMTier).optional(),
-  }).strict(),
-  // worker: full-permission agent that reads/writes/runs code
-  // .strict() rejects unknown fields so removed fields (e.g. promptRetryTemplate) fail loudly
-  // instead of being silently stripped.
-  LLMAgentBase.extend({
-    type: z.literal("worker"),
-    permissions: Permissions.default("full"),
-  }).strict(),
-  // planner: produces plans or acts as workflow initiator (interactive: true = terminal takeover)
-  LLMAgentBase.extend({
-    type: z.literal("planner"),
-    permissions: Permissions.default("full"),
-    interactive: z.boolean().default(false),
-  }).strict(),
-]);
+export const AgentDef = z
+  .discriminatedUnion("type", [
+    // critic: read-only analysis; supports per-arg model switching
+    LLMAgentBase.extend({
+      type: z.literal("critic"),
+      permissions: z.literal("read-only").default("read-only"),
+      modelTierOverrides: z.record(z.string(), LLMTier).optional(),
+    }).strict(),
+    // worker: full-permission agent that reads/writes/runs code
+    // .strict() rejects unknown fields so removed fields (e.g. promptRetryTemplate) fail loudly
+    // instead of being silently stripped.
+    LLMAgentBase.extend({
+      type: z.literal("worker"),
+      permissions: Permissions.default("full"),
+    }).strict(),
+    // planner: produces plans or acts as workflow initiator (interactive: true = terminal takeover)
+    LLMAgentBase.extend({
+      type: z.literal("planner"),
+      permissions: Permissions.default("full"),
+      interactive: z.boolean().default(false),
+    }).strict(),
+  ])
+  .superRefine((val, ctx) => {
+    if (val.permissions === "read-only" && val.filesystemAccess === false) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["filesystemAccess"],
+        message:
+          "filesystemAccess: false is incompatible with permissions: 'read-only' (read-only agents always have filesystem read access by definition)",
+      });
+    }
+  });
 export type AgentDef = z.infer<typeof AgentDef> & { kind: "agent"; name: string };
 export type LLMAgentDef = AgentDef;
 
