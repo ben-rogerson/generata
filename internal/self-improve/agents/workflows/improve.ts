@@ -21,7 +21,7 @@ export default defineWorkflow({
   description:
     "Pick a backlog item, plan it, ship it through the full spec/plan/code/review pipeline.",
   isolation: worktree({
-    sharedPaths: ["IMPROVEMENTS.md", "last-run.md"],
+    sharedPaths: ["IMPROVEMENTS.md", "last-run.md", "last-idea.md"],
   }),
 })
   .step("pick", itemPicker)
