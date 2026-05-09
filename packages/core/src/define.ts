@@ -283,10 +283,9 @@ export function defineWorkflow<
         // Type-level: the brand on AgentCallable rejects this slot. Runtime
         // guard catches anyone bypassing types (e.g. via `as any`).
         if ((value as { kind?: unknown }).kind === "agent") {
-          const fnName = (value as { name?: string }).name || "<factory>";
           throw new Error(
-            `Step '${id}': factory-form agent '${fnName}' cannot be passed bare. ` +
-              `Call it inside a step fn: .step("${id}", ({...}) => ${fnName}({...inputs}))`,
+            `Step '${id}': received a factory-form agent passed bare. ` +
+              `Call it inside a step fn: .step("${id}", ({...}) => agentName({...inputs}))`,
           );
         }
         internal.stepFn = value as InternalStep["stepFn"];
