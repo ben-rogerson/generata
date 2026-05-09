@@ -11,6 +11,6 @@ export async function runSkillsSync(): Promise<void> {
   const registry = await loadRegistry({ projectRoot, agentsDir: config.agentsDir });
   const workflows = registry.listWorkflows();
   const dest = join(projectRoot, ".claude", "commands");
-  generateSlashCommands({ workflows, destDir: dest });
+  generateSlashCommands({ workflows, destDir: dest, projectRoot });
   console.log(fmt.dim(`Wrote ${workflows.length} slash commands to ${dest}`));
 }
