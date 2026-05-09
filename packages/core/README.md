@@ -150,6 +150,26 @@ Looking to expose workflows over HTTP? See [`@generata/serve`](../serve).
 
 Workflow flags: `--worktree` forces git-worktree isolation for the run; `--local` forces it off (mutually exclusive).
 
+## Config reference
+
+Every field accepted by `defineConfig` (i.e. the `GlobalConfig` schema):
+
+| Field                              | Type                       | Default    | Description                                                                          |
+| :--------------------------------- | :------------------------- | :--------- | :----------------------------------------------------------------------------------- |
+| `modelTiers.heavy/standard/light`  | `string`                   | (required) | Model IDs for each cost tier                                                         |
+| `workDir`                          | `string`                   | (required) | Root directory for worktree isolation                                                |
+| `agentsDir`                        | `string`                   | `"agents"` | Directory scanned for agent definition files                                         |
+| `metricsDir`                       | `string`                   | `"metrics"`| Directory where per-run metrics JSON files are written                               |
+| `logsDir`                          | `string`                   | `"logs"`   | Directory where prompt logs are written (when `logPrompts` is true)                  |
+| `logPrompts`                       | `boolean`                  | `true`     | Write full prompt/response logs for every run                                        |
+| `verboseOutput`                    | `boolean`                  | `false`    | Stream each agent's raw Claude output to the console                                 |
+| `showPricing`                      | `boolean`                  | `false`    | Print token cost breakdown after each run                                            |
+| `showWeeklyMetrics`                | `boolean`                  | `true`     | Print a weekly usage summary on CLI startup                                          |
+| `notifications`                    | `boolean`                  | `true`     | Send OS/Telegram notifications on workflow completion                                |
+| `maxCriticRetries`                 | `number`                   | `3`        | How many times a critic agent may loop before the step fails                         |
+| `telegram`                         | `{ botToken, chatId }`     | -          | Telegram bot credentials for completion notifications (requires `notifications: true`) |
+| `serve`                            | `unknown`                  | -          | Passed through to `@generata/serve`; core does not validate the shape                |
+
 ## Template specifiers
 
 `generata init` accepts:
