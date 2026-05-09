@@ -261,6 +261,8 @@ export const GlobalConfig = z.object({
       chatId: z.string(),
     })
     .optional(),
+  // Consumed by @generata/serve at startup; core does not validate the shape.
+  serve: z.unknown().optional(),
 });
 export type GlobalConfig = z.infer<typeof GlobalConfig>;
 

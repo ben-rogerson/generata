@@ -87,19 +87,21 @@ generata-serve [options]
 
 ## Config
 
-Serve options live outside `defineConfig` (which belongs to `@generata/core` and does not accept a `serve` key). Configure via CLI flags or by passing a `ServeConfig`-shaped object directly if you invoke `createServer` programmatically:
+`generata.config.ts`:
 
 ```ts
-import { resolveServeConfig, createServer } from "@generata/serve";
+import { defineConfig } from "@generata/core";
 
-const cfg = resolveServeConfig({
-  serveDir: "serve",
-  port: 3000,
-  host: "127.0.0.1",
-  tokenEnv: "GENERATA_SERVE_TOKEN",
-  bodyLimitBytes: 1024 * 1024,
-  shutdownTimeoutSec: 30,
-  runStoreDir: ".generata/runs",
+export default defineConfig({
+  serve: {
+    serveDir: "serve",
+    port: 3000,
+    host: "127.0.0.1",
+    tokenEnv: "GENERATA_SERVE_TOKEN",
+    bodyLimitBytes: 1024 * 1024,
+    shutdownTimeoutSec: 30,
+    runStoreDir: ".generata/runs",
+  },
 });
 ```
 
