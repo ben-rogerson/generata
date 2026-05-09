@@ -357,6 +357,9 @@ export async function executeWorkflow(
                   workflowId,
                   stepId: targetStep.id,
                   stepOutputs,
+                  isInitiatorPlanner:
+                    stepAgent.type === "planner" &&
+                    (effectiveDeps.get(step.id)?.length ?? 0) === 0,
                   // verboseOutput=false swaps inline tool events for the per-agent spinner
                   // (agent-runner starts the spinner when onEvent is undefined). Caveat:
                   // parallel runnable steps will fight over the same TTY line - acceptable

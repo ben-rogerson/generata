@@ -4,6 +4,7 @@ export const RESERVED_COMMANDS: ReadonlySet<string> = new Set([
   "-h",
   "init",
   "skills",
+  "commands",
   "add",
   "agent",
   "workflow",

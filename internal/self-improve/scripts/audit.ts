@@ -1,15 +1,15 @@
-// Programmatic audit driver. Replaces the CLI workflow + the
-// `backlog-writer` agent (which was a fake LLM step that wrote a temp file
-// and shelled out to `merge-improvements.ts`). Now: two real LLM calls
-// chained via `runAgent`, then a direct call into the merge function. The
-// LLM does what only an LLM can do (scan + score); deterministic glue stays
-// in TypeScript where it's auditable.
+// Programmatic audit driver.
+// Three sequential passes:
+//   1. repo-scanner appends new findings to IMPROVEMENTS.md as it discovers them.
+//   2. audit-prioritiser scores each unscored entry by editing the header in place.
+//   3. sortImprovements (deterministic TS) sorts the file by score desc.
+// No JSON crosses agent boundaries; the file itself is the contract.
 
 import { runAgent } from "@generata/core";
 import config from "../generata.config.js";
 import repoScanner from "../agents/repo-scanner.js";
 import auditPrioritiser from "../agents/audit-prioritiser.js";
-import { mergeImprovements, formatSummary } from "./merge-improvements.js";
+import { sortImprovements, formatSortSummary } from "./sort-improvements.js";
 
 const ac = new AbortController();
 process.once("SIGINT", () => {
@@ -17,35 +17,16 @@ process.once("SIGINT", () => {
   ac.abort();
 });
 
-function asStringArgs(args: Record<string, unknown>): Record<string, string> {
-  return Object.fromEntries(Object.entries(args).map(([k, v]) => [k, String(v)]));
-}
-
 async function main(): Promise<void> {
   console.log("→ scanning repo");
-  // repoScanner is object-form (no inputs), so it goes straight to runAgent.
-  const scan = await runAgent(repoScanner, {}, { config, signal: ac.signal });
-  const findingsJson = scan.outputs?.findings_json;
-  if (!findingsJson) {
-    throw new Error("repo-scanner produced no findings_json output");
-  }
+  await runAgent(repoScanner({}).agent, {}, { config, signal: ac.signal });
 
-  console.log("→ prioritising findings");
-  // auditPrioritiser is factory-form: call to get a StepInvocation, then
-  // thread its agent + resolved args through runAgent.
-  const inv = auditPrioritiser({ findings_json: findingsJson });
-  const ranked = await runAgent(inv.agent, asStringArgs(inv.args), {
-    config,
-    signal: ac.signal,
-  });
-  const rankedJson = ranked.outputs?.ranked_json;
-  if (!rankedJson) {
-    throw new Error("audit-prioritiser produced no ranked_json output");
-  }
+  console.log("→ scoring new entries");
+  await runAgent(auditPrioritiser({}).agent, {}, { config, signal: ac.signal });
 
-  console.log("→ merging into IMPROVEMENTS.md");
-  const summary = mergeImprovements(rankedJson);
-  console.log(formatSummary(summary));
+  console.log("→ sorting IMPROVEMENTS.md");
+  const summary = sortImprovements();
+  console.log(formatSortSummary(summary));
 }
 
 try {
