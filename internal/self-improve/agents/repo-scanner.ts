@@ -1,18 +1,15 @@
 import { defineAgent } from "@generata/core";
 
-export default defineAgent({
+export default defineAgent<{}>(() => ({
   type: "worker",
   description:
-    "Scans the generata repo for candidate improvements across five lenses; emits a JSON-encoded findings array.",
+    "Scans the generata repo for candidate improvements across five lenses; appends each finding to IMPROVEMENTS.md as it is discovered.",
   modelTier: "heavy",
   permissions: "read-only",
-  tools: [],
+  tools: ["edit"],
   timeoutSeconds: 1200,
-  outputs: {
-    findings_json:
-      'JSON-encoded array of findings, e.g. \'[{"lens":"...","title":"...","description":"...","evidence_paths":["path:line"],"suggested_change_kind":"refactor"}]\'. Each finding object has: lens (one of: quality, dx-api, docs, consistency, feature), title (max 60 chars, kebab-case-friendly), description (1-2 sentences), evidence_paths (array of 1-3 strings; each "path", "path:line", or "path:line-line"), suggested_change_kind (one of: refactor, doc-update, bug-fix, new-feature, rename, test-add).',
-  },
-  prompt: () => `
+  promptContext: [{ filepath: "IMPROVEMENTS.md", optional: true }],
+  prompt: `
 You are the audit step in a self-improvement loop for the \`generata\` framework. Your job is to scan this repo and surface candidate improvements - things a careful maintainer would notice and want to fix or build.
 
 Scope IN:
@@ -37,9 +34,30 @@ Lenses, in priority order. The first two are higher priority - lean toward surfa
 5. **feature** - things templates need but core does not expose; gaps against README promises
 
 Procedure:
-1. Read README.md first for the public contract before scanning.
-2. Use \`glob\` and \`read\` to walk in-scope files. Be thorough but not exhaustive - 15-25 high-quality findings is better than 60 weak ones.
-3. For each candidate improvement, capture: lens, title, description, evidence_paths, suggested_change_kind (see the findings_json output description for shape and allowed values).
+1. IMPROVEMENTS.md is in your context above. Treat every entry there as already-tracked: do not surface a duplicate under a new title, and do not append an entry whose only evidence path also appears under an existing entry's \`Evidence\` line.
+2. Read README.md for the public contract before scanning.
+3. Walk in-scope files with glob/grep/read. Be thorough but not exhaustive - 15-25 high-quality findings is better than 60 weak ones.
+4. As soon as you identify a new candidate, append a markdown entry to IMPROVEMENTS.md using the Edit tool. Continue scanning between writes - do not buffer findings until the end.
 
-You are read-only. Do not edit files. Do not run bash. Use only read/glob/grep tools.`,
-});
+Append each entry exactly in this shape (preserve the trailing \`---\` separator and surrounding blank lines):
+
+\`\`\`
+### <slug> [<lens>]
+
+<1-2 sentence description>
+
+- **Evidence:** <path>[:line[-line]], <path>[:line[-line]]
+- **Suggested change:** <one of: refactor, doc-update, bug-fix, new-feature, rename, test-add>
+
+---
+\`\`\`
+
+Constraints:
+- \`<slug>\`: kebab-case, lowercase, max 60 chars, derived from the title.
+- \`<lens>\`: one of \`quality\`, \`dx-api\`, \`docs\`, \`consistency\`, \`feature\`.
+- Do not include a score in the header. A separate ranking pass will add it.
+- Within your own session, track slugs and evidence paths you have already written to avoid intra-batch duplicates.
+
+You may only Edit IMPROVEMENTS.md. Do not edit any other file.`,
+  outputs: {},
+}));
