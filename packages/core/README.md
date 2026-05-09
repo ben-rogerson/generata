@@ -144,7 +144,7 @@ Looking to expose workflows over HTTP? See [`@generata/serve`](../serve).
 | `generata workflow <name>`        | Run a workflow (alias: `run`)                               |
 | `generata validate [--all]`       | Static-check workflow definitions                           |
 | `generata metrics [today\|week]`  | Show metrics summary                                        |
-| `generata skills sync`            | Regenerate `.claude/commands/` from workflows               |
+| `generata commands sync`          | Regenerate `.claude/commands/` from workflows               |
 | `generata worktree prune`         | Remove orphan `generata/wt-*` worktrees and branches        |
 | `generata help [topic]`           | Show help (topics: agents, workflows, env, templates, bins) |
 
@@ -171,12 +171,12 @@ Workflow flags: `--worktree` forces git-worktree isolation for the run; `--local
 - `--dry-run` - print what would be written
 - `--into <subdir>` - merge into a subdirectory rather than the project root
 
-## Development (in the ApexGen monorepo)
+## Development (in the generata monorepo)
 
 ```bash
 pnpm install                            # links the workspace
 pnpm --filter @generata/core build      # rebuild dist/ after engine changes
-node --test --import tsx generata/src/**/*.test.ts
+node --test --import tsx packages/core/src/**/*.test.ts
 ```
 
 The exports map uses a `development` condition that points at `src/` so workspace dev runs through the TypeScript source via tsx; published consumers see the compiled `dist/` output.
