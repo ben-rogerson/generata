@@ -56,9 +56,16 @@ async function main() {
     return;
   }
 
+  if (command === "commands" && target === "sync") {
+    const { runCommandsSync } = await import("./cli/commands-sync.js");
+    await runCommandsSync();
+    return;
+  }
+
   if (command === "skills" && target === "sync") {
-    const { runSkillsSync } = await import("./cli/skills-sync.js");
-    await runSkillsSync();
+    console.warn("generata skills sync is deprecated; use generata commands sync instead");
+    const { runCommandsSync } = await import("./cli/commands-sync.js");
+    await runCommandsSync();
     return;
   }
 

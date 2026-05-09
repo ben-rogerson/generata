@@ -168,6 +168,12 @@ type BuiltinArgs = { work_dir: string; today: string; time: string };
 // called inside a step function with their inputs — passing one bare would let
 // the engine consume a sentinel-laced prompt.
 type StepValue<TParams> =
+  /**
+   * @deprecated Passing a bare `AgentDef` as a step value is half-supported and
+   * will be removed in a future major. Use the stepFn form so prior-step
+   * outputs and typed inputs thread through correctly:
+   *   .step("id", ({ ... }) => myAgent({ ... }))
+   */
   | (AgentDef & { readonly [_factoryBrand]?: never })
   | ((params: TParams) => StepInvocation<Record<string, string>>);
 
@@ -192,6 +198,13 @@ type StepOptions<TParams = Record<string, string>> = {
   // outputs} bag the step's main fn sees, so the user can wrap a factory and
   // map prior outputs to the factory's typed inputs symmetrically with .step().
   onReject?:
+    /**
+     * @deprecated Passing a bare `LLMAgentDef` as an `onReject` handler is
+     * half-supported and will be removed in a future major. Use the stepFn
+     * form so the rejection bag (builtins + vars + prior outputs) threads
+     * through correctly:
+     *   onReject: ({ ... }) => myAgent({ ... })
+     */
     | (LLMAgentDef & { readonly [_factoryBrand]?: never })
     | ((params: TParams) => StepInvocation);
 };
@@ -269,17 +282,24 @@ export function defineWorkflow<
         // Type-level: the brand on AgentCallable rejects this slot. Runtime
         // guard catches anyone bypassing types (e.g. via `as any`).
         if ((value as { kind?: unknown }).kind === "agent") {
-          const fnName = (value as { name?: string }).name || "<factory>";
           throw new Error(
-            `Step '${id}': factory-form agent '${fnName}' cannot be passed bare. ` +
-              `Call it inside a step fn: .step("${id}", ({...}) => ${fnName}({...inputs}))`,
+            `Step '${id}': received a factory-form agent passed bare. ` +
+              `Call it inside a step fn: .step("${id}", ({...}) => agentName({...inputs}))`,
           );
         }
         stepFn = value as InternalStep["stepFn"];
       } else {
-        // Bare AgentDef: wrap in a stepFn closure so the engine sees a uniform
-        // shape for every step. Args default to {} (the old object-form behaviour).
+        // Bare-agent step slot is deprecated: prefer the stepFn form so typed
+        // inputs and prior-step outputs thread through correctly.
         const agent = value as AgentDef;
+        const agentName = agent.name || "<agent>";
+        console.warn(
+          `[generata] Step '${id}': passing a bare AgentDef ('${agentName}') is deprecated and ` +
+            `will be removed in a future major. Use the stepFn form: ` +
+            `.step("${id}", ({...}) => ${agentName}({...inputs}))`,
+        );
+        // Wrap in a stepFn closure so the engine sees a uniform shape for
+        // every step. Args default to {} (the old object-form behaviour).
         stepFn = () => ({ kind: "step-invocation", agent, args: {} });
       }
       steps.push({ id, stepFn, ...options });
