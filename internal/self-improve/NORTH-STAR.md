@@ -37,20 +37,21 @@ thinking shifts.
 ### Runtime observability
 
 What an operator sees while a workflow runs - and after it crashes. Metrics
-exist (JSONL) but are post-mortem. Room to add live progress, structured
-halt reasons surfaced to the caller, and replay from a recorded run.
+exist (JSONL) but are post-mortem. Room to add live progress and structured
+halt reasons surfaced to the caller.
 
 ### Workflow composition primitives
 
 The core chain is linear. Real pipelines branch, gate, and retry. Ideas
 here: conditional steps, human-approval gates, nested workflows as steps,
-resume-from-failure. Each should compose without touching engine internals.
+resume-from-failure, replay from a recorded run. Each should compose without
+touching engine internals.
 
 ### Testing and evaluation
 
-There is no `@generata/testing`. Devs unit-testing a workflow either burn
-real LLM calls or hand-roll stubs. This theme covers mock agents, fixture
-recording, eval harnesses for model-swap regressions, and dry-run modes.
+Devs writing workflows today burn real LLM calls or hand-roll stubs - no
+shared test harness exists. This theme covers mock agents, fixture recording,
+eval harnesses for model-swap regressions, and dry-run modes.
 
 ### Programmatic API ergonomics
 
@@ -63,8 +64,8 @@ core.
 
 Worktree isolation works for one repo. A workflow that spans several
 repositories (coordinating a breaking-API rollout across producer and
-consumers) has nowhere to land today. Under-explored; potentially a
-significant differentiator.
+consumers) has nowhere to land today. Under-explored; no other tool in this
+space handles it either.
 
 ### Observability and cost governance
 
