@@ -89,14 +89,7 @@ export async function runShipper(inputs: ShipInputs): Promise<ShipResult> {
 
     console.log(`→ ship: gh pr create`);
     const prBody = buildPrBody(inputs);
-    const prOut = await gh(wt, [
-      "pr",
-      "create",
-      "--title",
-      inputs.commitSubject,
-      "--body",
-      prBody,
-    ]);
+    const prOut = await gh(wt, ["pr", "create", "--title", inputs.commitSubject, "--body", prBody]);
     const prUrl = prOut.trim().split("\n").pop() ?? prOut.trim();
 
     console.log(`✓ shipped: ${prUrl}`);
