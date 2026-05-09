@@ -15,9 +15,6 @@ export type Tool = z.infer<typeof Tool>;
 export const LLMTier = z.enum(["heavy", "standard", "light"]);
 export type LLMTier = z.infer<typeof LLMTier>;
 
-export const ModelTier = LLMTier;
-export type ModelTier = LLMTier;
-
 export const Permissions = z.enum(["full", "read-only", "none"]);
 export type Permissions = z.infer<typeof Permissions>;
 
@@ -140,7 +137,7 @@ export const WorkflowStep = z.object({
   // Accepts either an object-form AgentDef or a function (stepFn / factory)
   // returning a StepInvocation. The engine narrows by typeof at rejection time.
   onReject: z
-    .custom<LLMAgentDef | ((inputs: Record<string, string>) => StepInvocation)>((val) => {
+    .custom<AgentDef | ((inputs: Record<string, string>) => StepInvocation)>((val) => {
       if (val === null || val === undefined) return false;
       if (typeof val === "function") return true;
       return (

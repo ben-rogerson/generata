@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildPrompt } from "./context-builder.js";
-import type { GlobalConfig, LLMAgentDef } from "./schema.js";
+import type { GlobalConfig, AgentDef } from "./schema.js";
 
 const stubConfig: GlobalConfig = {
   modelTiers: { heavy: "h", standard: "s", light: "l" },
@@ -20,7 +20,7 @@ const stubConfig: GlobalConfig = {
   maxCriticRetries: 3,
 };
 
-function makeAgent(promptContext: LLMAgentDef["promptContext"]): LLMAgentDef {
+function makeAgent(promptContext: AgentDef["promptContext"]): AgentDef {
   const agent = {
     type: "worker" as const,
     name: "ctx-test",
@@ -34,7 +34,7 @@ function makeAgent(promptContext: LLMAgentDef["promptContext"]): LLMAgentDef {
     prompt: () => "task",
     maxRetries: 1,
   };
-  return agent as unknown as LLMAgentDef;
+  return agent as unknown as AgentDef;
 }
 
 describe("renderContextEntry head/tail slicing", () => {

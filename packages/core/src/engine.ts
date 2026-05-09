@@ -6,7 +6,7 @@ import {
   WorkflowStep,
   GlobalConfig,
   AgentMetrics,
-  LLMAgentDef,
+  AgentDef,
   StepParams,
   WorktreeConfig,
 } from "./schema.js";
@@ -95,12 +95,12 @@ function resolveStepForRun(
   step: WorkflowStep,
   params: Record<string, unknown>,
   stepOutputs: Record<string, string>,
-): { agent: LLMAgentDef; args: Record<string, unknown> } {
+): { agent: AgentDef; args: Record<string, unknown> } {
   const stringParams: StepParams = Object.fromEntries(
     Object.entries({ ...params, ...stepOutputs }).map(([k, v]) => [k, String(v)]),
   );
   const inv = step.stepFn(stringParams);
-  return { agent: inv.agent as LLMAgentDef, args: { ...params, ...inv.args } };
+  return { agent: inv.agent as AgentDef, args: { ...params, ...inv.args } };
 }
 
 function resolveIsolation(
@@ -332,7 +332,7 @@ export async function executeWorkflow(
           // Used for both the initial run and critic-triggered retries.
           const runAgentStep = async (
             targetStep: WorkflowStep,
-            targetAgent: LLMAgentDef,
+            targetAgent: AgentDef,
             targetArgs: Record<string, unknown>,
             retryPreamble?: string,
           ): Promise<RunResult> => {
@@ -558,17 +558,17 @@ export async function executeWorkflow(
                   // get a freshly-resolved StepInvocation (closure interpolation
                   // bakes in real values, replacing the sentinel placeholders
                   // attached at definition time).
-                  let rejectAgent: LLMAgentDef;
+                  let rejectAgent: AgentDef;
                   let rejectArgs: Record<string, unknown>;
                   if (typeof onRejectAgent === "function") {
                     const merged: Record<string, string> = Object.fromEntries(
                       Object.entries({ ...params, ...stepOutputs }).map(([k, v]) => [k, String(v)]),
                     );
                     const inv = onRejectAgent(merged);
-                    rejectAgent = inv.agent as LLMAgentDef;
+                    rejectAgent = inv.agent as AgentDef;
                     rejectArgs = { ...params, ...inv.args };
                   } else {
-                    rejectAgent = onRejectAgent as LLMAgentDef;
+                    rejectAgent = onRejectAgent as AgentDef;
                     rejectArgs = { ...params };
                   }
                   await runAgentStep(
