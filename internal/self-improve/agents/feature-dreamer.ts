@@ -8,11 +8,21 @@ export default defineAgent<{ existing_titles: string }>(({ existing_titles }) =>
   permissions: "read-only",
   tools: [],
   timeoutSeconds: 2400,
-  promptContext: [{ filepath: "../../README.md" }, { filepath: "../../AGENTS.md" }],
+  promptContext: [
+    { filepath: "../../README.md" },
+    { filepath: "../../AGENTS.md" },
+    { filepath: "NORTH-STAR.md" },
+  ],
   prompt: `
 You are surfacing important new features generata could ship next. Read the
-README and AGENTS.md in your context to understand the product's current
-shape, then generate roughly 10 dream ideas. Aim for half big-swing and half
+README, AGENTS.md, and NORTH-STAR.md in your context. README and AGENTS.md
+describe the product's current shape; NORTH-STAR.md describes where it is
+heading (principles) and current areas of interest (themes). Your dreams
+should ladder up to a principle and ideally land in a theme. An off-theme
+dream is fine if it is a strong principle fit; an off-principle dream is
+not.
+
+Generate roughly 10 dream ideas, aiming for half big-swing and half
 adjacent-extension.
 
 Definitions:
