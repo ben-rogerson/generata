@@ -1,44 +1,32 @@
 import { defineAgent } from "@generata/core";
 
-export default defineAgent<{ findings_json: string }>(({ findings_json }) => ({
+export default defineAgent<{}>(() => ({
   type: "worker",
   description:
-    "Scores audit findings (impact x effort), drops out-of-scope and already-tracked ones, emits a ranked JSON-encoded list.",
+    "Reads IMPROVEMENTS.md, scores each unscored entry, and edits the header in place to add the score.",
   modelTier: "standard",
   permissions: "read-only",
-  tools: [],
+  tools: ["edit"],
   timeoutSeconds: 600,
   promptContext: [{ filepath: "IMPROVEMENTS.md", optional: true }],
-  outputs: {
-    ranked_json:
-      'JSON-encoded object of shape \'{"ranked":[{"lens":"...","title":"...","description":"...","evidence_paths":[...],"suggested_change_kind":"...","impact":N,"effort":N,"score":N,"reasoning":"one line"}]}\'. Preserve all original fields (lens, title, description, evidence_paths, suggested_change_kind) verbatim from each finding; add only impact, effort, score, and reasoning. Use \'{"ranked":[]}\' if every finding is dropped.',
-  },
   prompt: `
-The repo-scanner emitted a JSON-encoded findings array as its \`findings_json\` output:
+IMPROVEMENTS.md is in your context above. The repo-scanner has appended new entries with headers of the form:
+  \`### <slug> [<lens>]\`
 
-FINDINGS_JSON:
-${findings_json}
+Your job is to score each such unscored entry. Entries already scored have headers of the form \`### <slug> [<lens> · score <N>]\` - leave those untouched.
 
-Parse FINDINGS_JSON as JSON. If it cannot be parsed (malformed JSON), halt with reason "scanner findings_json unparseable: <one-line detail>".
+For each unscored entry:
+1. Choose impact (1-5): 5 = significantly improves DX/correctness for many users, 1 = marginal nicety.
+2. Choose effort (1-5): 5 = multi-day refactor with risk, 1 = one-line fix.
+3. Compute base_score = impact * (6 - effort). Range: 5..25.
+4. Apply lens weighting: multiply base_score by 1.2 if lens is "dx-api" or "consistency"; otherwise 1.0. Round to the nearest integer to produce \`score\`.
+5. Use the Edit tool to rewrite the entry header exactly:
+     from: \`### <slug> [<lens>]\`
+     to:   \`### <slug> [<lens> · score <N>]\`
+   Do not modify any other line of the entry. Do not delete or merge entries.
 
-If a current IMPROVEMENTS.md backlog is provided in your context above, treat every entry already in that file as already-tracked: future audit runs must not re-surface the same finding under a new title. If no backlog context is provided (first run on a fresh checkout), there are no already-tracked entries and step 4 below is a no-op.
+You may only Edit IMPROVEMENTS.md. Do not edit any other file.
 
-Procedure:
-1. For each finding, assign:
-   - impact (1-5): 5 = significantly improves DX/correctness for many users, 1 = marginal nicety
-   - effort (1-5): 5 = multi-day refactor with risk, 1 = one-line fix
-   Then compute base_score = impact * (6 - effort). Range: 5..25 (max when impact=5 and effort=1).
-2. Apply lens weighting: multiply base_score by 1.2 if lens is "dx-api" or "consistency"; otherwise 1.0. Round to the nearest integer to produce the final \`score\`. This is the only score downstream sees; do not emit \`base_score\`.
-3. Drop any finding whose evidence_paths reference an out-of-scope location. Compare on the path component before any \`:line\` suffix:
-   - .changeset/, CHANGELOG.md, package.json (any version field)
-   - .github/workflows/
-   - internal/self-improve/
-4. Drop any finding that is already tracked in IMPROVEMENTS.md. Treat a finding as already-tracked if any of these hold against any existing entry in the backlog:
-   a. Slug match: derive a slug from the finding's title (lowercase; runs of non-alphanumeric chars become single dashes; strip leading/trailing dashes) and compare against the existing entry's slug.
-   b. Evidence overlap: any of the finding's evidence_paths (compare on the path component before any \`:line\` suffix) appears in the existing entry's Evidence line.
-   c. Subject overlap: the finding describes the same underlying issue as an existing entry - same file region, same symptom, even if the title or framing differs. Be moderately strict here: if a careful reader would say "this is the same bug we already logged," drop it.
-5. Dedup near-duplicates within the remaining findings: if two share a lens AND any evidence path (compare on the path component before any \`:line\` suffix), keep the higher-scored one.
-6. Sort descending by \`score\`. Tie-breakers in order: lower \`effort\` first; then lens priority (\`dx-api\` > \`consistency\` > \`quality\` > \`docs\` > \`feature\`); then original order in the input. The output must be deterministic across re-runs given identical input.
-
-You are read-only. Do not edit files.`,
+If IMPROVEMENTS.md has no unscored entries, halt with reason "no unscored entries to rank".`,
+  outputs: {},
 }));
