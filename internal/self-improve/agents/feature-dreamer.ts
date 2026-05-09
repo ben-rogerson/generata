@@ -7,7 +7,7 @@ export default defineAgent<{ existing_titles: string }>(({ existing_titles }) =>
   modelTier: "heavy",
   permissions: "read-only",
   tools: [],
-  timeoutSeconds: 1200,
+  timeoutSeconds: 2400,
   promptContext: [{ filepath: "../../README.md" }, { filepath: "../../AGENTS.md" }],
   prompt: `
 You are surfacing important new features generata could ship next. Read the

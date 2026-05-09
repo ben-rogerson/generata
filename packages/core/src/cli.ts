@@ -56,9 +56,16 @@ async function main() {
     return;
   }
 
+  if (command === "commands" && target === "sync") {
+    const { runCommandsSync } = await import("./cli/commands-sync.js");
+    await runCommandsSync();
+    return;
+  }
+
   if (command === "skills" && target === "sync") {
-    const { runSkillsSync } = await import("./cli/skills-sync.js");
-    await runSkillsSync();
+    console.warn("generata skills sync is deprecated; use generata commands sync instead");
+    const { runCommandsSync } = await import("./cli/commands-sync.js");
+    await runCommandsSync();
     return;
   }
 
@@ -109,11 +116,6 @@ async function main() {
     // Load only the target agent to reduce heap before fork()
     const registry = await loadSingleAgentRegistry(target, registryOpts);
     const [agent] = registry.list();
-
-    if (flags.plan_name && !flags.plan_filepath) {
-      const plansDir = (flags.plans_dir as string) ?? "plans";
-      flags.plan_filepath = `${plansDir}/${flags.plan_name}.md`;
-    }
 
     if ("prompt" in agent) {
       const errors = validateAgentArgs(agent, flags, {
