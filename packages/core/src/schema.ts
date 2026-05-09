@@ -19,6 +19,7 @@ export const ContextSource = z.object({
     (val) => typeof val === "string" || typeof val === "function",
     "filepath must be a string or a function",
   ),
+  head: z.number().optional(),
   tail: z.number().optional(),
   // When true, a missing file produces no tag and no warning. Use for files that
   // are expected to be absent on fresh systems (e.g. memory/progress.txt).
