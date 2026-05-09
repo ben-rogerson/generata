@@ -28,6 +28,7 @@ export const ContextSource = z.object({
     (val) => typeof val === "string" || typeof val === "function",
     "filepath must be a string or a function",
   ),
+  head: z.number().optional(),
   tail: z.number().optional(),
   // When true, a missing file produces no tag and no warning. Use for files that
   // are expected to be absent on fresh systems (e.g. memory/progress.txt).
@@ -126,9 +127,9 @@ export type StepInvocation<
   args: Record<string, unknown>;
 };
 
-// Function-step shape: chain builder's `.step(id, (params) => agent(...))` form.
-// The fn receives prior step outputs + builtins/vars and returns a StepInvocation.
-const FnWorkflowStep = z.object({
+// Workflow steps are uniformly stepFn-shaped. defineWorkflow's `.step()` wraps
+// bare-agent values in a closure so the engine sees a single shape.
+export const WorkflowStep = z.object({
   id: z.string(),
   stepFn: z.custom<(params: StepParams) => StepInvocation>(
     (val) => typeof val === "function",
@@ -150,59 +151,6 @@ const FnWorkflowStep = z.object({
     }, "onReject must be an LLM agent definition or a function returning a StepInvocation")
     .optional(),
 });
-
-const CriticWorkflowStep = z.object({
-  id: z.string(),
-  agent: z.custom<Extract<AgentDef, { type: "critic" }>>(
-    (val) =>
-      typeof val === "object" &&
-      val !== null &&
-      "type" in val &&
-      (val as { type: unknown }).type === "critic",
-  ),
-  args: z
-    .custom<Record<string, unknown> | ((params: StepParams) => Record<string, unknown>)>(
-      (val) => (typeof val === "object" && val !== null) || typeof val === "function",
-    )
-    .default({}),
-  dependsOn: z.array(z.string()).optional(),
-  maxRetries: z.number().optional(),
-  // Accepts either an object-form AgentDef or a function (stepFn / factory)
-  // returning a StepInvocation. The engine narrows by typeof at rejection time.
-  onReject: z
-    .custom<LLMAgentDef | ((inputs: Record<string, string>) => StepInvocation)>((val) => {
-      if (val === null || val === undefined) return false;
-      if (typeof val === "function") return true;
-      return (
-        typeof val === "object" &&
-        "type" in val &&
-        ["worker", "planner", "critic"].includes((val as { type: unknown }).type as string)
-      );
-    }, "onReject must be an LLM agent definition or a function returning a StepInvocation")
-    .optional(),
-});
-
-const NonCriticWorkflowStep = z.object({
-  id: z.string(),
-  agent: z.custom<Exclude<AgentDef, { type: "critic" }>>(
-    (val) =>
-      typeof val === "object" &&
-      val !== null &&
-      "type" in val &&
-      ["worker", "planner"].includes((val as { type: unknown }).type as string),
-  ),
-  args: z
-    .custom<Record<string, unknown> | ((params: StepParams) => Record<string, unknown>)>(
-      (val) => (typeof val === "object" && val !== null) || typeof val === "function",
-    )
-    .default({}),
-  dependsOn: z.array(z.string()).optional(),
-});
-
-export type CriticWorkflowStep = z.infer<typeof CriticWorkflowStep>;
-export type FnWorkflowStep = z.infer<typeof FnWorkflowStep>;
-
-export const WorkflowStep = z.union([CriticWorkflowStep, NonCriticWorkflowStep, FnWorkflowStep]);
 export type WorkflowStep = z.infer<typeof WorkflowStep>;
 
 export type DeriveFn = (args: Record<string, string>) => Record<string, string>;
