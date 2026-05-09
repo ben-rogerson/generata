@@ -18,7 +18,9 @@ Commands:
   agent <name> [args]         Run a single agent
   workflow <name> [args]      Run a workflow (alias: 'run')
   validate [<workflow>|--all] [--check-files] [--profile <p>] [--key v]  Static-check workflow definitions
-  metrics [today|week|...]    Show metrics summary
+  metrics [today|week]        Show metrics summary
+  metrics expensive           Show top 10 heaviest calls today
+  metrics agent <name>        Show 7-day metrics for an agent
   skills sync                 Regenerate .claude/commands/ from workflows
   worktree prune              Remove orphaned 'generata/wt-*' worktrees and branches
   help [topic]                Show help (topics: agents, workflows, env, templates, bins)
