@@ -1,4 +1,4 @@
-import { equal, ok } from "node:assert/strict";
+import { equal, ok, throws } from "node:assert/strict";
 import { describe, it } from "node:test";
 import { buildAllowedTools, buildEmissionPrompt } from "./agent-runner.js";
 import { defineAgent } from "./define.js";
@@ -41,11 +41,15 @@ describe("buildAllowedTools", () => {
       !tools.some((t) => t.startsWith("Bash(") && t.includes(EMIT_BIN)),
       `must not grant Bash on the emit bin; got: ${allowed}`,
     );
+    // The `//` prefix is the documented absolute-path syntax in Claude Code's
+    // permission rules; a single `/` would be project-root-relative and miss
+    // the actual tmpdir path the agent writes to.
     ok(
-      tools.includes(`Write(${EMIT_FILE})`),
-      `must grant scoped Write to EMIT_FILE; got: ${allowed}`,
+      tools.includes(`Edit(/${EMIT_FILE})`),
+      `must grant scoped Edit to EMIT_FILE with absolute-path syntax; got: ${allowed}`,
     );
-    // Bare Write (no path scope) would re-open the file-creation hole the fix closes.
+    // Bare Edit/Write (no path scope) would re-open the file-creation hole the fix closes.
+    ok(!tools.includes("Edit"), `must not grant unscoped Edit; got: ${allowed}`);
     ok(!tools.includes("Write"), `must not grant unscoped Write; got: ${allowed}`);
     ok(tools.includes("Read"), "read-only baseline still includes Read");
   });
@@ -104,8 +108,8 @@ describe("buildAllowedTools", () => {
       `full-permission agents keep Bash bin path; got: ${allowed}`,
     );
     ok(
-      !tools.some((t) => t.startsWith("Write(")),
-      `full-permission agents do not get scoped Write; got: ${allowed}`,
+      !tools.some((t) => t.startsWith("Edit(") || t.startsWith("Write(")),
+      `full-permission agents do not get scoped Edit/Write; got: ${allowed}`,
     );
   });
 
@@ -128,6 +132,127 @@ describe("buildAllowedTools", () => {
       outputsFile: null,
     });
     equal(allowed, null);
+  });
+
+  it("full-permission worker with filesystemAccess: false omits Read/Glob/Grep base tools", () => {
+    const agent = asLLM(
+      defineAgent({
+        type: "worker",
+        description: "fetcher",
+        modelTier: "light",
+        permissions: "full",
+        tools: ["web-fetch"],
+        filesystemAccess: false,
+        timeoutSeconds: 60,
+        prompt: "go",
+      }),
+    );
+    const allowed = buildAllowedTools(agent, {
+      verdictBin: null,
+      paramsBin: null,
+      outputsBin: null,
+      outputsFile: null,
+    });
+    ok(allowed !== null);
+    const tools = allowed.split(",");
+    ok(!tools.includes("Read"), `must omit Read; got: ${allowed}`);
+    ok(!tools.includes("Glob"), `must omit Glob; got: ${allowed}`);
+    ok(!tools.includes("Grep"), `must omit Grep; got: ${allowed}`);
+    ok(tools.includes("WebFetch"), `still grants declared tools; got: ${allowed}`);
+  });
+
+  it("full-permission worker with filesystemAccess: true keeps base tools (explicit opt-in)", () => {
+    const agent = asLLM(
+      defineAgent({
+        type: "worker",
+        description: "writer",
+        modelTier: "light",
+        permissions: "full",
+        tools: ["write"],
+        filesystemAccess: true,
+        timeoutSeconds: 60,
+        prompt: "go",
+      }),
+    );
+    const allowed = buildAllowedTools(agent, {
+      verdictBin: null,
+      paramsBin: null,
+      outputsBin: null,
+      outputsFile: null,
+    });
+    ok(allowed !== null);
+    const tools = allowed.split(",");
+    ok(tools.includes("Read"));
+    ok(tools.includes("Glob"));
+    ok(tools.includes("Grep"));
+  });
+
+  it("full-permission worker with filesystemAccess omitted keeps base tools (default behaviour)", () => {
+    const agent = asLLM(
+      defineAgent({
+        type: "worker",
+        description: "writer",
+        modelTier: "light",
+        permissions: "full",
+        tools: ["write"],
+        timeoutSeconds: 60,
+        prompt: "go",
+      }),
+    );
+    const allowed = buildAllowedTools(agent, {
+      verdictBin: null,
+      paramsBin: null,
+      outputsBin: null,
+      outputsFile: null,
+    });
+    ok(allowed !== null);
+    const tools = allowed.split(",");
+    ok(tools.includes("Read"));
+    ok(tools.includes("Glob"));
+    ok(tools.includes("Grep"));
+  });
+
+  it("read-only worker with filesystemAccess: false fails Zod validation", () => {
+    throws(
+      () =>
+        defineAgent({
+          type: "worker",
+          description: "scanner",
+          modelTier: "light",
+          permissions: "read-only",
+          tools: [],
+          filesystemAccess: false,
+          timeoutSeconds: 60,
+          prompt: "go",
+        }),
+      /filesystemAccess/,
+    );
+  });
+
+  it("'read'/'glob'/'grep' Tool enum values resolve via TOOL_NAME_MAP for full agents", () => {
+    const agent = asLLM(
+      defineAgent({
+        type: "worker",
+        description: "reader",
+        modelTier: "light",
+        permissions: "full",
+        tools: ["read", "glob", "grep"],
+        filesystemAccess: false,
+        timeoutSeconds: 60,
+        prompt: "go",
+      }),
+    );
+    const allowed = buildAllowedTools(agent, {
+      verdictBin: null,
+      paramsBin: null,
+      outputsBin: null,
+      outputsFile: null,
+    });
+    ok(allowed !== null);
+    const tools = allowed.split(",");
+    ok(tools.includes("Read"));
+    ok(tools.includes("Glob"));
+    ok(tools.includes("Grep"));
   });
 });
 
