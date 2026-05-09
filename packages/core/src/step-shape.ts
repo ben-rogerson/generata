@@ -18,7 +18,7 @@ export function resolveStepShape(step: WorkflowStep): {
     return { agent: inv.agent, args: inv.args };
   } catch (err) {
     throw new Error(
-      `resolveStepShape: stepFn for step threw during static analysis - ensure it only accesses proxy properties without calling methods on them: ${err}`,
+      `resolveStepShape: stepFn for step threw during static analysis - ensure it only accesses proxy properties without calling methods on them: ${String(err)}`,
       { cause: err },
     );
   }

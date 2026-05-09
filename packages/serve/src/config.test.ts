@@ -26,10 +26,7 @@ test("ServeConfig rejects invalid port", () => {
 });
 
 test("resolveServeConfig: CLI flags override config", () => {
-  const cfg = resolveServeConfig(
-    { port: 4000, host: "0.0.0.0" },
-    { port: 5000 },
-  );
+  const cfg = resolveServeConfig({ port: 4000, host: "0.0.0.0" }, { port: 5000 });
   assert.equal(cfg.port, 5000);
   assert.equal(cfg.host, "0.0.0.0");
 });

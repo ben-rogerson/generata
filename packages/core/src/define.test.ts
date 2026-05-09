@@ -1,6 +1,13 @@
 import { describe, it } from "node:test";
 import { equal, ok } from "node:assert/strict";
-import { defineAgent, defineConfig, defineWorkflow, findProjectRoot, loadTs, worktree } from "./define.js";
+import {
+  defineAgent,
+  defineConfig,
+  defineWorkflow,
+  findProjectRoot,
+  loadTs,
+  worktree,
+} from "./define.js";
 
 describe("defineWorkflow chain builder", () => {
   const stub = defineAgent({

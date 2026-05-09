@@ -5,7 +5,11 @@ export const ServeConfig = z.object({
   port: z.number().int().min(0).max(65535).default(3000),
   host: z.string().default("127.0.0.1"),
   tokenEnv: z.string().default("GENERATA_SERVE_TOKEN"),
-  bodyLimitBytes: z.number().int().positive().default(1024 * 1024),
+  bodyLimitBytes: z
+    .number()
+    .int()
+    .positive()
+    .default(1024 * 1024),
   shutdownTimeoutSec: z.number().int().nonnegative().default(30),
   runStoreDir: z.string().default(".generata/runs"),
 });
