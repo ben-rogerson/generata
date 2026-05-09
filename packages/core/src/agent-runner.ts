@@ -238,8 +238,12 @@ export function buildAllowedTools(
   if (bins.paramsBin) binPermissions.push(`Bash(${bins.paramsBin}:*)`);
   if (bins.outputsBin) {
     if (agent.permissions === "read-only" && bins.outputsFile) {
-      // Scoped Write - the LLM can only write the EMIT_FILE path, not arbitrary files.
-      binPermissions.push(`Write(${bins.outputsFile})`);
+      // Scoped Edit - the LLM can only write the EMIT_FILE path, not arbitrary
+      // files. `Edit(...)` covers all built-in file-edit tools including Write
+      // (per Claude Code docs), and absolute paths require a leading `//` -
+      // a single `/` is interpreted as project-root-relative and silently
+      // fails to match an absolute tmpdir path.
+      binPermissions.push(`Edit(/${bins.outputsFile})`);
     } else {
       binPermissions.push(`Bash(${bins.outputsBin}:*)`);
     }

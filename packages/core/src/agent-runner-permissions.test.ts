@@ -41,11 +41,15 @@ describe("buildAllowedTools", () => {
       !tools.some((t) => t.startsWith("Bash(") && t.includes(EMIT_BIN)),
       `must not grant Bash on the emit bin; got: ${allowed}`,
     );
+    // The `//` prefix is the documented absolute-path syntax in Claude Code's
+    // permission rules; a single `/` would be project-root-relative and miss
+    // the actual tmpdir path the agent writes to.
     ok(
-      tools.includes(`Write(${EMIT_FILE})`),
-      `must grant scoped Write to EMIT_FILE; got: ${allowed}`,
+      tools.includes(`Edit(/${EMIT_FILE})`),
+      `must grant scoped Edit to EMIT_FILE with absolute-path syntax; got: ${allowed}`,
     );
-    // Bare Write (no path scope) would re-open the file-creation hole the fix closes.
+    // Bare Edit/Write (no path scope) would re-open the file-creation hole the fix closes.
+    ok(!tools.includes("Edit"), `must not grant unscoped Edit; got: ${allowed}`);
     ok(!tools.includes("Write"), `must not grant unscoped Write; got: ${allowed}`);
     ok(tools.includes("Read"), "read-only baseline still includes Read");
   });
@@ -104,8 +108,8 @@ describe("buildAllowedTools", () => {
       `full-permission agents keep Bash bin path; got: ${allowed}`,
     );
     ok(
-      !tools.some((t) => t.startsWith("Write(")),
-      `full-permission agents do not get scoped Write; got: ${allowed}`,
+      !tools.some((t) => t.startsWith("Edit(") || t.startsWith("Write(")),
+      `full-permission agents do not get scoped Edit/Write; got: ${allowed}`,
     );
   });
 
