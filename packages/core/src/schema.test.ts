@@ -2,22 +2,23 @@ import { equal, deepEqual, throws } from "node:assert/strict";
 import { describe, it } from "node:test";
 import { WorkflowDef } from "./schema.js";
 
+const stubAgent = {
+  type: "worker",
+  name: "stub",
+  description: "x",
+  modelTier: "light",
+  timeoutSeconds: 60,
+  envKeys: [],
+  promptContext: [],
+  prompt: () => "p",
+  tools: [],
+  permissions: "full",
+  maxRetries: 1,
+};
+
 const baseStep = {
   id: "s1",
-  agent: {
-    type: "worker",
-    name: "stub",
-    description: "x",
-    modelTier: "light",
-    timeoutSeconds: 60,
-    envKeys: [],
-    promptContext: [],
-    prompt: () => "p",
-    tools: [],
-    permissions: "full",
-    maxRetries: 1,
-  },
-  args: {},
+  stepFn: () => ({ kind: "step-invocation", agent: stubAgent, args: {} }),
 };
 
 describe("WorkflowDef worktree fields", () => {

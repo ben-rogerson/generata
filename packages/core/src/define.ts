@@ -215,12 +215,11 @@ export function worktree(input: WorktreeConfigInput): WorktreeConfig {
   return WorktreeConfigSchema.parse(input) as WorktreeConfig;
 }
 
-// Internal step shape used by the engine. Either `agent` (bare) or `stepFn`
-// (function form) is set; the engine dispatches at runtime.
+// Internal step shape used by the engine. Bare-agent steps are wrapped in a
+// stepFn closure inside `.step()` so every step is uniform at the engine layer.
 type InternalStep = {
   id: string;
-  agent?: AgentDef;
-  stepFn?: (params: Record<string, string>) => StepInvocation;
+  stepFn: (params: Record<string, string>) => StepInvocation;
   dependsOn?: string[];
   maxRetries?: number;
   // Stored loose because either an object agent or a callable factory may be
@@ -276,7 +275,7 @@ export function defineWorkflow<
       if (steps.some((s) => s.id === id)) {
         throw new Error(`defineWorkflow: duplicate step id '${id}'`);
       }
-      const internal: InternalStep = { id, ...options };
+      let stepFn: InternalStep["stepFn"];
       if (typeof value === "function") {
         // Factory-form agents are callable AND carry kind: "agent". Passing one
         // bare would skip the input mapping and run with a sentinel template.
@@ -288,20 +287,22 @@ export function defineWorkflow<
               `Call it inside a step fn: .step("${id}", ({...}) => agentName({...inputs}))`,
           );
         }
-        internal.stepFn = value as InternalStep["stepFn"];
+        stepFn = value as InternalStep["stepFn"];
       } else {
-        // Bare-agent step slot is deprecated: outputs declared on the agent
-        // don't thread to downstream stepFn params at runtime, so the pattern
-        // silently misbehaves. Direct callers to the stepFn form.
-        const agentName = (value as { name?: string }).name || "<agent>";
+        // Bare-agent step slot is deprecated: prefer the stepFn form so typed
+        // inputs and prior-step outputs thread through correctly.
+        const agent = value as AgentDef;
+        const agentName = agent.name || "<agent>";
         console.warn(
           `[generata] Step '${id}': passing a bare AgentDef ('${agentName}') is deprecated and ` +
             `will be removed in a future major. Use the stepFn form: ` +
             `.step("${id}", ({...}) => ${agentName}({...inputs}))`,
         );
-        internal.agent = value as AgentDef;
+        // Wrap in a stepFn closure so the engine sees a uniform shape for
+        // every step. Args default to {} (the old object-form behaviour).
+        stepFn = () => ({ kind: "step-invocation", agent, args: {} });
       }
-      steps.push(internal);
+      steps.push({ id, stepFn, ...options });
       return builder;
     },
     build(): WorkflowDef {
