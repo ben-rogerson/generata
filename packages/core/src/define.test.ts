@@ -162,6 +162,29 @@ describe("defineWorkflow chain builder", () => {
     ok(threw, "expected step() to throw when handed a bare factory");
   });
 
+  it("accepts a factory-form agent with no declared inputs passed bare", () => {
+    const noInputAgent = defineAgent<{}>(() => ({
+      type: "worker",
+      description: "f",
+      modelTier: "light",
+      tools: [],
+      permissions: "full",
+      timeoutSeconds: 60,
+      promptContext: [],
+      prompt: "p",
+    }));
+    (noInputAgent as any).name = "no-input";
+
+    // Compile-time: bare passing must type-check (no @ts-expect-error here).
+    const wf = defineWorkflow({ description: "d" }).step("first", noInputAgent).build();
+
+    // Runtime: the wrapped stepFn invokes the callable with `{}` and returns a
+    // valid StepInvocation - no throw, agent metadata preserved.
+    const inv = (wf.steps[0] as any).stepFn({});
+    equal(inv.kind, "step-invocation");
+    equal((inv.agent as any).name, "no-input");
+  });
+
   it("rejects unknown destructured params and forward-step ids", () => {
     const consumer = defineAgent<{ x: string }>(() => ({
       type: "worker",
