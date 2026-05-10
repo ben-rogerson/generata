@@ -29,6 +29,29 @@ defineWorkflow({
 });
 ```
 
+## Agent options
+
+### `filesystemAccess`
+
+Optional `boolean`. `full`-permission agents (`worker`, `planner`) implicitly receive `Read`, `Glob`, and `Grep` as baseline tools so they can inspect the workspace before writing. Set `filesystemAccess: false` to omit that baseline - useful for write-or-exec-only agents that should not be allowed to read arbitrary files. Omitting the field keeps the baseline (the default).
+
+The flag is a no-op on `read-only` agents (filesystem read is the defining characteristic of that permission level); setting it to `false` on a read-only agent is a parse error.
+
+```ts
+import { defineAgent } from "@generata/core";
+
+export default defineAgent({
+  name: "shell-runner",
+  type: "worker",
+  permissions: "full",
+  filesystemAccess: false,
+  modelTier: "light",
+  description: "Runs a single shell command without reading source.",
+  tools: ["bash"],
+  prompt: ({ command }) => `Run: ${command}`,
+});
+```
+
 ## Running workflows from code
 
 `@generata/core` exposes `runWorkflow` and `runAgent` so you can drive any workflow or agent from your own TypeScript without going through the CLI. This is the primitive for loops, batch jobs, or wrapping generata in a larger script.
