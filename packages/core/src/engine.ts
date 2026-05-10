@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, renameSync, unlinkSync } from "fs";
+import { existsSync, mkdirSync, readdirSync, unlinkSync } from "fs";
 import { tmpdir } from "os";
 import { dirname, join, resolve } from "path";
 import {
@@ -634,25 +634,6 @@ export async function executeWorkflow(
           if (result.outputs) {
             params = { ...params, ...result.outputs };
             Object.assign(accumulatedOutputs, result.outputs);
-          }
-
-          if (planName) {
-            // Move plan into project folder once the executor has created the code dir.
-            // Fires once: when code/ exists but the plan hasn't been moved yet.
-            // Anchored on executionRoot so worktree-isolated workflows see files agents
-            // wrote inside the worktree (executionRoot === resolve(workDir) when not isolated).
-            const projectDir = resolve(
-              executionRoot,
-              workflow.variables.output_dir ?? "",
-              planName,
-            );
-            const plansDir = workflow.variables.plans_dir ?? "plans";
-            const planSrc = resolve(executionRoot, plansDir, `${planName}.md`);
-            const planDst = resolve(projectDir, plansDir, `${planName}.md`);
-            if (existsSync(planSrc) && existsSync(resolve(projectDir, "code"))) {
-              mkdirSync(dirname(planDst), { recursive: true });
-              renameSync(planSrc, planDst);
-            }
           }
 
           // Retry loop: when a critic rejects, re-run the upstream step with an
