@@ -229,6 +229,52 @@ describe("buildAllowedTools", () => {
     );
   });
 
+  it("read-only agent declaring read/glob/grep produces no duplicate entries", () => {
+    const agent = asLLM(
+      defineAgent({
+        type: "worker",
+        description: "scanner",
+        modelTier: "light",
+        permissions: "read-only",
+        tools: ["read", "glob", "grep"],
+        timeoutSeconds: 60,
+        prompt: "go",
+      }),
+    );
+    const allowed = buildAllowedTools(agent, {
+      verdictBin: null,
+      paramsBin: null,
+      outputsBin: null,
+      outputsFile: null,
+    });
+    ok(allowed !== null);
+    const tools = allowed.split(",");
+    equal(tools.length, new Set(tools).size, `must not contain duplicates; got: ${allowed}`);
+  });
+
+  it("full-permission agent declaring read/glob/grep with filesystem access produces no duplicates", () => {
+    const agent = asLLM(
+      defineAgent({
+        type: "worker",
+        description: "reader",
+        modelTier: "light",
+        permissions: "full",
+        tools: ["read", "glob", "grep"],
+        timeoutSeconds: 60,
+        prompt: "go",
+      }),
+    );
+    const allowed = buildAllowedTools(agent, {
+      verdictBin: null,
+      paramsBin: null,
+      outputsBin: null,
+      outputsFile: null,
+    });
+    ok(allowed !== null);
+    const tools = allowed.split(",");
+    equal(tools.length, new Set(tools).size, `must not contain duplicates; got: ${allowed}`);
+  });
+
   it("'read'/'glob'/'grep' Tool enum values resolve via TOOL_NAME_MAP for full agents", () => {
     const agent = asLLM(
       defineAgent({

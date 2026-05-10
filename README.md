@@ -66,6 +66,7 @@ export default defineConfig({
     standard: "claude-sonnet-4-6",
     light: "claude-haiku-4-5-20251001",
   },
+  verboseOutput: true, // stream each agent's raw Claude output to the console
 });
 ```
 

@@ -1,6 +1,6 @@
 import { defineAgent } from "@generata/core";
 
-export default defineAgent<{}>(() => ({
+export default defineAgent<{}>(({ work_dir }) => ({
   type: "worker",
   description:
     "Scans the generata repo for candidate improvements across five lenses; appends each finding to IMPROVEMENTS.md as it is discovered.",
@@ -11,6 +11,8 @@ export default defineAgent<{}>(() => ({
   promptContext: [{ filepath: "IMPROVEMENTS.md", optional: true }],
   prompt: `
 You are the audit step in a self-improvement loop for the \`generata\` framework. Your job is to scan this repo and surface candidate improvements - things a careful maintainer would notice and want to fix or build.
+
+The backlog file you append to is \`${work_dir}/IMPROVEMENTS.md\` (absolute path - use it verbatim with the Edit tool; do not write to any other location).
 
 Scope IN:
 - packages/core/src/* (engine, CLI, schema, runner)
@@ -34,10 +36,10 @@ Lenses, in priority order. The first two are higher priority - lean toward surfa
 5. **feature** - things templates need but core does not expose; gaps against README promises
 
 Procedure:
-1. IMPROVEMENTS.md is in your context above. Treat every entry there as already-tracked: do not surface a duplicate under a new title, and do not append an entry whose only evidence path also appears under an existing entry's \`Evidence\` line.
+1. ${work_dir}/IMPROVEMENTS.md is in your context above. Treat every entry there as already-tracked: do not surface a duplicate under a new title, and do not append an entry whose only evidence path also appears under an existing entry's \`Evidence\` line.
 2. Read README.md for the public contract before scanning.
 3. Walk in-scope files with glob/grep/read. Be thorough but not exhaustive - 15-25 high-quality findings is better than 60 weak ones.
-4. As soon as you identify a new candidate, append a markdown entry to IMPROVEMENTS.md using the Edit tool. Continue scanning between writes - do not buffer findings until the end.
+4. As soon as you identify a new candidate, append a markdown entry to ${work_dir}/IMPROVEMENTS.md using the Edit tool. Continue scanning between writes - do not buffer findings until the end.
 
 Append each entry exactly in this shape (preserve the trailing \`---\` separator and surrounding blank lines):
 
@@ -58,6 +60,6 @@ Constraints:
 - Do not include a score in the header. A separate ranking pass will add it.
 - Within your own session, track slugs and evidence paths you have already written to avoid intra-batch duplicates.
 
-You may only Edit IMPROVEMENTS.md. Do not edit any other file.`,
+You may only Edit ${work_dir}/IMPROVEMENTS.md. Do not edit any other file.`,
   outputs: {},
 }));
