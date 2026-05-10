@@ -27,6 +27,7 @@ Workflow flags:
   --worktree                  Force this run to use git-worktree isolation
   --local                     Force this run to skip worktree isolation
                               (--worktree and --local are mutually exclusive)
+  --profile <name>            Select env-var profile (PREFIX_KEY -> KEY)
 `;
 
 export async function runHelp(topic?: string): Promise<void> {
