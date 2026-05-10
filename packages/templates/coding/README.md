@@ -68,4 +68,4 @@ Edit `NOTES.md` to add your own ideas, replace the starters, or remove anything 
 
 ## Customising
 
-Every file under `agents/` is yours to edit. Adjust prompts, rename, add new agents, or compose new workflows. Re-run `pnpm generata skills sync` after adding/renaming workflows to regenerate `.claude/commands/`.
+Every file under `agents/` is yours to edit. Adjust prompts, rename, add new agents, or compose new workflows. Re-run `pnpm generata commands sync` after adding/renaming workflows to regenerate `.claude/commands/`.
