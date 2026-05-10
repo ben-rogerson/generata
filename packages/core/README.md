@@ -29,32 +29,28 @@ defineWorkflow({
 });
 ```
 
-## Prompt context
+## Agent options
 
-Every LLM-backed agent (`worker`, `critic`, `planner`, `dispatcher`) accepts a `promptContext` array on its `defineAgent` options. Each entry names a file to inject into the agent's prompt as an `<context file="...">...</context>` XML block, prepended before the task body. The engine - not the agent author - owns the framing, so templates never need to say "you have X above".
+### `filesystemAccess`
+
+Optional `boolean`. `full`-permission agents (`worker`, `planner`) implicitly receive `Read`, `Glob`, and `Grep` as baseline tools so they can inspect the workspace before writing. Set `filesystemAccess: false` to omit that baseline - useful for write-or-exec-only agents that should not be allowed to read arbitrary files. Omitting the field keeps the baseline (the default).
+
+The flag is a no-op on `read-only` agents (filesystem read is the defining characteristic of that permission level); setting it to `false` on a read-only agent is a parse error.
 
 ```ts
-defineAgent({
+import { defineAgent } from "@generata/core";
+
+export default defineAgent({
+  name: "shell-runner",
   type: "worker",
-  description: "...",
-  modelTier: "standard",
-  promptContext: [
-    { filepath: "NOTES.md" },                       // required, full file
-    { filepath: "CHANGELOG.md", head: 40 },         // first 40 lines only
-    { filepath: "logs/run.log", tail: 200 },        // last 200 lines only
-    { filepath: "memory/progress.txt", optional: true }, // skipped if missing
-    { filepath: ({ slug }) => `projects/${slug}/SPEC.md` }, // resolved per-call
-  ],
-  prompt: `...`,
+  permissions: "full",
+  filesystemAccess: false,
+  modelTier: "light",
+  description: "Runs a single shell command without reading source.",
+  tools: ["bash"],
+  prompt: ({ command }) => `Run: ${command}`,
 });
 ```
-
-| Field      | Type                                          | Behaviour                                                                 |
-| :--------- | :-------------------------------------------- | :------------------------------------------------------------------------ |
-| `filepath` | `string \| (vars: ContextVars) => string`     | Resolved relative to the run's working directory. Function form receives the same strict variables as `prompt`, so it can interpolate workflow inputs / step outputs. |
-| `head`     | `number` (optional)                           | Keep only the first N lines of the file.                                   |
-| `tail`     | `number` (optional)                           | Keep only the last N lines. Combine with `head` to take a head-then-tail slice. |
-| `optional` | `boolean` (optional)                          | If `true` and the file is missing, the entry is skipped silently - no tag, no warning. If `false` (default) and the file is missing, the engine renders `<context file="..." status="missing" />` and prints a `[context] <agent>: '<path>' not found` warning to stderr. Use `optional: true` for files that are expected to be absent on fresh systems (e.g. `memory/progress.txt`). |
 
 ## Running workflows from code
 
