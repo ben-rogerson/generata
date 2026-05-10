@@ -29,6 +29,33 @@ defineWorkflow({
 });
 ```
 
+## Prompt context
+
+Every LLM-backed agent (`worker`, `critic`, `planner`, `dispatcher`) accepts a `promptContext` array on its `defineAgent` options. Each entry names a file to inject into the agent's prompt as an `<context file="...">...</context>` XML block, prepended before the task body. The engine - not the agent author - owns the framing, so templates never need to say "you have X above".
+
+```ts
+defineAgent({
+  type: "worker",
+  description: "...",
+  modelTier: "standard",
+  promptContext: [
+    { filepath: "NOTES.md" },                       // required, full file
+    { filepath: "CHANGELOG.md", head: 40 },         // first 40 lines only
+    { filepath: "logs/run.log", tail: 200 },        // last 200 lines only
+    { filepath: "memory/progress.txt", optional: true }, // skipped if missing
+    { filepath: ({ slug }) => `projects/${slug}/SPEC.md` }, // resolved per-call
+  ],
+  prompt: `...`,
+});
+```
+
+| Field      | Type                                          | Behaviour                                                                 |
+| :--------- | :-------------------------------------------- | :------------------------------------------------------------------------ |
+| `filepath` | `string \| (vars: ContextVars) => string`     | Resolved relative to the run's working directory. Function form receives the same strict variables as `prompt`, so it can interpolate workflow inputs / step outputs. |
+| `head`     | `number` (optional)                           | Keep only the first N lines of the file.                                   |
+| `tail`     | `number` (optional)                           | Keep only the last N lines. Combine with `head` to take a head-then-tail slice. |
+| `optional` | `boolean` (optional)                          | If `true` and the file is missing, the entry is skipped silently - no tag, no warning. If `false` (default) and the file is missing, the engine renders `<context file="..." status="missing" />` and prints a `[context] <agent>: '<path>' not found` warning to stderr. Use `optional: true` for files that are expected to be absent on fresh systems (e.g. `memory/progress.txt`). |
+
 ## Running workflows from code
 
 `@generata/core` exposes `runWorkflow` and `runAgent` so you can drive any workflow or agent from your own TypeScript without going through the CLI. This is the primitive for loops, batch jobs, or wrapping generata in a larger script.
