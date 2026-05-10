@@ -18,6 +18,9 @@ Commands:
   agent <name> [args]         Run a single agent
   workflow <name> [args]      Run a workflow (alias: 'run')
   validate [<workflow>|--all] [--check-files] [--profile <p>] [--key v]  Static-check workflow definitions
+  metrics [today|week]        Show metrics summary
+  metrics agent <name>        Show 7-day metrics for an agent
+  skills sync                 Regenerate .claude/commands/ from workflows
   metrics [today|week|...]    Show metrics summary
   commands sync               Regenerate .claude/commands/ from workflows
   skills sync                 (deprecated alias for 'commands sync')
