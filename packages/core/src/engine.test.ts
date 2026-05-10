@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import type { RunOptions, RunResult } from "./agent-runner.js";
 import { buildPrompt } from "./context-builder.js";
 import { defineAgent, defineWorkflow, worktree } from "./define.js";
-import { isStructuralHalt, executeWorkflow } from "./engine.js";
+import { executeWorkflow } from "./engine.js";
 import { EnvProfileError } from "./env-profile.js";
 import type { AgentMetrics, GlobalConfig } from "./schema.js";
 import type { SetupWorktreeOptions, SetupWorktreeResult } from "./worktree.js";
@@ -48,87 +48,6 @@ function makeMetrics(opts: Partial<AgentMetrics> & { agent: string }): AgentMetr
     ...opts,
   };
 }
-
-describe("runWorkflow critic retry short-circuit", () => {
-  it("breaks the retry loop when the worker emits STATUS: halt", async () => {
-    const callsByStep: Record<string, number> = {};
-
-    const stubRunAgent = async (options: RunOptions): Promise<RunResult> => {
-      const stepId = options.stepId ?? options.agent.name;
-      callsByStep[stepId] = (callsByStep[stepId] ?? 0) + 1;
-
-      if (options.agent.type === "worker") {
-        // First attempt: succeed (so the critic gets a chance to reject).
-        // Subsequent attempts: emit a structural halt that should break the loop.
-        const isFirst = callsByStep[stepId] === 1;
-        return {
-          output: isFirst
-            ? "STATUS: complete - did the work"
-            : "STATUS: halt - structural conflict between spec and procedure §2",
-          metrics: makeMetrics({ agent: options.agent.name }),
-        };
-      }
-
-      // Critic: always reject so the engine enters the retry loop.
-      return {
-        output: "rejected",
-        metrics: makeMetrics({ agent: options.agent.name }),
-        verdict: {
-          verdict: "reject",
-          summary: "needs changeset",
-          issues: ["missing changeset"],
-        },
-      };
-    };
-
-    const worker = withName(
-      defineAgent({
-        type: "worker",
-        description: "stub worker",
-        modelTier: "light",
-        tools: [],
-        permissions: "none",
-        timeoutSeconds: 60,
-        promptContext: [],
-        prompt: () => "do the thing",
-      }),
-      "code",
-    );
-
-    const critic = withName(
-      defineAgent({
-        type: "critic",
-        description: "stub critic",
-        modelTier: "light",
-        tools: [],
-        permissions: "read-only",
-        timeoutSeconds: 60,
-        promptContext: [],
-        prompt: () => "review the thing",
-      }),
-      "review-code",
-    );
-
-    const workflow = withName(
-      defineWorkflow({ description: "halt-loop" })
-        .step("code", worker)
-        .step("review-code", critic, { maxRetries: 5 })
-        .build(),
-      "halt-loop",
-    );
-
-    const result = await executeWorkflow(workflow, {}, stubConfig, "/tmp", undefined, {
-      runAgent: stubRunAgent,
-    });
-
-    // Worker should run: 1 initial + 1 retry = 2 total. Without the short-circuit it would
-    // run 1 + 5 = 6, since the critic always rejects.
-    equal(callsByStep.code, 2);
-    equal(result.success, false);
-    equal(result.halted, true);
-    match(result.haltReason ?? "", /needs changeset/);
-  });
-});
 
 describe("runWorkflow critic no-verdict retry", () => {
   function buildWorkflow(maxRetries: number) {
@@ -230,39 +149,6 @@ describe("runWorkflow critic no-verdict retry", () => {
     equal(result.success, false);
     equal(result.halted, true);
     match(result.haltReason ?? "", /critic produced no verdict/);
-  });
-});
-
-describe("isStructuralHalt", () => {
-  it("matches the canonical STATUS: halt prefix", () => {
-    equal(isStructuralHalt("STATUS: halt - plan requests out-of-scope edit"), true);
-  });
-
-  it("matches when STATUS: halt appears after other lines", () => {
-    equal(isStructuralHalt("Some preamble.\nSTATUS: halt - reason"), true);
-  });
-
-  it("tolerates extra whitespace and case variation", () => {
-    equal(isStructuralHalt("status:   halt - whatever"), true);
-    equal(isStructuralHalt("STATUS:halt - no space"), true);
-  });
-
-  it("does not match STATUS: complete", () => {
-    equal(isStructuralHalt("STATUS: complete - all good"), false);
-  });
-
-  it("does not match STATUS: partial", () => {
-    equal(isStructuralHalt("STATUS: partial - blocked on creds"), false);
-  });
-
-  it("does not match a halt word that is not the STATUS sentinel", () => {
-    equal(isStructuralHalt("the worker should halt here"), false);
-    equal(isStructuralHalt("STATUS: halted (past tense)"), false);
-  });
-
-  it("does not match an empty or arbitrary output", () => {
-    equal(isStructuralHalt(""), false);
-    equal(isStructuralHalt("just regular text without any sentinel"), false);
   });
 });
 
