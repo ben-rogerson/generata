@@ -26,7 +26,7 @@ const IDEAS_DIR = resolve(REPO_ROOT, "internal", "ideas");
 const IMPROVEMENTS_PATH = resolve(SELF_IMPROVE_DIR, "IMPROVEMENTS.md");
 const LAST_IDEA_PATH = resolve(SELF_IMPROVE_DIR, "last-idea.md");
 
-const DEFAULT_MAX = 5;
+const DEFAULT_MAX = 16;
 
 function parseMax(argv: string[]): number {
   for (let i = 0; i < argv.length; i++) {
