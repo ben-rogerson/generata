@@ -22,7 +22,7 @@ cd ~/Projects/my-pipeline
 
 | Agent                  | Type    | Purpose                                                       |
 | :--------------------- | :------ | :------------------------------------------------------------ |
-| `spec-creator`         | worker  | Pick an idea from NOTES.md, write SPEC.md, emit SPEC WRITTEN + INSTRUCTIONS |
+| `spec-creator`         | worker  | Pick an idea from NOTES.md, write SPEC.md, emit outputs `{ spec_filepath, instructions }` |
 | `plan-creator`         | planner | Read SPEC.md, write PLAN.md                                   |
 | `plan-reviewer`        | critic  | Audit PLAN.md against SPEC.md (rejects retry plan-creator)    |
 | `code-writer`          | worker  | Implement PLAN.md inside the project dir                      |
@@ -68,4 +68,4 @@ Edit `NOTES.md` to add your own ideas, replace the starters, or remove anything 
 
 ## Customising
 
-Every file under `agents/` is yours to edit. Adjust prompts, rename, add new agents, or compose new workflows. Re-run `pnpm generata skills sync` after adding/renaming workflows to regenerate `.claude/commands/`.
+Every file under `agents/` is yours to edit. Adjust prompts, rename, add new agents, or compose new workflows. Re-run `pnpm generata commands sync` after adding/renaming workflows to regenerate `.claude/commands/`.

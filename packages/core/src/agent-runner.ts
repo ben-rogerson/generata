@@ -263,7 +263,7 @@ export function buildAllowedTools(
 
   if (agent.permissions === "read-only") {
     const baseTools = ["Read", "Glob", "Grep"];
-    return [...baseTools, ...extraTools, ...binPermissions].join(",");
+    return [...new Set([...baseTools, ...extraTools, ...binPermissions])].join(",");
   }
   if (agent.permissions === "none") {
     return binPermissions.join(",");
@@ -271,7 +271,7 @@ export function buildAllowedTools(
   // permissions === "full"
   if (agent.tools.length === 0 && binPermissions.length === 0) return null;
   const baseTools = agent.filesystemAccess === false ? [] : ["Read", "Glob", "Grep"];
-  return [...baseTools, ...extraTools, ...binPermissions].join(",");
+  return [...new Set([...baseTools, ...extraTools, ...binPermissions])].join(",");
 }
 
 async function parseCloseResult(
