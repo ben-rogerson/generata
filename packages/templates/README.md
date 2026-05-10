@@ -103,6 +103,24 @@ export default defineAgent<{ slug: string }>(({ slug }) => ({
 
 The filename becomes the agent or workflow name. Every `.ts` under `agents/` is scanned recursively and classified by its default export - `defineAgent` makes it an agent, `defineWorkflow` makes it a workflow. Workflows belong in `agents/workflows/` by convention (used by `standup` and `coding`); the `starter` template uses flat `agents/` placement, which works equally well for projects with a single workflow.
 
+## Injecting file context into prompts
+
+Agents can declare `promptContext` to read files into their prompt without hand-rolling `read` tool calls. The [`coding`](./coding) template uses this to feed `NOTES.md` into the spec creator:
+
+```ts
+defineAgent({
+  type: "worker",
+  // ...
+  promptContext: [
+    { filepath: "NOTES.md" },
+    { filepath: "memory/progress.txt", optional: true },
+  ],
+  prompt: `...`,
+});
+```
+
+Each entry supports `head` / `tail` line caps and an `optional` flag - when `optional: true`, a missing file is silently skipped; otherwise the engine injects `<context file="..." status="missing" />` and warns to stderr. Full field reference in [`@generata/core` README](../core/README.md#prompt-context).
+
 ## The manifest
 
 `generata.template.json` is the only required file. Minimal example:

@@ -29,6 +29,29 @@ defineWorkflow({
 });
 ```
 
+## Agent options
+
+### `filesystemAccess`
+
+Optional `boolean`. `full`-permission agents (`worker`, `planner`) implicitly receive `Read`, `Glob`, and `Grep` as baseline tools so they can inspect the workspace before writing. Set `filesystemAccess: false` to omit that baseline - useful for write-or-exec-only agents that should not be allowed to read arbitrary files. Omitting the field keeps the baseline (the default).
+
+The flag is a no-op on `read-only` agents (filesystem read is the defining characteristic of that permission level); setting it to `false` on a read-only agent is a parse error.
+
+```ts
+import { defineAgent } from "@generata/core";
+
+export default defineAgent({
+  name: "shell-runner",
+  type: "worker",
+  permissions: "full",
+  filesystemAccess: false,
+  modelTier: "light",
+  description: "Runs a single shell command without reading source.",
+  tools: ["bash"],
+  prompt: ({ command }) => `Run: ${command}`,
+});
+```
+
 ## Running workflows from code
 
 `@generata/core` exposes `runWorkflow` and `runAgent` so you can drive any workflow or agent from your own TypeScript without going through the CLI. This is the primitive for loops, batch jobs, or wrapping generata in a larger script.
@@ -149,6 +172,26 @@ Looking to expose workflows over HTTP? See [`@generata/serve`](../serve).
 | `generata help [topic]`           | Show help (topics: agents, workflows, env, templates, bins) |
 
 Workflow flags: `--worktree` forces git-worktree isolation for the run; `--local` forces it off (mutually exclusive).
+
+## Config reference
+
+Every field accepted by `defineConfig` (i.e. the `GlobalConfig` schema):
+
+| Field                              | Type                       | Default    | Description                                                                          |
+| :--------------------------------- | :------------------------- | :--------- | :----------------------------------------------------------------------------------- |
+| `modelTiers.heavy/standard/light`  | `string`                   | (required) | Model IDs for each cost tier                                                         |
+| `workDir`                          | `string`                   | (required) | Root directory for worktree isolation                                                |
+| `agentsDir`                        | `string`                   | `"agents"` | Directory scanned for agent definition files                                         |
+| `metricsDir`                       | `string`                   | `"metrics"`| Directory where per-run metrics JSON files are written                               |
+| `logsDir`                          | `string`                   | `"logs"`   | Directory where prompt logs are written (when `logPrompts` is true)                  |
+| `logPrompts`                       | `boolean`                  | `true`     | Write full prompt/response logs for every run                                        |
+| `verboseOutput`                    | `boolean`                  | `false`    | Stream each agent's raw Claude output to the console                                 |
+| `showPricing`                      | `boolean`                  | `false`    | Print token cost breakdown after each run                                            |
+| `showWeeklyMetrics`                | `boolean`                  | `true`     | Print a weekly usage summary on CLI startup                                          |
+| `notifications`                    | `boolean`                  | `true`     | Send OS/Telegram notifications on workflow completion                                |
+| `maxCriticRetries`                 | `number`                   | `3`        | How many times a critic agent may loop before the step fails                         |
+| `telegram`                         | `{ botToken, chatId }`     | -          | Telegram bot credentials for completion notifications (requires `notifications: true`) |
+| `serve`                            | `unknown`                  | -          | Passed through to `@generata/serve`; core does not validate the shape                |
 
 ## Template specifiers
 
