@@ -1,6 +1,6 @@
 import { defineAgent } from "@generata/core";
 
-export default defineAgent<{}>(() => ({
+export default defineAgent<{}>(({ work_dir }) => ({
   type: "worker",
   description:
     "Reads IMPROVEMENTS.md, scores each unscored entry, and edits the header in place to add the score.",
@@ -10,7 +10,7 @@ export default defineAgent<{}>(() => ({
   timeoutSeconds: 600,
   promptContext: [{ filepath: "IMPROVEMENTS.md", optional: true }],
   prompt: `
-IMPROVEMENTS.md is in your context above. The repo-scanner has appended new entries with headers of the form:
+The backlog file is \`${work_dir}/IMPROVEMENTS.md\` (absolute path - use it verbatim with the Edit tool; do not write to any other location). It is in your context above. The repo-scanner has appended new entries with headers of the form:
   \`### <slug> [<lens>]\`
 
 Your job is to score each such unscored entry. Entries already scored have headers of the form \`### <slug> [<lens> · score <N>]\` - leave those untouched.
@@ -25,8 +25,8 @@ For each unscored entry:
      to:   \`### <slug> [<lens> · score <N>]\`
    Do not modify any other line of the entry. Do not delete or merge entries.
 
-You may only Edit IMPROVEMENTS.md. Do not edit any other file.
+You may only Edit \`${work_dir}/IMPROVEMENTS.md\`. Do not edit any other file.
 
-If IMPROVEMENTS.md has no unscored entries, halt with reason "no unscored entries to rank".`,
+If \`${work_dir}/IMPROVEMENTS.md\` has no unscored entries, halt with reason "no unscored entries to rank".`,
   outputs: {},
 }));
