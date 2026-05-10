@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, renameSync, unlinkSync } from "fs";
+import { existsSync, mkdirSync, readdirSync, unlinkSync } from "fs";
 import { tmpdir } from "os";
 import { dirname, join, resolve } from "path";
 import {
@@ -128,6 +128,249 @@ function findGitRoot(start: string): string {
     }
     current = parent;
   }
+}
+
+interface RunAgentStepContext {
+  runAgent: (options: RunOptions) => Promise<RunResult>;
+  config: GlobalConfig;
+  workDir: string;
+  executionRoot: string;
+  workflowId: string;
+  stepOutputs: Record<string, string>;
+  sink: EventSink;
+  signal?: AbortSignal;
+  promptLogFile?: string;
+  workflowVariables: Record<string, string>;
+  resolvedEnv: ResolvedEnv;
+  // Whether the *outer* step is the workflow's initiator planner. The flag is
+  // computed once per outer step and reused for nested calls (executor reruns,
+  // onReject cleanup) so they share the outer step's planner-emits-params
+  // semantics - matching the prior closure capture exactly.
+  isInitiatorPlanner: boolean;
+}
+
+type RunStepFn = (
+  step: WorkflowStep,
+  agent: AgentDef,
+  args: Record<string, unknown>,
+  retryPreamble?: string,
+) => Promise<RunResult>;
+
+async function runAgentStep(
+  targetStep: WorkflowStep,
+  targetAgent: AgentDef,
+  targetArgs: Record<string, unknown>,
+  retryPreamble: string | undefined,
+  ctx: RunAgentStepContext,
+): Promise<RunResult> {
+  let r: RunResult | undefined;
+  let attempt = 0;
+  let lastErr: unknown = null;
+  while (true) {
+    try {
+      r = await ctx.runAgent({
+        agent: targetAgent,
+        args: targetArgs,
+        config: ctx.config,
+        workDir: ctx.workDir,
+        cwd: ctx.executionRoot,
+        workflowId: ctx.workflowId,
+        stepId: targetStep.id,
+        stepOutputs: ctx.stepOutputs,
+        isInitiatorPlanner: ctx.isInitiatorPlanner,
+        // verboseOutput=false swaps inline tool events for the per-agent spinner
+        // (agent-runner starts the spinner when onEvent is undefined). Caveat:
+        // parallel runnable steps will fight over the same TTY line - acceptable
+        // for now since most workflows are sequential.
+        onEvent: ctx.config.verboseOutput
+          ? (event) =>
+              ctx.sink({
+                type: "agent-stream",
+                stepId: targetStep.id,
+                event,
+              })
+          : undefined,
+        promptLogFile: ctx.promptLogFile,
+        retryPreamble,
+        workflowVariables: ctx.workflowVariables,
+        resolvedEnv: ctx.resolvedEnv,
+        signal: ctx.signal,
+      });
+      // runAgent resolves even when the underlying claude call failed
+      // or declared outputs were not emitted (status="failure" set in
+      // metrics). Surface that as a thrown error so the retry/fail
+      // path runs instead of advancing with undefined outputs that
+      // crash the next step.
+      if (r.metrics.status === "failure" || r.metrics.status === "timeout") {
+        throw new Error(r.metrics.error || "agent reported failure with no error message");
+      }
+      break;
+    } catch (err) {
+      // AbortError bypasses the retry loop: a cancelled run must not
+      // burn further attempts after the caller's signal has fired.
+      if ((err as { name?: string })?.name === "AbortError") throw err;
+      attempt++;
+      lastErr = err;
+      if (attempt >= targetAgent.maxRetries) {
+        // New contract: surface retry exhaustion as a failed StepResult
+        // instead of throwing. The outer loop sees status="failure" and
+        // bubbles it into success=false without disrupting other steps.
+        const failureMetrics: AgentMetrics = {
+          agent: targetAgent.name,
+          model: resolveModel(targetAgent, targetArgs, ctx.config),
+          model_tier: targetAgent.modelTier,
+          workflow_id: ctx.workflowId,
+          step_id: targetStep.id,
+          started_at: new Date(Date.now() - 1).toISOString(),
+          completed_at: new Date().toISOString(),
+          duration_ms: 0,
+          input_tokens: 0,
+          output_tokens: 0,
+          cache_read_tokens: 0,
+          cache_write_tokens: 0,
+          estimated_cost_usd: 0,
+          cost_was_reported: false,
+          status: "failure",
+          error: `Step '${targetStep.id}' failed after ${attempt} attempts: ${String(lastErr)}`,
+          exit_code: 1,
+        };
+        ctx.sink({
+          type: "step-done",
+          stepId: targetStep.id,
+          output: "",
+          metrics: failureMetrics,
+          showPricing: ctx.config.showPricing,
+        });
+        return { output: "", metrics: failureMetrics };
+      }
+      ctx.sink({ type: "step-retry", stepId: targetStep.id, attempt });
+    }
+  }
+  ctx.sink({
+    type: "step-done",
+    stepId: targetStep.id,
+    output: r!.output,
+    metrics: r!.metrics,
+    verdict: r!.verdict,
+    showPricing: ctx.config.showPricing,
+  });
+  return r!;
+}
+
+// No-verdict retry: when a critic's CLI invocation produces no verdict file
+// (transient hang, empty stream, killed mid-call), re-run just the critic - the
+// worker output is fine. Burns up to maxAttempts.
+async function runNoverdictCriticRetry(
+  step: WorkflowStep,
+  initialResult: RunResult,
+  params: Record<string, unknown>,
+  stepOutputs: Record<string, string>,
+  maxAttempts: number,
+  runStep: RunStepFn,
+  sink: EventSink,
+): Promise<RunResult> {
+  let result = initialResult;
+  let retryAttempt = 0;
+  while (retryAttempt < maxAttempts && !result.verdict) {
+    retryAttempt++;
+    sink({ type: "step-retry", stepId: step.id, attempt: retryAttempt });
+    const reResolved = resolveStepForRun(step, params, stepOutputs);
+    result = await runStep(step, reResolved.agent, reResolved.args);
+    stepOutputs[step.id] = result.output;
+  }
+  return result;
+}
+
+// Critic-rejection cycle: when a critic rejects, re-run the upstream worker with
+// an engine-built preamble listing the critic's issues, then re-run the critic.
+// Repeats up to maxAttempts. If still rejected, fires the optional onReject
+// agent and returns a haltSignal for the caller to set on the workflow run.
+async function runCriticRejectLoop(
+  criticStep: WorkflowStep,
+  executorStep: WorkflowStep | undefined,
+  initialResult: RunResult,
+  maxAttempts: number,
+  params: Record<string, unknown>,
+  stepOutputs: Record<string, string>,
+  runStep: RunStepFn,
+  sink: EventSink,
+): Promise<{ result: RunResult; haltSignal: string | null }> {
+  let result = initialResult;
+
+  if (executorStep) {
+    let retryAttempt = 0;
+    while (retryAttempt < maxAttempts && result.verdict?.verdict !== "approve") {
+      retryAttempt++;
+      sink({
+        type: "step-retry",
+        stepId: executorStep.id,
+        attempt: retryAttempt,
+      });
+
+      const preamble = buildRetryPreamble({
+        summary: result.verdict?.summary ?? "",
+        issues: result.verdict?.issues ?? [],
+      });
+      const execResolved = resolveStepForRun(executorStep, params, stepOutputs);
+      const execResult = await runStep(
+        executorStep,
+        execResolved.agent,
+        execResolved.args,
+        preamble,
+      );
+      stepOutputs[executorStep.id] = execResult.output;
+
+      const criticResolved = resolveStepForRun(criticStep, params, stepOutputs);
+      result = await runStep(criticStep, criticResolved.agent, criticResolved.args);
+      stepOutputs[criticStep.id] = result.output;
+
+      // Structural-halt short-circuit: if the worker reports STATUS: halt
+      // the rerun won't make progress (the conflict is in the spec/plan, not
+      // the diff). Stop retrying and let the rejection propagate to haltSignal.
+      if (isStructuralHalt(execResult.output)) break;
+    }
+  }
+
+  let haltSignal: string | null = null;
+  if (result.verdict?.verdict !== "approve") {
+    const onRejectAgent = criticStep.onReject;
+    if (onRejectAgent) {
+      // Factory-form: call it with all available runtime state to
+      // get a freshly-resolved StepInvocation (closure interpolation
+      // bakes in real values, replacing the sentinel placeholders
+      // attached at definition time).
+      let rejectAgent: AgentDef;
+      let rejectArgs: Record<string, unknown>;
+      if (typeof onRejectAgent === "function") {
+        const merged: Record<string, string> = Object.fromEntries(
+          Object.entries({ ...params, ...stepOutputs }).map(([k, v]) => [k, String(v)]),
+        );
+        const inv = onRejectAgent(merged);
+        rejectAgent = inv.agent as AgentDef;
+        rejectArgs = { ...params, ...inv.args };
+      } else {
+        rejectAgent = onRejectAgent as AgentDef;
+        rejectArgs = { ...params };
+      }
+      await runStep(
+        {
+          id: `${criticStep.id}-cleanup`,
+          stepFn: () => ({
+            kind: "step-invocation",
+            agent: rejectAgent,
+            args: {},
+          }),
+        } as WorkflowStep,
+        rejectAgent,
+        rejectArgs,
+      );
+    }
+    haltSignal = result.verdict?.summary
+      ? `${criticStep.id} rejected: ${result.verdict.summary}`
+      : `${criticStep.id} rejected (no summary given)`;
+  }
+
+  return { result, haltSignal };
 }
 
 export async function executeWorkflow(
@@ -335,113 +578,26 @@ export async function executeWorkflow(
             model: resolveModel(stepAgent, resolvedArgs, config),
           });
 
-          // Helper: run an agent step with error-retry, log metrics, update stepOutputs.
-          // Used for both the initial run and critic-triggered retries.
-          const runAgentStep = async (
-            targetStep: WorkflowStep,
-            targetAgent: AgentDef,
-            targetArgs: Record<string, unknown>,
-            retryPreamble?: string,
-          ): Promise<RunResult> => {
-            let r: RunResult | undefined;
-            let attempt = 0;
-            let lastErr: unknown = null;
-            while (true) {
-              try {
-                r = await runAgent({
-                  agent: targetAgent,
-                  args: targetArgs,
-                  config,
-                  workDir,
-                  cwd: executionRoot,
-                  workflowId,
-                  stepId: targetStep.id,
-                  stepOutputs,
-                  isInitiatorPlanner:
-                    stepAgent.type === "planner" &&
-                    (effectiveDeps.get(step.id)?.length ?? 0) === 0,
-                  // verboseOutput=false swaps inline tool events for the per-agent spinner
-                  // (agent-runner starts the spinner when onEvent is undefined). Caveat:
-                  // parallel runnable steps will fight over the same TTY line - acceptable
-                  // for now since most workflows are sequential.
-                  onEvent: config.verboseOutput
-                    ? (event) =>
-                        sink({
-                          type: "agent-stream",
-                          stepId: targetStep.id,
-                          event,
-                        })
-                    : undefined,
-                  promptLogFile,
-                  retryPreamble,
-                  workflowVariables,
-                  resolvedEnv,
-                  signal: deps.signal,
-                });
-                // runAgent resolves even when the underlying claude call failed
-                // or declared outputs were not emitted (status="failure" set in
-                // metrics). Surface that as a thrown error so the retry/fail
-                // path runs instead of advancing with undefined outputs that
-                // crash the next step.
-                if (r.metrics.status === "failure" || r.metrics.status === "timeout") {
-                  throw new Error(
-                    r.metrics.error || "agent reported failure with no error message",
-                  );
-                }
-                break;
-              } catch (err) {
-                // AbortError bypasses the retry loop: a cancelled run must not
-                // burn further attempts after the caller's signal has fired.
-                if ((err as { name?: string })?.name === "AbortError") throw err;
-                attempt++;
-                lastErr = err;
-                if (attempt >= targetAgent.maxRetries) {
-                  // New contract: surface retry exhaustion as a failed StepResult
-                  // instead of throwing. The outer loop sees status="failure" and
-                  // bubbles it into success=false without disrupting other steps.
-                  const failureMetrics: AgentMetrics = {
-                    agent: targetAgent.name,
-                    model: resolveModel(targetAgent, targetArgs, config),
-                    model_tier: targetAgent.modelTier,
-                    workflow_id: workflowId,
-                    step_id: targetStep.id,
-                    started_at: new Date(Date.now() - 1).toISOString(),
-                    completed_at: new Date().toISOString(),
-                    duration_ms: 0,
-                    input_tokens: 0,
-                    output_tokens: 0,
-                    cache_read_tokens: 0,
-                    cache_write_tokens: 0,
-                    estimated_cost_usd: 0,
-                    cost_was_reported: false,
-                    status: "failure",
-                    error: `Step '${targetStep.id}' failed after ${attempt} attempts: ${String(lastErr)}`,
-                    exit_code: 1,
-                  };
-                  sink({
-                    type: "step-done",
-                    stepId: targetStep.id,
-                    output: "",
-                    metrics: failureMetrics,
-                    showPricing: config.showPricing,
-                  });
-                  return { output: "", metrics: failureMetrics };
-                }
-                sink({ type: "step-retry", stepId: targetStep.id, attempt });
-              }
-            }
-            sink({
-              type: "step-done",
-              stepId: targetStep.id,
-              output: r!.output,
-              metrics: r!.metrics,
-              verdict: r!.verdict,
-              showPricing: config.showPricing,
-            });
-            return r!;
+          const stepCtx: RunAgentStepContext = {
+            runAgent,
+            config,
+            workDir,
+            executionRoot,
+            workflowId,
+            stepOutputs,
+            sink,
+            signal: deps.signal,
+            promptLogFile,
+            workflowVariables,
+            resolvedEnv,
+            isInitiatorPlanner:
+              stepAgent.type === "planner" &&
+              (effectiveDeps.get(step.id)?.length ?? 0) === 0,
           };
+          const runStep: RunStepFn = (targetStep, targetAgent, targetArgs, retryPreamble) =>
+            runAgentStep(targetStep, targetAgent, targetArgs, retryPreamble, stepCtx);
 
-          let result = await runAgentStep(step, stepAgent, resolvedArgs);
+          let result = await runStep(step, stepAgent, resolvedArgs);
 
           if (result.metrics.status === "failure" || result.metrics.status === "timeout") {
             stepOutputs[step.id] = result.output;
@@ -480,137 +636,47 @@ export async function executeWorkflow(
             Object.assign(accumulatedOutputs, result.outputs);
           }
 
-          if (planName) {
-            // Move plan into project folder once the executor has created the code dir.
-            // Fires once: when code/ exists but the plan hasn't been moved yet.
-            // Anchored on executionRoot so worktree-isolated workflows see files agents
-            // wrote inside the worktree (executionRoot === resolve(workDir) when not isolated).
-            const projectDir = resolve(
-              executionRoot,
-              workflow.variables.output_dir ?? "",
-              planName,
-            );
-            const plansDir = workflow.variables.plans_dir ?? "plans";
-            const planSrc = resolve(executionRoot, plansDir, `${planName}.md`);
-            const planDst = resolve(projectDir, plansDir, `${planName}.md`);
-            if (existsSync(planSrc) && existsSync(resolve(projectDir, "code"))) {
-              mkdirSync(dirname(planDst), { recursive: true });
-              renameSync(planSrc, planDst);
-            }
-          }
-
           // Retry loop: when a critic rejects, re-run the upstream step with an
           // engine-built preamble listing the critic's issues, then re-run the
           // critic. Repeats up to maxRetries (step override) or
           // config.maxCriticRetries (global default). The upstream step must be
           // a worker or non-interactive planner; validate.ts enforces this.
           if (stepAgent.type === "critic") {
-            // No-verdict retry loop: when the critic's CLI invocation produces no
-            // verdict file (transient hang, empty stream, killed mid-call), re-run
-            // just the critic - the worker output is fine. Burns up to maxRetries.
+            const maxCriticAttempts =
+              "maxRetries" in step
+                ? (step.maxRetries ?? config.maxCriticRetries)
+                : config.maxCriticRetries;
             if (!result.verdict) {
-              const maxAttempts =
-                "maxRetries" in step
-                  ? (step.maxRetries ?? config.maxCriticRetries)
-                  : config.maxCriticRetries;
-              let retryAttempt = 0;
-              while (retryAttempt < maxAttempts && !result.verdict) {
-                retryAttempt++;
-                sink({
-                  type: "step-retry",
-                  stepId: step.id,
-                  attempt: retryAttempt,
-                });
-                const reResolved = resolveStepForRun(step, params, stepOutputs);
-                result = await runAgentStep(step, reResolved.agent, reResolved.args);
-                stepOutputs[step.id] = result.output;
-              }
+              result = await runNoverdictCriticRetry(
+                step,
+                result,
+                params,
+                stepOutputs,
+                maxCriticAttempts,
+                runStep,
+                sink,
+              );
             }
             if (!result.verdict) {
               haltSignal = `Step '${step.id}' (${stepAgent.name}): critic produced no verdict`;
             } else if (result.verdict.verdict !== "approve") {
-              const deps = effectiveDeps.get(step.id) ?? [];
-              const executorStepId = deps[0];
+              const stepDeps = effectiveDeps.get(step.id) ?? [];
+              const executorStepId = stepDeps[0];
               const executorStep = executorStepId
                 ? workflow.steps.find((s) => s.id === executorStepId)
                 : undefined;
-
-              if (executorStep) {
-                const maxAttempts =
-                  "maxRetries" in step
-                    ? (step.maxRetries ?? config.maxCriticRetries)
-                    : config.maxCriticRetries;
-                let retryAttempt = 0;
-
-                while (retryAttempt < maxAttempts && result.verdict?.verdict !== "approve") {
-                  retryAttempt++;
-                  sink({
-                    type: "step-retry",
-                    stepId: executorStep.id,
-                    attempt: retryAttempt,
-                  });
-
-                  const preamble = buildRetryPreamble({
-                    summary: result.verdict?.summary ?? "",
-                    issues: result.verdict?.issues ?? [],
-                  });
-                  const execResolved = resolveStepForRun(executorStep, params, stepOutputs);
-                  const execResult = await runAgentStep(
-                    executorStep,
-                    execResolved.agent,
-                    execResolved.args,
-                    preamble,
-                  );
-                  stepOutputs[executorStep.id] = execResult.output;
-
-                  const criticResolved = resolveStepForRun(step, params, stepOutputs);
-                  result = await runAgentStep(step, criticResolved.agent, criticResolved.args);
-                  stepOutputs[step.id] = result.output;
-
-                  // Structural-halt short-circuit: if the worker reports STATUS: halt
-                  // the rerun won't make progress (the conflict is in the spec/plan, not
-                  // the diff). Stop retrying and let the rejection propagate to haltSignal.
-                  if (isStructuralHalt(execResult.output)) break;
-                }
-              }
-
-              if (result.verdict?.verdict !== "approve") {
-                const onRejectAgent = step.onReject;
-                if (onRejectAgent) {
-                  // Factory-form: call it with all available runtime state to
-                  // get a freshly-resolved StepInvocation (closure interpolation
-                  // bakes in real values, replacing the sentinel placeholders
-                  // attached at definition time).
-                  let rejectAgent: AgentDef;
-                  let rejectArgs: Record<string, unknown>;
-                  if (typeof onRejectAgent === "function") {
-                    const merged: Record<string, string> = Object.fromEntries(
-                      Object.entries({ ...params, ...stepOutputs }).map(([k, v]) => [k, String(v)]),
-                    );
-                    const inv = onRejectAgent(merged);
-                    rejectAgent = inv.agent as AgentDef;
-                    rejectArgs = { ...params, ...inv.args };
-                  } else {
-                    rejectAgent = onRejectAgent as AgentDef;
-                    rejectArgs = { ...params };
-                  }
-                  await runAgentStep(
-                    {
-                      id: `${step.id}-cleanup`,
-                      stepFn: () => ({
-                        kind: "step-invocation",
-                        agent: rejectAgent,
-                        args: {},
-                      }),
-                    } as WorkflowStep,
-                    rejectAgent,
-                    rejectArgs,
-                  );
-                }
-                haltSignal = result.verdict?.summary
-                  ? `${step.id} rejected: ${result.verdict.summary}`
-                  : `${step.id} rejected (no summary given)`;
-              }
+              const outcome = await runCriticRejectLoop(
+                step,
+                executorStep,
+                result,
+                maxCriticAttempts,
+                params,
+                stepOutputs,
+                runStep,
+                sink,
+              );
+              result = outcome.result;
+              if (outcome.haltSignal !== null) haltSignal = outcome.haltSignal;
             }
           }
 

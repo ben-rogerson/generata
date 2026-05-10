@@ -19,9 +19,11 @@ Commands:
   workflow <name> [args]      Run a workflow (alias: 'run')
   validate [<workflow>|--all] [--check-files] [--profile <p>] [--key v]  Static-check workflow definitions
   metrics [today|week]        Show metrics summary
-  metrics expensive           Show top 10 heaviest calls today
   metrics agent <name>        Show 7-day metrics for an agent
   skills sync                 Regenerate .claude/commands/ from workflows
+  metrics [today|week|...]    Show metrics summary
+  commands sync               Regenerate .claude/commands/ from workflows
+  skills sync                 (deprecated alias for 'commands sync')
   worktree prune              Remove orphaned 'generata/wt-*' worktrees and branches
   help [topic]                Show help (topics: agents, workflows, env, templates, bins)
 
@@ -29,6 +31,7 @@ Workflow flags:
   --worktree                  Force this run to use git-worktree isolation
   --local                     Force this run to skip worktree isolation
                               (--worktree and --local are mutually exclusive)
+  --profile <name>            Select env-var profile (PREFIX_KEY -> KEY)
 `;
 
 export async function runHelp(topic?: string): Promise<void> {

@@ -34,7 +34,6 @@ describe("parseManifest", () => {
     const m = parseManifest({ name: "x", description: "y" });
     deepStrictEqual(m.requiredBins, []);
     deepStrictEqual(m.requiredEnv, {});
-    deepStrictEqual(m.profiles, []);
   });
 
   it("rejects manifest missing name", () => {
