@@ -43,6 +43,13 @@ describe("parseManifest", () => {
   it("rejects bin entry missing name", () => {
     throws(() => parseManifest({ name: "x", description: "y", requiredBins: [{}] }));
   });
+
+  it("rejects unknown top-level keys", () => {
+    throws(
+      () => parseManifest({ name: "x", description: "y", requireBins: [] }),
+      /requireBins/,
+    );
+  });
 });
 
 describe("loadManifest", () => {
