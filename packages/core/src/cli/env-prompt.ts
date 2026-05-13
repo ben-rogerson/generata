@@ -1,6 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
+import { Writable } from "node:stream";
 
 export interface PromptItem {
   key: string;
@@ -24,9 +25,25 @@ export async function promptForEnv(
       const tag = item.secret ? " (secret)" : "";
       const req = item.required ? "" : " (optional, leave blank to skip)";
       const example = item.example ? ` [e.g. ${item.example}]` : "";
-      const answer = (
-        await rl.question(`${item.key}${tag}${req}${example}\n  ${item.description}\n  > `)
-      ).trim();
+      const promptText = `${item.key}${tag}${req}${example}\n  ${item.description}\n  > `;
+      let answer: string;
+      if (item.secret) {
+        stdout.write(promptText);
+        const silent = new Writable({
+          write(_chunk, _encoding, cb) {
+            cb();
+          },
+        });
+        const rl2 = createInterface({ input: stdin, output: silent });
+        try {
+          answer = (await rl2.question("")).trim();
+        } finally {
+          rl2.close();
+        }
+        stdout.write("\n");
+      } else {
+        answer = (await rl.question(promptText)).trim();
+      }
       if (answer.length > 0 || item.required) {
         out[item.key] = answer;
       }
