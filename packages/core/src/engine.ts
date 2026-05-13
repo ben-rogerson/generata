@@ -418,7 +418,7 @@ export async function executeWorkflow(
   // Local-TZ date to match the prompt-context date seen by agents.
   const _now = new Date();
   const _today = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, "0")}-${String(_now.getDate()).padStart(2, "0")}`;
-  params = { today: _today, ...params };
+  params = { ...workflow.variables, today: _today, ...params };
 
   // plan_name is deferred - the planner emits it at runtime
   let planName = "";

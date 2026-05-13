@@ -989,3 +989,104 @@ describe("runWorkflow with factory-form agent (smoke)", () => {
     ok(!captured.spec.includes("__placeholder_"), `sentinel leaked: ${captured.spec}`);
   });
 });
+
+describe("runWorkflow workflow.variables defaults fill stepFn params", () => {
+  it("supplies declared variable defaults when the caller omits them", async () => {
+    // Regression: workflow.variables declares optional inputs with defaults
+    // (e.g. variables: { repo: "" }) but the engine wasn't merging them into
+    // params before resolving step args. A stepFn destructuring `repo` then
+    // received undefined and silently forwarded it to the agent factory.
+    const captured: Record<string, Record<string, unknown>> = {};
+
+    const sink = withName(
+      defineAgent<{ repo: string }>(({ repo }) => ({
+        type: "worker",
+        description: "consumes repo",
+        modelTier: "light",
+        tools: [],
+        permissions: "full",
+        timeoutSeconds: 60,
+        promptContext: [],
+        prompt: `repo=${repo}`,
+      })),
+      "sink",
+    );
+
+    const stubRunAgent = async (options: RunOptions): Promise<RunResult> => {
+      captured[options.stepId ?? options.agent.name] = options.args;
+      return {
+        output: "ok",
+        metrics: makeMetrics({ agent: options.agent.name }),
+      };
+    };
+
+    const workflow = withName(
+      defineWorkflow({
+        description: "vars-default",
+        variables: { repo: "" },
+      })
+        .step("first", ({ repo }) => sink({ repo }))
+        .build(),
+      "vars-default",
+    );
+
+    const result = await executeWorkflow(workflow, {}, stubConfig, "/tmp", undefined, {
+      runAgent: stubRunAgent,
+    });
+
+    equal(result.success, true);
+    equal(
+      captured.first.repo,
+      "",
+      `expected variable default to fill in, got ${String(captured.first.repo)}`,
+    );
+  });
+
+  it("caller-supplied params take precedence over variable defaults", async () => {
+    const captured: Record<string, Record<string, unknown>> = {};
+
+    const sink = withName(
+      defineAgent<{ repo: string }>(({ repo }) => ({
+        type: "worker",
+        description: "consumes repo",
+        modelTier: "light",
+        tools: [],
+        permissions: "full",
+        timeoutSeconds: 60,
+        promptContext: [],
+        prompt: `repo=${repo}`,
+      })),
+      "sink",
+    );
+
+    const stubRunAgent = async (options: RunOptions): Promise<RunResult> => {
+      captured[options.stepId ?? options.agent.name] = options.args;
+      return {
+        output: "ok",
+        metrics: makeMetrics({ agent: options.agent.name }),
+      };
+    };
+
+    const workflow = withName(
+      defineWorkflow({
+        description: "vars-override",
+        variables: { repo: "" },
+      })
+        .step("first", ({ repo }) => sink({ repo }))
+        .build(),
+      "vars-override",
+    );
+
+    const result = await executeWorkflow(
+      workflow,
+      { repo: "owner/name" },
+      stubConfig,
+      "/tmp",
+      undefined,
+      { runAgent: stubRunAgent },
+    );
+
+    equal(result.success, true);
+    equal(captured.first.repo, "owner/name");
+  });
+});
