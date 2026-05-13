@@ -11,7 +11,7 @@ const exec = promisify(execFile);
 export type Specifier =
   | { kind: "catalog"; alias: string }
   | { kind: "github-short"; url: string }
-  | { kind: "git-url"; url: string }
+  | { kind: "git-url"; url: string; ref?: string }
   | { kind: "local"; path: string };
 
 export interface ResolvedTemplate {
@@ -39,8 +39,13 @@ export function classifySpecifier(spec: string): Specifier {
     spec.startsWith("git@") ||
     spec.startsWith("https://") ||
     spec.startsWith("git+") ||
-    spec.endsWith(".git")
+    spec.endsWith(".git") ||
+    /\.git@[^@]+$/.test(spec)
   ) {
+    const parts = spec.split(/\.git@(.+)$/);
+    if (parts.length >= 2 && parts[1]) {
+      return { kind: "git-url", url: `${parts[0]}.git`, ref: parts[1] };
+    }
     return { kind: "git-url", url: spec };
   }
   if (isAbsolute(spec) || spec.startsWith("./") || spec.startsWith("../")) {
@@ -76,7 +81,8 @@ export async function resolveTemplate(spec: string): Promise<ResolvedTemplate> {
   }
 
   if (classified.kind === "github-short" || classified.kind === "git-url") {
-    const cloned = await cloneToTemp(classified.url);
+    const ref = classified.kind === "git-url" ? classified.ref : undefined;
+    const cloned = await cloneToTemp(classified.url, ref);
     assertHasManifest(cloned.dir, classified.url, cloned.cleanup);
     return cloned;
   }

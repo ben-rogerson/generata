@@ -26,6 +26,32 @@ describe("classifySpecifier", () => {
     strictEqual(classifySpecifier("https://github.com/ben/repo.git").kind, "git-url");
     strictEqual(classifySpecifier("git@github.com:ben/repo.git").kind, "git-url");
   });
+
+  it("extracts @ref suffix from git URLs", () => {
+    const c = classifySpecifier("https://github.com/you/template.git@v2");
+    strictEqual(c.kind, "git-url");
+    if (c.kind === "git-url") {
+      strictEqual(c.url, "https://github.com/you/template.git");
+      strictEqual(c.ref, "v2");
+    }
+  });
+
+  it("leaves ref undefined for git URLs without @ref suffix", () => {
+    const c = classifySpecifier("https://github.com/ben/repo.git");
+    strictEqual(c.kind, "git-url");
+    if (c.kind === "git-url") {
+      strictEqual(c.ref, undefined);
+    }
+  });
+
+  it("extracts @ref from SSH-style git URLs", () => {
+    const c = classifySpecifier("git@github.com:you/template.git@v2");
+    strictEqual(c.kind, "git-url");
+    if (c.kind === "git-url") {
+      strictEqual(c.url, "git@github.com:you/template.git");
+      strictEqual(c.ref, "v2");
+    }
+  });
 });
 
 describe("resolveTemplate (local)", () => {
