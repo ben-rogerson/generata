@@ -27,24 +27,26 @@ export async function promptForEnv(
       const example = item.example ? ` [e.g. ${item.example}]` : "";
       const promptText = `${item.key}${tag}${req}${example}\n  ${item.description}\n  > `;
       let answer: string;
-      if (item.secret) {
-        stdout.write(promptText);
-        const silent = new Writable({
-          write(_chunk, _encoding, cb) {
-            cb();
-          },
-        });
-        const rl2 = createInterface({ input: stdin, output: silent });
-        try {
-          answer = (await rl2.question("")).trim();
-        } finally {
-          rl2.close();
+      do {
+        if (item.secret) {
+          stdout.write(promptText);
+          const silent = new Writable({
+            write(_chunk, _encoding, cb) {
+              cb();
+            },
+          });
+          const rl2 = createInterface({ input: stdin, output: silent });
+          try {
+            answer = (await rl2.question("")).trim();
+          } finally {
+            rl2.close();
+          }
+          stdout.write("\n");
+        } else {
+          answer = (await rl.question(promptText)).trim();
         }
-        stdout.write("\n");
-      } else {
-        answer = (await rl.question(promptText)).trim();
-      }
-      if (answer.length > 0 || item.required) {
+      } while (item.required && answer.length === 0);
+      if (answer.length > 0) {
         out[item.key] = answer;
       }
     }
