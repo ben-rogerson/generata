@@ -1,5 +1,107 @@
 # @generata/core changelog
 
+## 1.3.0
+
+### Minor Changes
+
+- 16aeb16: feat: pin template catalog entries to core version
+- 9a3a2e2: feat(core): add head field to ContextSource for trimming context to first N lines
+- 2524d75: Expose `loadTs` and `findProjectRoot` as public exports so consumer packages (notably `@generata/serve`) can resolve project-relative TypeScript modules.
+
+  Add an optional `serve` field to `GlobalConfig` so `defineConfig({ serve: {...} })` typechecks for users of `@generata/serve`. Core ignores the field; the serve package validates and consumes it.
+
+- d17256b: Allow factory-form agents with no declared inputs to be passed bare to `.step()` and `onReject`. Previously, `defineAgent<{}>(() => ({...}))` had to be wrapped as `.step("id", () => agent({}))` even though there were no inputs to thread - the engine now wraps such factories itself, so `.step("id", agent)` works. Factories with declared inputs are still required to be called inside a stepFn so prior-step outputs thread through correctly.
+- 66b0511: Programmatic `runWorkflow` / `runAgent` now write prompt logs to the same `<logsDir>/<kind>/<name>-<runId>.log` paths the CLI uses, mirroring the CLI's `logPrompts` flow. The path is printed once to stderr at run start as `Full log: file:///...` so callers can click through and tail the file as it streams - this fires for both CLI and programmatic runs, with or without `onEvent`. Pass `promptLogFile` to override the path.
+
+  Silent-mode programmatic runs also print a header to stderr: `workflow: <name> (<n> steps)` or `agent: <name> [<type>]`. Suppressed when `onEvent` is wired (the caller is driving display).
+
+  Auto-derived programmatic log paths now prepend the calling script's basename - e.g. `logs/workflow/batch-script-review-note-<runId>.log` instead of `logs/workflow/review-note-<runId>.log` - so logs from different scripts driving the same workflow are easy to tell apart. CLI runs and explicit `promptLogFile` overrides are unaffected.
+
+  `consoleSink` no longer prints the prompt log path itself on `workflow-start` / `agent-welcome` - `runWorkflow` / `runAgent` are now the single source for that line.
+
+  The `logPrompts` config default has flipped from `false` to `true` - prompt logs are on by default for both CLI and programmatic runs. Set `logPrompts: false` in `generata.config.ts` to opt out.
+
+- 18264a7: Expose `runWorkflow` and `runAgent` as public API so workflows and agents can be driven from code. Programmatic callers run silently by default and subscribe to structured `EngineEvent`s via `onEvent`. The CLI is unchanged in behaviour.
+
+  `AbortSignal` is now wired through `runWorkflow` end-to-end: a pre-aborted signal short-circuits before precheck/worktree setup, and a signal that fires mid-step bypasses the per-agent retry loop and propagates `AbortError` to the caller.
+
+  The `EngineEvent` union now emits a discrete `halt` event when a worker calls `emit --halt`, and `workflow-start` carries the `runId` (the same id stamped into per-step metric records) so subscribers can correlate events with metrics.
+
+  One internal-behaviour change worth flagging: critic-step max-retries no longer throws inside the engine. The CLI now exits non-zero by checking `result.success`. Same observable outcome for end users; loop-friendly contract for programmatic callers.
+
+- be78f7a: feat: make Read/Glob/Grep filesystem tools opt-outable for full agents
+- c6ac72f: refactor: remove redundant ModelTier and LLMAgentDef aliases
+- ddab78e: feat(cli): rename skills sync to commands sync
+- b38d4c9: feat(cli): generate slash commands with detected package manager
+- 27e4f47: `worktree({...})` now accepts a `cleanup` field (default `false`). When `false`, the worktree and its `generata/wt-<runId>` branch are kept on disk after the workflow finishes so you can inspect the run; pass `cleanup: true` to restore the previous teardown-on-exit behaviour. The engine logs `[worktree] cleaned up <path>` or `[worktree] preserved at <path>` at end of run. Setup-failure cleanup is unchanged - half-built worktrees are still torn down. Use `generata worktree prune` to clear preserved worktrees.
+- b9d8165: Fix worktree isolation prompt header and surface typed outputs on `WorkflowResult`.
+
+  The prompt's `Working directory:` line (and the agent factory's `${work_dir}` substitution) now reflect the actual cwd the agent runs in, not the user-config workDir. Agents under worktree isolation were previously misled into resolving absolute file paths against the main repo and mutating it instead of the worktree.
+
+  `WorkflowResult` now exposes `outputs: Record<string, string>` (typed outputs accumulated across steps) and `worktreePath?: string` (when the workflow ran with worktree isolation), so programmatic post-workflow drivers can read what agents emitted and locate the worktree without re-deriving either.
+
+### Patch Changes
+
+- 5613d29: Capture kill reason and signal in agent metrics. When a timeout fires the runner records `killReason`, the OS signal, and any abnormal close-delay in `metrics.error`, and sets `status: "timeout"`. Previously a SIGTERM kill left only the benign "no stdin data received in 3s" warning and a generic "failure" status, making it impossible to distinguish timeout from crash.
+- 1a19c00: fix(core): prevent child process zombies by detaching and signalling process groups
+- 3e359d0: refactor(core): extract emit result-parsing logic into parseCloseResult helper
+- 1a3725d: fix(core): add deprecation warning for bare AgentDef step slot
+- 5f32d49: Deduplicate build and prepare scripts. Set prepare to call pnpm build so future changes to the build process happen in one place.
+- fb9b3b3: fix(cli): detect bun lockfile in detectPm
+- c1f3175: docs(templates): fix coding manifest description to match actual workflow
+- 8305898: docs: update coding template README to use commands sync instead of deprecated skills sync
+- ceb0b72: docs: update spec-creator protocol docs to match current outputs
+- 94a9684: fix: add "commands" to reserved commands for CLI routing
+- ff6b646: docs: correct stale command and monorepo references in core README
+- 6a2000b: Dedupe metrics printing in the CLI. Internal refactor that extracts a `printSummary` helper so the today/week/agent metrics commands share one formatter; output is unchanged.
+- 2686c7b: Drop the `generata` ASCII banner and randomised tagline from the start of `generata agent` and `generata workflow` runs. The workflow start header (name, isolation, prompt log) is now the first thing printed. Removes the `logBanner` and `pickWorkflowTagline` exports from `@generata/core/logger`.
+- a40de4d: refactor(core): extract template install defaults to shared utility
+- df28c99: fix(core): treat timeout status same as failure in retry logic
+- 5c8616e: fix: remove unreachable plan-move block that assumed code/ subdirectory
+- acf2cfa: fix: extract executeWorkflow helpers to reduce function length
+- 8ee8dc3: fix(core): remove placeholder name from factory-form agent error
+- 274371d: fix: align fallback config defaults with GlobalConfig schema
+- 7e609ea: docs: document filesystemAccess agent option
+- ad8308f: fix: parse @ref suffix from git URLs in classifySpecifier
+- 432df83: docs: add GlobalConfig field reference table
+- d2d6bc5: fix(init): sync haiku model id to match runtime fallback
+- 1ffc8b0: fix: show metrics subcommands in help instead of ellipsis
+- edd4132: fix: update help text to reflect 'commands sync' as primary command
+- 885fdc0: fix: scaffold "commands:sync" instead of deprecated "skills:sync" in init
+- 6fabb5e: docs: fix metrics command example in README
+- 4bd214e: fix: error handling for unknown metrics subcommands
+- 6925905: fix: only emit params instruction for initiator planners
+- 513d89d: Prevent shell injection in macOS notifications by using execFileSync instead of string interpolation.
+- b37a6f8: refactor(core): remove plan_name auto-mapping from CLI
+- a7c5edd: Fix preflight uses platform-specific command lookup. Use `where` on Windows and `which` on Unix-like systems to properly detect CLI tools on all platforms.
+- 3d8d50d: fix(core): replace profane taglines with professional alternatives
+- 53b5e3f: docs: document --profile flag in CLI help workflow section
+- 74679ef: docs: document promptContext feature for injecting file context into agent prompts
+- 72808cf: fix(core): prevent read-only agents from writing arbitrary files
+- e98bdf4: fix(core): use absolute-path syntax for read-only emit permission so the agent's Write call actually matches
+- 37d6d5b: docs: add outputs declaration to README defineAgent example
+- 108ad1d: fix: remove verboseOutput from scaffolded config
+- 6acaa44: fix(cli): mask secret environment variable input during prompts
+- c04e0ab: feat: include optional variables in slash-command argument hints
+- 1f28af6: fix: add outputs declaration to standup-writer agent
+- a54a105: fix: update starter README to reference 'commands sync' instead of deprecated 'skills sync'
+- 437601d: fix(core): surface errors when resolveStepShape stepFn throws
+- 8c86320: fix: remove orphaned isStructuralHalt protocol
+- a1bf0e4: fix: make TemplateManifest schema strict to reject unknown keys
+- 1ad51db: fix: remove unused profiles field from TemplateManifest
+- 44618b5: Expand templates README with typed-output workflow example. Documents how typed outputs flow between workflow steps with full type safety.
+- 23a035b: docs(templates): document installPaths defaults and merge behaviour
+- 6ebd0a0: Skip .DS_Store files when copying templates during project initialization, preventing macOS metadata files from being included in user projects.
+- 1491d60: fix: deduplicate base tools in buildAllowedTools
+- 68488b0: refactor(core): unify workflow step shapes to stepFn-only form
+- 35b0c1d: Upgrade tooling (TypeScript 6, zod 4, oxlint/oxfmt) and skip template scan during `generata init` when the template's `node_modules` is missing. Avoids confusing import errors during first-run scaffolding before deps are installed.
+- 508f072: fix(core): validate all required workflow params in --all mode
+- ec7b526: docs: clarify workflow layout convention and starter template usage
+- d0bfe3f: fix: merge workflow.variables defaults into stepFn params
+- 1d9a076: `setupWorktree`'s cleanup now probes the throwaway branch with `git rev-parse --verify` before issuing `git branch -D`. Skipping the delete when the branch is gone keeps cleanup quiet for callers (e.g. shippers) that have renamed the worktree branch to a semantic name and pushed it.
+- 832770f: fix(cli): add worktree to reserved commands for proper routing
+- a59ee2f: `setupWorktree` no longer wraps `git fetch`, `git worktree add`, and the install command in animated spinners. Each step now prints a plain `→ worktree: ...` line instead. The spinners often appeared frozen on fast operations because the work completed before the animation could cycle, and the cursor blinking on top of the braille frames read as buggy.
+
 ## 1.2.0
 
 ### Minor Changes
@@ -15,6 +117,7 @@
 - 372554b: Show isolation mode (`local` or `worktree: <path>`) in the workflow start header so the run environment is visible at a glance and the worktree location is discoverable. Adds an optional `isolation` parameter to `logWorkflowStart` and exports a new `WorkflowIsolation` type.
 - 45d9593: Add `showPricing` config option (default `false`). When off, runtime logs and notifications hide USD costs and show token counts instead. The `generata metrics` subcommand still surfaces cost as before. Set `showPricing: true` in `defineConfig` to restore the previous behaviour.
 - d24a3b1: Typed outputs, first-class halts, and surgical bin permissions.
+
   - New `outputs: Record<string, string>` field on agents (key → LLM-facing description). Engine wires a per-agent emit bin with surgical `Bash(<bin>:*)` permission, parses the captured values, and merges them into the runtime params bag. Chain builder threads the literal output keys through `TBaseParams` so downstream stepFns destructure them with full type-safety.
   - First-class halts: agents call `--halt "<reason>"` via the emit bin to stop the workflow cleanly (no metric failure, downstream steps skipped, `haltReason` set). Replaces text-sentinel patterns (`STATUS: halt`, `NO_ITEMS`, etc.).
   - Factory-form `onReject`: `StepOptions.onReject` accepts a typed stepFn `(params) => StepInvocation` with the same contextual typing as `.step()`. Wrap factories in a stepFn to use them as rejection handlers.
@@ -66,6 +169,7 @@
   - Coding template manifest: dropped `WORKDIR` from `requiredEnv` (the working directory is now set in `generata.config.ts`, no longer prompted as an env var). Tidied bin hints and rewrote `postInstall` to match the current init flow.
   - Coding README: updated the env table and added a note about configuring `workdir` in `generata.config.ts`.
 - d0792d8: `@generata/coding` template overhaul: replaced the 13-agent / 4-workflow pipeline with a single spec-driven `build-project` workflow built from 8 flat agents.
+
   - New flow: `dream` (spec-creator) -> `plan` (plan-creator) -> `audit` (plan-reviewer, retries plan up to 2x with feedback) -> `execute` (code-writer) -> `verify` (code-reviewer, archives the project on reject) -> `readme` -> `tidy` (plucks the used idea from NOTES.md).
   - Each project is self-contained under `projects/<plan_name>/` with `SPEC.md`, `PLAN.md`, `README.md`, and code as siblings. The legacy `code/` subdir convention is gone.
   - Reject path archives the failed project to `projects/_archive/<plan_name>/` with a generated `REASON.md`.
@@ -81,6 +185,7 @@
 - 184d89f: `generata init` now writes a default `generata.config.ts` if one doesn't already exist in the destination. Previously, init scaffolded `agents/`, `package.json`, `.env`, and slash commands but no anchor file, so subsequent commands like `generata help workflows` would fail with "No generata.config.ts found". The default config sets sensible Claude model tiers and points `workdir` at the destination directory; users can edit it freely. Existing config files are preserved.
 - 0bd93ab: Make `workDir` optional in `defineConfig`. `loadConfig` now back-fills it from the directory containing `generata.config.ts`, so user configs no longer need to repeat the path.
 - 70d6533: Added two new catalog templates alongside `@generata/coding`:
+
   - **`@generata/starter`** - bare-minimum scaffold (one worker agent, one workflow). Designed to be edited or thrown away as users build their own pipeline. Good for learning the model without inheriting a use case.
   - **`@generata/standup`** - daily standup generator. Reads yesterday's git activity and drafts a 3-section update (yesterday / today / blockers). Two agents demonstrating two-step composition.
 
