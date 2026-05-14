@@ -15,15 +15,17 @@ const RequiredEnvEntry = z.object({
   optional: z.boolean().default(false),
 });
 
-export const TemplateManifest = z.object({
-  name: z.string(),
-  description: z.string(),
-  engineVersion: z.string().optional(),
-  requiredBins: z.array(RequiredBin).default([]),
-  requiredEnv: z.record(z.string(), RequiredEnvEntry).default({}),
-  installPaths: z.record(z.string(), z.string()).default({}),
-  postInstall: z.string().optional(),
-});
+export const TemplateManifest = z
+  .object({
+    name: z.string(),
+    description: z.string(),
+    engineVersion: z.string().optional(),
+    requiredBins: z.array(RequiredBin).default([]),
+    requiredEnv: z.record(z.string(), RequiredEnvEntry).default({}),
+    installPaths: z.record(z.string(), z.string()).default({}),
+    postInstall: z.string().optional(),
+  })
+  .strict();
 export type TemplateManifest = z.infer<typeof TemplateManifest>;
 
 export function parseManifest(input: unknown): TemplateManifest {
