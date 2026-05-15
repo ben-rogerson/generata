@@ -1,6 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { createInterface } from "node:readline/promises";
-import { stdin, stdout } from "node:process";
+import { stdin as defaultStdin, stdout as defaultStdout } from "node:process";
 import { Writable } from "node:stream";
 
 export interface PromptItem {
@@ -14,11 +14,13 @@ export interface PromptItem {
 export async function promptForEnv(
   items: PromptItem[],
   existing: Record<string, string>,
+  input: NodeJS.ReadableStream = defaultStdin,
+  output: NodeJS.WritableStream = defaultStdout,
 ): Promise<Record<string, string>> {
   const out: Record<string, string> = { ...existing };
   if (items.length === 0) return out;
 
-  const rl = createInterface({ input: stdin, output: stdout });
+  const rl = createInterface({ input, output });
   try {
     for (const item of items) {
       if (out[item.key] && out[item.key].length > 0) continue;
@@ -29,19 +31,19 @@ export async function promptForEnv(
       let answer: string;
       do {
         if (item.secret) {
-          stdout.write(promptText);
+          output.write(promptText);
           const silent = new Writable({
             write(_chunk, _encoding, cb) {
               cb();
             },
           });
-          const rl2 = createInterface({ input: stdin, output: silent });
+          const rl2 = createInterface({ input, output: silent });
           try {
             answer = (await rl2.question("")).trim();
           } finally {
             rl2.close();
           }
-          stdout.write("\n");
+          output.write("\n");
         } else {
           answer = (await rl.question(promptText)).trim();
         }
