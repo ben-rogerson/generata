@@ -1,6 +1,6 @@
 {
   "name": "@generata/serve",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "HTTP server for Generata workflow handlers - auto-discovers user scripts and runs them with Bearer auth and disk-persisted run state.",
   "keywords": [
     "ai-agents",

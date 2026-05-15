@@ -1,9 +1,14 @@
-# @generata/self-improve
+# @generata/serve
 
-## 0.0.2
+## 0.2.0
+
+### Minor Changes
+
+- 2524d75: Initial release. HTTP server for Generata workflow handlers: auto-discovers user-authored scripts under `serve/`, mounts each at `POST /<route>`, runs them in-process with Bearer auth, 202+status-URL async lifecycle via `runAsync`, and disk-persisted run state. v1 targets solo-dev / single-user automation; webhook signature verifiers and SSE deferred to a future release.
 
 ### Patch Changes
 
+- 35b0c1d: Upgrade tooling (TypeScript 6, zod 4, oxlint/oxfmt) and skip template scan during `generata init` when the template's `node_modules` is missing. Avoids confusing import errors during first-run scaffolding before deps are installed.
 - Updated dependencies [5613d29]
 - Updated dependencies [1a19c00]
 - Updated dependencies [3e359d0]
@@ -77,48 +82,3 @@
 - Updated dependencies [832770f]
 - Updated dependencies [a59ee2f]
   - @generata/core@1.3.0
-
-## 0.0.1
-
-### Patch Changes
-
-- Updated dependencies [b149d58]
-- Updated dependencies [95fd6ca]
-- Updated dependencies [1407041]
-- Updated dependencies [d16de2b]
-- Updated dependencies [31a7774]
-- Updated dependencies [6a7fde7]
-- Updated dependencies [56082cf]
-- Updated dependencies [72661af]
-- Updated dependencies [08feeae]
-- Updated dependencies [3923f4c]
-- Updated dependencies [dbf8a37]
-- Updated dependencies [8f3b029]
-- Updated dependencies [0a7d248]
-- Updated dependencies [c5daf72]
-- Updated dependencies [049eb77]
-- Updated dependencies [a4530f9]
-- Updated dependencies [ee7a67d]
-- Updated dependencies [9055c29]
-- Updated dependencies [8b99c85]
-- Updated dependencies [e6543ad]
-- Updated dependencies [60723c4]
-- Updated dependencies [90b1c88]
-- Updated dependencies [40fada7]
-- Updated dependencies [4051102]
-- Updated dependencies [cc1687a]
-- Updated dependencies [a7b38c1]
-- Updated dependencies [bc019d7]
-- Updated dependencies [c4d49df]
-- Updated dependencies [2e102aa]
-- Updated dependencies [372554b]
-- Updated dependencies [45d9593]
-- Updated dependencies [038b0da]
-- Updated dependencies [232d3c4]
-- Updated dependencies [6f67c8e]
-- Updated dependencies [d24a3b1]
-- Updated dependencies [f308457]
-- Updated dependencies [a869be2]
-- Updated dependencies [0898ef6]
-- Updated dependencies [f9982f1]
-  - @generata/core@1.2.0
