@@ -1,6 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { createInterface } from "node:readline/promises";
-import { stdin, stdout } from "node:process";
+import { stdin as defaultStdin, stdout as defaultStdout } from "node:process";
 import { Writable } from "node:stream";
 
 export interface PromptItem {
@@ -14,11 +14,13 @@ export interface PromptItem {
 export async function promptForEnv(
   items: PromptItem[],
   existing: Record<string, string>,
+  input: NodeJS.ReadableStream = defaultStdin,
+  output: NodeJS.WritableStream = defaultStdout,
 ): Promise<Record<string, string>> {
   const out: Record<string, string> = { ...existing };
   if (items.length === 0) return out;
 
-  const rl = createInterface({ input: stdin, output: stdout });
+  const rl = createInterface({ input, output });
   try {
     for (const item of items) {
       if (out[item.key] && out[item.key].length > 0) continue;
@@ -27,24 +29,26 @@ export async function promptForEnv(
       const example = item.example ? ` [e.g. ${item.example}]` : "";
       const promptText = `${item.key}${tag}${req}${example}\n  ${item.description}\n  > `;
       let answer: string;
-      if (item.secret) {
-        stdout.write(promptText);
-        const silent = new Writable({
-          write(_chunk, _encoding, cb) {
-            cb();
-          },
-        });
-        const rl2 = createInterface({ input: stdin, output: silent });
-        try {
-          answer = (await rl2.question("")).trim();
-        } finally {
-          rl2.close();
+      do {
+        if (item.secret) {
+          output.write(promptText);
+          const silent = new Writable({
+            write(_chunk, _encoding, cb) {
+              cb();
+            },
+          });
+          const rl2 = createInterface({ input, output: silent });
+          try {
+            answer = (await rl2.question("")).trim();
+          } finally {
+            rl2.close();
+          }
+          output.write("\n");
+        } else {
+          answer = (await rl.question(promptText)).trim();
         }
-        stdout.write("\n");
-      } else {
-        answer = (await rl.question(promptText)).trim();
-      }
-      if (answer.length > 0 || item.required) {
+      } while (item.required && answer.length === 0);
+      if (answer.length > 0) {
         out[item.key] = answer;
       }
     }
