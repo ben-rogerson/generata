@@ -15,7 +15,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runWorkflow } from "@generata/core";
+import { runScript, runWorkflow } from "@generata/core";
 import config from "../generata.config.js";
 import improve from "../agents/workflows/improve.js";
 import { runShipper, type ShipInputs } from "./ship.js";
@@ -50,12 +50,6 @@ function parseMax(argv: string[]): number {
   }
   return DEFAULT_MAX;
 }
-
-const ac = new AbortController();
-process.once("SIGINT", () => {
-  console.error("\n^C - aborting...");
-  ac.abort();
-});
 
 const max = parseMax(process.argv.slice(2));
 
@@ -159,11 +153,11 @@ function shipInputsFrom(outputs: Record<string, string>, worktreeRoot: string): 
   };
 }
 
-async function main(): Promise<void> {
+await runScript(async ({ signal }) => {
   let shipped = 0;
   for (let i = 1; i <= max; i++) {
     console.log(`\n=== iteration ${i}/${max} ===`);
-    const result = await runWorkflow(improve, {}, { config, signal: ac.signal });
+    const result = await runWorkflow(improve, {}, { config, signal });
 
     if (result.halted) {
       const deferredSlug = parseDeferredSlug(result.haltReason);
@@ -189,37 +183,23 @@ async function main(): Promise<void> {
       // Engine returns success:false for steps that exhaust maxRetries. The
       // last step's metrics.error has the diagnostics; surface and stop.
       const last = result.steps.at(-1);
-      console.error(
-        `\niteration ${i} failed at step '${last?.stepId ?? "?"}': ${last?.metrics.error ?? "unknown error"}`,
+      throw new Error(
+        `iteration ${i} failed at step '${last?.stepId ?? "?"}': ${last?.metrics.error ?? "unknown error"}`,
       );
-      process.exit(1);
     }
 
     if (!result.worktreePath) {
-      console.error(
-        `\niteration ${i} succeeded but workflow ran without worktree isolation - refusing to ship`,
+      throw new Error(
+        `iteration ${i} succeeded but workflow ran without worktree isolation - refusing to ship`,
       );
-      process.exit(1);
     }
 
     const shipResult = await runShipper(shipInputsFrom(result.outputs, result.worktreePath));
     if (!shipResult.ok) {
-      console.error(`\niteration ${i} ship failed: ${shipResult.reason}`);
-      process.exit(1);
+      throw new Error(`iteration ${i} ship failed: ${shipResult.reason}`);
     }
     console.log(`iteration ${i} shipped: ${shipResult.prUrl}`);
     shipped++;
   }
   console.log(`\nloop done - ${shipped} iteration(s) shipped`);
-}
-
-try {
-  await main();
-} catch (err) {
-  if ((err as Error).name === "AbortError") {
-    console.error("loop cancelled");
-    process.exit(130);
-  }
-  console.error(`loop failed: ${(err as Error).message}`);
-  process.exit(1);
-}
+});

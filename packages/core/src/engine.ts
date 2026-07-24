@@ -579,8 +579,7 @@ export async function executeWorkflow(
             workflowVariables,
             resolvedEnv,
             isInitiatorPlanner:
-              stepAgent.type === "planner" &&
-              (effectiveDeps.get(step.id)?.length ?? 0) === 0,
+              stepAgent.type === "planner" && (effectiveDeps.get(step.id)?.length ?? 0) === 0,
           };
           const runStep: RunStepFn = (targetStep, targetAgent, targetArgs, retryPreamble) =>
             runAgentStep(targetStep, targetAgent, targetArgs, retryPreamble, stepCtx);
