@@ -5,37 +5,20 @@
 //   3. sortImprovements (deterministic TS) sorts the file by score desc.
 // No JSON crosses agent boundaries; the file itself is the contract.
 
-import { runAgent } from "@generata/core";
+import { runAgent, runScript } from "@generata/core";
 import config from "../generata.config.js";
 import repoScanner from "../agents/repo-scanner.js";
 import auditPrioritiser from "../agents/audit-prioritiser.js";
 import { sortImprovements, formatSortSummary } from "./sort-improvements.js";
 
-const ac = new AbortController();
-process.once("SIGINT", () => {
-  console.error("\n^C - aborting...");
-  ac.abort();
-});
-
-async function main(): Promise<void> {
+await runScript(async ({ signal }) => {
   console.log("→ scanning repo");
-  await runAgent(repoScanner({}).agent, {}, { config, signal: ac.signal });
+  await runAgent(repoScanner({}).agent, {}, { config, signal });
 
   console.log("→ scoring new entries");
-  await runAgent(auditPrioritiser({}).agent, {}, { config, signal: ac.signal });
+  await runAgent(auditPrioritiser({}).agent, {}, { config, signal });
 
   console.log("→ sorting IMPROVEMENTS.md");
   const summary = sortImprovements();
   console.log(formatSortSummary(summary));
-}
-
-try {
-  await main();
-} catch (err) {
-  if ((err as Error).name === "AbortError") {
-    console.error("audit cancelled");
-    process.exit(130);
-  }
-  console.error(`audit failed: ${(err as Error).message}`);
-  process.exit(1);
-}
+});

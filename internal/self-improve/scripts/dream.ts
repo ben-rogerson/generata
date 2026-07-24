@@ -5,16 +5,10 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runAgent } from "@generata/core";
+import { runAgent, runScript } from "@generata/core";
 import config from "../generata.config.js";
 import featureDreamer from "../agents/feature-dreamer.js";
 import { writeIdeas, formatSummary } from "./write-ideas.js";
-
-const ac = new AbortController();
-process.once("SIGINT", () => {
-  console.error("\n^C - aborting...");
-  ac.abort();
-});
 
 function asStringArgs(args: Record<string, unknown>): Record<string, string> {
   return Object.fromEntries(Object.entries(args).map(([k, v]) => [k, String(v)]));
@@ -41,7 +35,7 @@ function collectExistingTitles(ideasDir: string): string[] {
   return titles;
 }
 
-async function main(): Promise<void> {
+await runScript(async ({ signal }) => {
   const scriptDir = fileURLToPath(new URL(".", import.meta.url));
   const ideasDir = resolve(scriptDir, "../../ideas");
 
@@ -53,13 +47,9 @@ async function main(): Promise<void> {
   // not a wall of text.
   const titlesBlock = existing.map((t) => `- ${t}`).join("\n");
   const inv = featureDreamer({ existing_titles: titlesBlock });
-  const ran = await runAgent(inv.agent, asStringArgs(inv.args), {
-    config,
-    signal: ac.signal,
-  });
+  const ran = await runAgent(inv.agent, asStringArgs(inv.args), { config, signal });
   if (ran.halt) {
-    console.error(`dream halted: ${ran.halt.reason}`);
-    process.exit(1);
+    throw new Error(`feature-dreamer halted: ${ran.halt.reason}`);
   }
   const dreamsJson = ran.outputs?.dreams_json;
   if (!dreamsJson) {
@@ -72,15 +62,4 @@ async function main(): Promise<void> {
   if (summary.written.length > 0) {
     for (const f of summary.written) console.log(`  + ${f}`);
   }
-}
-
-try {
-  await main();
-} catch (err) {
-  if ((err as Error).name === "AbortError") {
-    console.error("dream cancelled");
-    process.exit(130);
-  }
-  console.error(`dream failed: ${(err as Error).message}`);
-  process.exit(1);
-}
+});

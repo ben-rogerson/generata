@@ -381,6 +381,8 @@ export type {
 } from "./schema.js";
 
 export { runWorkflow, runAgent } from "./run.js";
+export { runScript } from "./run-script.js";
+export type { RunScriptContext } from "./run-script.js";
 export type {
   RunWorkflowOptions,
   RunAgentOptions,
