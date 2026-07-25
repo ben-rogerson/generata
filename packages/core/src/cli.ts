@@ -21,7 +21,7 @@ import { buildPromptLogPath } from "./cli/prompt-log-path.js";
 
 async function main() {
   const args = process.argv.slice(2);
-  const { positional, flags } = parseArgs(args);
+  const { positional, flags } = parseArgs(args, { booleans: ["worktree", "local"] });
   const { command, rest } = resolveCommand(positional);
   const target = rest[0];
 

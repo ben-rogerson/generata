@@ -6,7 +6,8 @@
   "scripts": {
     "audit": "tsx scripts/audit.ts",
     "dream": "tsx scripts/dream.ts",
-    "improve": "generata workflow improve",
+    "improve": "tsx scripts/loop.ts --max 1",
+    "improve:pipeline-only": "generata workflow improve",
     "loop": "tsx scripts/loop.ts",
     "test": "node --test --import tsx 'scripts/**/*.test.ts'",
     "typecheck": "tsc --noEmit",

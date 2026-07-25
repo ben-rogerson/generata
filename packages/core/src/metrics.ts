@@ -19,7 +19,16 @@ export function readMetrics(metricsDir: string, date?: string): AgentMetrics[] {
   return readFileSync(path, "utf-8")
     .split("\n")
     .filter(Boolean)
-    .map((line) => JSON.parse(line) as AgentMetrics);
+    .flatMap((line) => {
+      try {
+        return [JSON.parse(line) as AgentMetrics];
+      } catch {
+        console.warn(
+          `[generata] metrics: skipping malformed line in ${path}: ${line.slice(0, 80)}`,
+        );
+        return [];
+      }
+    });
 }
 
 export function readMetricsRange(metricsDir: string, days: number, offsetDays = 0): AgentMetrics[] {
