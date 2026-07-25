@@ -45,10 +45,7 @@ describe("parseManifest", () => {
   });
 
   it("rejects unknown top-level keys", () => {
-    throws(
-      () => parseManifest({ name: "x", description: "y", requireBins: [] }),
-      /requireBins/,
-    );
+    throws(() => parseManifest({ name: "x", description: "y", requireBins: [] }), /requireBins/);
   });
 });
 

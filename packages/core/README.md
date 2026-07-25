@@ -16,11 +16,12 @@ import {
   defineConfig,
   runWorkflow,
   runAgent,
+  runScript,
   worktree,
 } from "@generata/core";
 ```
 
-`defineAgent` / `defineWorkflow` / `defineConfig` author agents, workflows, and a project config. `runWorkflow` / `runAgent` drive them from your own TypeScript without going through the CLI. `worktree(...)` declares git-worktree isolation:
+`defineAgent` / `defineWorkflow` / `defineConfig` author agents, workflows, and a project config. `runWorkflow` / `runAgent` drive them from your own TypeScript without going through the CLI, and `runScript` wraps a driver script with SIGINT/exit-code handling. `worktree(...)` declares git-worktree isolation:
 
 ```ts
 defineWorkflow({
@@ -130,7 +131,30 @@ await runWorkflow(
 );
 ```
 
+### The driver skeleton: `runScript`
+
+`runScript` wraps a driver script's main function with the canonical lifecycle contract, so every script doesn't re-implement it:
+
+```ts
+import { runScript, runWorkflow } from "@generata/core";
+import longRun from "./workflows/long-run.js";
+
+await runScript(async ({ signal }) => {
+  await runWorkflow(longRun, { input }, { signal });
+});
+```
+
+What it does:
+
+- First `^C` prints `^C - aborting...` and aborts the `signal` you thread into `runWorkflow` / `runAgent` calls; a second `^C` falls through to Node's default hard-kill.
+- An `AbortError` escaping your fn prints `<script> cancelled` and exits `130`.
+- Any other error prints `<script> failed: <message>` and exits `1` - so inside the fn you just `throw` instead of hand-rolling `console.error` + `process.exit`.
+- `<script>` is derived from the calling file's basename (`audit.ts` -> `audit`), the same convention prompt-log prefixes use.
+- Exit codes are set via `process.exitCode`, not `process.exit()`, so stdio flushes naturally.
+
 ### Cancellation via `AbortSignal`
+
+If you need custom wiring (your own signal source, embedding in a larger process), skip `runScript` and pass any `AbortSignal` directly:
 
 ```ts
 const ac = new AbortController();
@@ -177,21 +201,21 @@ Workflow flags: `--worktree` forces git-worktree isolation for the run; `--local
 
 Every field accepted by `defineConfig` (i.e. the `GlobalConfig` schema):
 
-| Field                              | Type                       | Default    | Description                                                                          |
-| :--------------------------------- | :------------------------- | :--------- | :----------------------------------------------------------------------------------- |
-| `modelTiers.heavy/standard/light`  | `string`                   | (required) | Model IDs for each cost tier                                                         |
-| `workDir`                          | `string`                   | (required) | Root directory for worktree isolation                                                |
-| `agentsDir`                        | `string`                   | `"agents"` | Directory scanned for agent definition files                                         |
-| `metricsDir`                       | `string`                   | `"metrics"`| Directory where per-run metrics JSON files are written                               |
-| `logsDir`                          | `string`                   | `"logs"`   | Directory where prompt logs are written (when `logPrompts` is true)                  |
-| `logPrompts`                       | `boolean`                  | `true`     | Write full prompt/response logs for every run                                        |
-| `verboseOutput`                    | `boolean`                  | `false`    | Stream each agent's raw Claude output to the console                                 |
-| `showPricing`                      | `boolean`                  | `false`    | Print token cost breakdown after each run                                            |
-| `showWeeklyMetrics`                | `boolean`                  | `true`     | Print a weekly usage summary on CLI startup                                          |
-| `notifications`                    | `boolean`                  | `true`     | Send OS/Telegram notifications on workflow completion                                |
-| `maxCriticRetries`                 | `number`                   | `3`        | How many times a critic agent may loop before the step fails                         |
-| `telegram`                         | `{ botToken, chatId }`     | -          | Telegram bot credentials for completion notifications (requires `notifications: true`) |
-| `serve`                            | `unknown`                  | -          | Passed through to `@generata/serve`; core does not validate the shape                |
+| Field                             | Type                   | Default     | Description                                                                            |
+| :-------------------------------- | :--------------------- | :---------- | :------------------------------------------------------------------------------------- |
+| `modelTiers.heavy/standard/light` | `string`               | (required)  | Model IDs for each cost tier                                                           |
+| `workDir`                         | `string`               | (required)  | Root directory for worktree isolation                                                  |
+| `agentsDir`                       | `string`               | `"agents"`  | Directory scanned for agent definition files                                           |
+| `metricsDir`                      | `string`               | `"metrics"` | Directory where per-run metrics JSON files are written                                 |
+| `logsDir`                         | `string`               | `"logs"`    | Directory where prompt logs are written (when `logPrompts` is true)                    |
+| `logPrompts`                      | `boolean`              | `true`      | Write full prompt/response logs for every run                                          |
+| `verboseOutput`                   | `boolean`              | `false`     | Stream each agent's raw Claude output to the console                                   |
+| `showPricing`                     | `boolean`              | `false`     | Print token cost breakdown after each run                                              |
+| `showWeeklyMetrics`               | `boolean`              | `true`      | Print a weekly usage summary on CLI startup                                            |
+| `notifications`                   | `boolean`              | `true`      | Send OS/Telegram notifications on workflow completion                                  |
+| `maxCriticRetries`                | `number`               | `3`         | How many times a critic agent may loop before the step fails                           |
+| `telegram`                        | `{ botToken, chatId }` | -           | Telegram bot credentials for completion notifications (requires `notifications: true`) |
+| `serve`                           | `unknown`              | -           | Passed through to `@generata/serve`; core does not validate the shape                  |
 
 ## Template specifiers
 
