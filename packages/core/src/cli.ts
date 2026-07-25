@@ -364,6 +364,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(fmt.fail("[error]"), err.message);
+  console.error(fmt.fail("[error]"), err instanceof Error ? err.message : String(err));
   process.exit(1);
 });
