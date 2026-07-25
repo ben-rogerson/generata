@@ -58,4 +58,11 @@ describe("parseArgs", () => {
       flags: { note: "" },
     });
   });
+
+  it("treats booleans-listed flag as boolean and leaves following token as positional", () => {
+    deepStrictEqual(parseArgs(["--worktree", "hello-workflow"], { booleans: ["worktree"] }), {
+      positional: ["hello-workflow"],
+      flags: { worktree: "true" },
+    });
+  });
 });
