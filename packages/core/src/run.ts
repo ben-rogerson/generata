@@ -1,5 +1,7 @@
 // packages/core/src/run.ts
-import type { AgentDef, GlobalConfig, WorkflowDef, WorktreeConfig } from "./schema.js";
+import type { AgentDef, WorkflowDef, WorktreeConfig } from "./schema.js";
+import { GlobalConfig } from "./schema.js";
+
 import type {
   StepResult as InternalStepResult,
   WorkflowResult as InternalWorkflowResult,
@@ -57,26 +59,15 @@ async function resolveConfigAndCwd(opts: {
     return { config, cwd: opts.cwd ?? config.workDir };
   } catch {
     const cwd = opts.cwd ?? process.cwd();
-    // Fallback for callers running outside a generata project. Keep these defaults
-    // aligned with GlobalConfig's schema when fields are added/changed.
-    const fallback: GlobalConfig = {
+    const config = GlobalConfig.parse({
       modelTiers: {
         heavy: "claude-opus-4-7",
         standard: "claude-sonnet-4-6",
         light: "claude-haiku-4-5-20251001",
       },
       workDir: cwd,
-      agentsDir: "agents",
-      metricsDir: "metrics",
-      logsDir: "logs",
-      notifications: true,
-      logPrompts: true,
-      showPricing: false,
-      showWeeklyMetrics: true,
-      verboseOutput: false,
-      maxCriticRetries: 3,
-    };
-    return { config: fallback, cwd };
+    });
+    return { config, cwd };
   }
 }
 
