@@ -7,6 +7,7 @@ const LOCKFILE_TO_INSTALL: Array<[string, string[]]> = [
   ["pnpm-lock.yaml", ["pnpm", "install", "--frozen-lockfile"]],
   ["package-lock.json", ["npm", "ci"]],
   ["yarn.lock", ["yarn", "install", "--immutable"]],
+  ["bun.lock", ["bun", "install", "--frozen-lockfile"]],
   ["bun.lockb", ["bun", "install", "--frozen-lockfile"]],
 ];
 
