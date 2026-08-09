@@ -9,6 +9,7 @@ dist/
 # Tooling caches
 .turbo/
 .eslintcache
+node-compile-cache/
 
 # Planning / brainstorming artefacts - kept local, never commit these
 docs/superpowers/
