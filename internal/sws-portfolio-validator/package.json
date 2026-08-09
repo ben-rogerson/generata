@@ -1,0 +1,27 @@
+{
+  "name": "@generata/sws-portfolio-validator",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "auth": "tsx src/auth.ts",
+    "validate": "tsx src/validate.ts",
+    "validate:read-only": "SWS_SKIP_MUTATIONS=true tsx src/validate.ts",
+    "test": "node --test --import tsx 'src/**/*.test.ts'",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check"
+  },
+  "dependencies": {
+    "playwright": "^1.49.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "oxfmt": "^0.48.0",
+    "oxlint": "^1.63.0",
+    "oxlint-tsgolint": "^0.22.1",
+    "typescript": "^6.0.3"
+  }
+}
